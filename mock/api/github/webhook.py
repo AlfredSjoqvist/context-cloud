@@ -37,41 +37,75 @@ APP_ID = os.environ.get("GITHUB_APP_ID", "")
 # Vercel sometimes turns real linebreaks into the literal string "\n"; normalize.
 PRIVATE_KEY = os.environ.get("GITHUB_PRIVATE_KEY", "").replace("\\n", "\n")
 
+CONVEX_URL = os.environ.get(
+    "CONVEX_URL", "https://colorless-porcupine-926.convex.cloud"
+)
 
-# DEMO_NOTES: maps a path-suffix to a list of notes that should fire on it.
-# Replace with real DB lookup once Convex is wired up.
-DEMO_NOTES: dict[str, list[dict]] = {
-    "client.ts": [
-        {
-            "id": "note-7f3a",
-            "symptom": "Hardcoded API URL committed in client code.",
-            "cause": "Project convention requires INTERNAL_API_BASE env var; literal hosts must never be committed.",
-            "correction": "Read from process.env.INTERNAL_API_BASE.",
-            "importance": 0.82,
-            "injects": 14,
-        }
-    ],
-    ".env.example": [
-        {
-            "id": "note-2c19",
-            "symptom": "Real values leaked into the example env file.",
-            "cause": "Sample env files should reflect the convention, not real secrets.",
-            "correction": "Use placeholders like `INTERNAL_API_BASE=https://api.example.com`.",
-            "importance": 0.55,
-            "injects": 6,
-        }
-    ],
-    "auth.ts": [
-        {
-            "id": "note-9b41",
-            "symptom": "Logging full auth tokens in error paths.",
-            "cause": "Tokens in logs end up in third-party log aggregators; org-wide rule.",
-            "correction": "Wrap with `redact_token()` before any logger call.",
-            "importance": 0.91,
-            "injects": 22,
-        }
-    ],
-}
+
+def _normalize_path(p: str) -> str:
+    return (p or "").replace("\\", "/").lower()
+
+
+def _basename(p: str) -> str:
+    return _normalize_path(p).rsplit("/", 1)[-1]
+
+
+def _convex_query(path: str, args: dict) -> object:
+    try:
+        r = requests.post(
+            f"{CONVEX_URL}/api/query",
+            json={"path": path, "args": args, "format": "json"},
+            timeout=8,
+        )
+        if r.status_code != 200:
+            return None
+        body = r.json()
+        if body.get("status") != "success":
+            return None
+        return body.get("value")
+    except Exception:
+        return None
+
+
+def _notes_for_paths(paths: list[str]) -> list[dict]:
+    """Return active notes whose edges match any of the requested paths."""
+    graph = _convex_query("notes:graphSnapshot", {})
+    if not graph or not isinstance(graph, dict):
+        return []
+    notes = graph.get("notes") or []
+    edges = graph.get("edges") or []
+
+    note_by_id: dict[str, dict] = {}
+    for n in notes:
+        nid = n.get("noteId")
+        if nid and not n.get("invalidatedAt"):
+            note_by_id[nid] = n
+
+    requested_norm = {_normalize_path(p) for p in paths if p}
+    requested_base = {_basename(p) for p in paths if p}
+
+    edge_for_note: dict[str, tuple[float, str]] = {}
+    for e in edges:
+        ep = _normalize_path(e.get("path") or "")
+        if not ep:
+            continue
+        if ep in requested_norm or _basename(ep) in requested_base:
+            nid = e.get("noteId")
+            if nid in note_by_id:
+                w = float(e.get("weight") or 0.0)
+                if w > edge_for_note.get(nid, (-1.0, ""))[0]:
+                    edge_for_note[nid] = (w, e.get("path") or "")
+
+    matched = []
+    for nid, (w, p) in edge_for_note.items():
+        n = note_by_id[nid]
+        score = (n.get("importance") or 0.0) * (w if w > 0 else 0.5)
+        matched.append((score, w, p, n))
+    matched.sort(key=lambda t: t[0], reverse=True)
+    return [
+        {"_edge_weight": w, "_edge_path": p, **n}
+        for _, w, p, n in matched
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -174,33 +208,27 @@ def _ensure_mcp_config(token: str, owner: str, repo: str, installation_id: int) 
 
 
 # ---------------------------------------------------------------------------
-# Note matching + comment formatting
+# Comment formatting
 # ---------------------------------------------------------------------------
 
-def _match_notes(file_paths: list[str]) -> list[tuple[str, dict]]:
-    matches: list[tuple[str, dict]] = []
-    for path in file_paths:
-        lower = path.lower()
-        for suffix, notes in DEMO_NOTES.items():
-            if lower.endswith(suffix.lower()):
-                for note in notes:
-                    matches.append((path, note))
-    return matches
-
-
-def _format_comment(matches: list[tuple[str, dict]]) -> str:
+def _format_comment(matches: list[dict]) -> str:
     lines = [
         "**Hindsight** found notes from prior sessions relevant to this PR:",
         "",
     ]
-    for path, note in matches:
+    for note in matches:
+        nid = note.get("noteId", "?")
+        importance = float(note.get("importance") or 0.0)
+        injects = int(note.get("injectCount") or 0)
+        edge_path = note.get("_edge_path") or ""
         lines.append(
-            f"### `{path}` — `{note['id']}`  "
-            f"(importance {note['importance']:.2f}, {note['injects']} injects)"
+            f"### `{edge_path}` — `{nid}`  "
+            f"(importance {importance:.2f}, {injects} injects)"
         )
-        lines.append(f"**Defect:** {note['symptom']}")
-        lines.append(f"**Cause:** {note['cause']}")
-        lines.append(f"**Fix:** {note['correction']}")
+        lines.append(f"**Defect:** {note.get('symptom', '')}")
+        lines.append(f"**Cause:** {note.get('rootCause', '')}")
+        if note.get("correction"):
+            lines.append(f"**Fix:** {note['correction']}")
         lines.append("")
     lines.append("---")
     lines.append(
@@ -247,7 +275,7 @@ def _handle_pull_request(body: dict) -> dict:
         return {"routed": "pull_request", "error": f"files: {fr.status_code}"}
 
     changed = [f.get("filename", "") for f in fr.json()]
-    matches = _match_notes(changed)
+    matches = _notes_for_paths(changed)[:5]
 
     if not matches:
         return {

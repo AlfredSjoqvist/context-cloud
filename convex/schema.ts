@@ -128,6 +128,27 @@ export default defineSchema({
     extractor: v.optional(v.string()),
   }).index("by_run_id", ["runId"]).index("by_leaf_path", ["leafPath"]),
 
+  // External libraries the codebase depends on. The Sources tab is the
+  // dashboard for this table — it shows which docs surface each library
+  // is ingested from, how fresh the cache is, and lets the operator
+  // trigger a refresh through whichever ingestion mechanism applies
+  // (MCP server, direct HTTP, GHSA RSS, OpenAPI spec, GitHub Pages).
+  libraries: defineTable({
+    name: v.string(),                          // 'express', 'convex', 'lodash'
+    detectedFrom: v.array(v.string()),         // file paths where the library is imported / declared
+    source: v.string(),                        // canonical docs URL
+    sourceKind: v.string(),                    // 'mcp' | 'url' | 'github' | 'ghsa' | 'openapi'
+    mcpServer: v.optional(v.string()),         // MCP endpoint id (when sourceKind === 'mcp')
+    version: v.optional(v.string()),
+    lastIngestedAt: v.string(),                // ISO timestamp
+    freshness: v.string(),                     // 'fresh' | 'stale' | 'cve' | 'refreshing'
+    ingestRuns: v.array(v.object({             // recent activity, newest-first
+      ts: v.string(),
+      summary: v.string(),                     // human readable
+      changes: v.optional(v.number()),         // # leaves added/updated
+    })),
+  }).index("by_name", ["name"]),
+
   // -------- ORG / IDENTITY (dashboard) --------
   users: defineTable({
     userId: v.string(),                 // 'u_alfred' style

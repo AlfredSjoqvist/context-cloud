@@ -32,10 +32,12 @@ export const everything = query({
             ctx.db.query("events").order("desc").take(200),
             ctx.db.query("docsIngestRuns").collect(),
         ]);
+        const libraries = await ctx.db.query("libraries").collect();
         return {
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
             cycles, findings, devinRuns, guardianEvents, docsLeaves,
+            libraries,
         };
     },
 });

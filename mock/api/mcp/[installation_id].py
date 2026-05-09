@@ -1,93 +1,143 @@
-"""Hindsight MCP server — HTTP transport.
+"""Hindsight MCP server — HTTP transport, Convex-backed.
 
 Mounted at  /api/mcp/<installation_id>.
 
 The installation_id in the URL path is the org binding: every call is
-implicitly scoped to whichever GitHub App installation owns that id. No
-separate auth token is required for v1; the URL itself is the credential
-(it's randomly assigned by GitHub on install and only known to repos that
-have `.mcp.json` committed).
+implicitly scoped to whichever GitHub App installation owns that id.
 
-Implements the JSON-RPC subset of MCP that Claude Code, Cursor, and Cline
-need to connect, list tools, and call them:
+All reads (get_relevant_notes) go to Convex via the query API. All writes
+(record_event) go to Convex via the http.ts /sync/* endpoints. Each
+get_relevant_notes call also logs a synthetic injection so the dashboard's
+activity feed updates in real time.
 
-  - initialize
-  - notifications/initialized   (no-response notification)
+MCP methods implemented:
+  - initialize / notifications/initialized / ping
   - tools/list
   - tools/call
-  - ping
 
-Tools exposed:
-
-  - get_relevant_notes(file_paths)  -> notes attached to those files
-  - record_event(event)             -> stub: logs to Vercel function logs
-
-For the demo, notes come from a hardcoded DEMO_NOTES dict (kept in sync
-with mock/api/github/webhook.py). A real backend (Convex) replaces this
-in v2 without changing the protocol surface.
+Tools:
+  - get_relevant_notes(file_paths) -> notes from Convex notes:graphSnapshot
+  - record_event(event)            -> /sync/session upsert
 """
 
 import json
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
+
+import requests
 
 
 PROTOCOL_VERSION = "2024-11-05"
 
-
-# Keep in sync with mock/api/github/webhook.py
-DEMO_NOTES: dict[str, list[dict]] = {
-    "client.ts": [
-        {
-            "id": "note-7f3a",
-            "symptom": "Hardcoded API URL committed in client code.",
-            "cause": "Project convention requires INTERNAL_API_BASE env var; literal hosts must never be committed.",
-            "correction": "Read from process.env.INTERNAL_API_BASE.",
-            "importance": 0.82,
-            "injects": 14,
-        }
-    ],
-    ".env.example": [
-        {
-            "id": "note-2c19",
-            "symptom": "Real values leaked into the example env file.",
-            "cause": "Sample env files should reflect the convention, not real secrets.",
-            "correction": "Use placeholders like `INTERNAL_API_BASE=https://api.example.com`.",
-            "importance": 0.55,
-            "injects": 6,
-        }
-    ],
-    "auth.ts": [
-        {
-            "id": "note-9b41",
-            "symptom": "Logging full auth tokens in error paths.",
-            "cause": "Tokens in logs end up in third-party log aggregators; org-wide rule.",
-            "correction": "Wrap with `redact_token()` before any logger call.",
-            "importance": 0.91,
-            "injects": 22,
-        }
-    ],
-}
+CONVEX_URL = os.environ.get(
+    "CONVEX_URL", "https://colorless-porcupine-926.convex.cloud"
+)
+CONVEX_SITE_URL = os.environ.get(
+    "CONVEX_SITE_URL", "https://colorless-porcupine-926.convex.site"
+)
+NM_SYNC_TOKEN = os.environ.get("NM_SYNC_TOKEN", "")
 
 
 # ---------------------------------------------------------------------------
-# Tool implementations
+# Convex helpers
 # ---------------------------------------------------------------------------
 
-def _match_notes(file_paths: list) -> list[dict]:
-    matches: list[dict] = []
-    for p in file_paths or []:
-        if not isinstance(p, str):
+def _convex_query(path: str, args: dict) -> object:
+    """Call a Convex query function. Returns parsed value, or None on error."""
+    try:
+        r = requests.post(
+            f"{CONVEX_URL}/api/query",
+            json={"path": path, "args": args, "format": "json"},
+            timeout=8,
+        )
+        if r.status_code != 200:
+            print(f"[mcp] convex query {path} -> {r.status_code} {r.text[:200]}")
+            return None
+        body = r.json()
+        if body.get("status") != "success":
+            print(f"[mcp] convex query {path} not ok: {body}")
+            return None
+        return body.get("value")
+    except Exception as e:
+        print(f"[mcp] convex query {path} exception: {e}")
+        return None
+
+
+def _convex_post(route: str, body: dict) -> bool:
+    """POST to a Convex http.ts /sync/* route. Returns True on 200."""
+    try:
+        headers = {"Content-Type": "application/json"}
+        if NM_SYNC_TOKEN:
+            headers["X-NM-TOKEN"] = NM_SYNC_TOKEN
+        r = requests.post(
+            f"{CONVEX_SITE_URL}{route}",
+            json=body,
+            headers=headers,
+            timeout=8,
+        )
+        if r.status_code != 200:
+            print(f"[mcp] convex POST {route} -> {r.status_code} {r.text[:200]}")
+            return False
+        return True
+    except Exception as e:
+        print(f"[mcp] convex POST {route} exception: {e}")
+        return False
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Note matching
+# ---------------------------------------------------------------------------
+
+def _normalize_path(p: str) -> str:
+    return (p or "").replace("\\", "/").lower()
+
+
+def _basename(p: str) -> str:
+    return _normalize_path(p).rsplit("/", 1)[-1]
+
+
+def _match_notes_from_graph(graph: dict, requested_paths: list[str]) -> list[dict]:
+    """Filter notes whose edges match any requested path (full or basename)."""
+    if not graph or not isinstance(graph, dict):
+        return []
+    notes = graph.get("notes") or []
+    edges = graph.get("edges") or []
+
+    note_by_id: dict[str, dict] = {}
+    for n in notes:
+        nid = n.get("noteId")
+        if nid and not n.get("invalidatedAt"):
+            note_by_id[nid] = n
+
+    requested_norm = {_normalize_path(p) for p in requested_paths if p}
+    requested_base = {_basename(p) for p in requested_paths if p}
+
+    edge_weight: dict[str, float] = {}
+    for e in edges:
+        ep = _normalize_path(e.get("path") or "")
+        if not ep:
             continue
-        lower = p.lower()
-        for suffix, notes in DEMO_NOTES.items():
-            if lower.endswith(suffix.lower()):
-                for n in notes:
-                    if n not in matches:
-                        matches.append(n)
-    return matches
+        if ep in requested_norm or _basename(ep) in requested_base:
+            nid = e.get("noteId")
+            if nid in note_by_id:
+                w = float(e.get("weight") or 0.0)
+                if w > edge_weight.get(nid, -1.0):
+                    edge_weight[nid] = w
+
+    matched = []
+    for nid, w in edge_weight.items():
+        n = note_by_id[nid]
+        score = (n.get("importance") or 0.0) * (w if w > 0 else 0.5)
+        matched.append((score, w, n))
+    matched.sort(key=lambda t: t[0], reverse=True)
+    return [{"_edge_weight": w, **n} for _, w, n in matched]
 
 
 def _format_notes_text(notes: list[dict], paths: list[str]) -> str:
@@ -95,15 +145,24 @@ def _format_notes_text(notes: list[dict], paths: list[str]) -> str:
         return f"No Hindsight notes attached to: {', '.join(paths) or '(no paths)'}"
     lines = [f"Hindsight injected {len(notes)} note(s) for {', '.join(paths)}:"]
     for n in notes:
+        nid = n.get("noteId", "?")
+        importance = float(n.get("importance") or 0.0)
+        injects = int(n.get("injectCount") or 0)
+        edge_w = float(n.get("_edge_weight") or 0.0)
         lines.append("")
         lines.append(
-            f"[{n['id']}]  importance={n['importance']:.2f}  injects={n['injects']}"
+            f"[{nid}]  importance={importance:.2f}  injects={injects}  edge={edge_w:.2f}"
         )
-        lines.append(f"  Defect: {n['symptom']}")
-        lines.append(f"  Cause:  {n['cause']}")
-        lines.append(f"  Fix:    {n['correction']}")
+        lines.append(f"  Defect: {n.get('symptom', '')}")
+        lines.append(f"  Cause:  {n.get('rootCause', '')}")
+        if n.get("correction"):
+            lines.append(f"  Fix:    {n['correction']}")
     return "\n".join(lines)
 
+
+# ---------------------------------------------------------------------------
+# Tool implementations
+# ---------------------------------------------------------------------------
 
 def _tool_get_relevant_notes(args: dict, installation_id: str) -> dict:
     paths_arg = args.get("file_paths") or []
@@ -113,18 +172,61 @@ def _tool_get_relevant_notes(args: dict, installation_id: str) -> dict:
         paths = [p for p in paths_arg if isinstance(p, str)]
     else:
         paths = []
-    notes = _match_notes(paths)
+
+    graph = _convex_query("notes:graphSnapshot", {})
+    notes = _match_notes_from_graph(graph or {}, paths)[:5]
+
     print(
         f"[hindsight-mcp:{installation_id}] get_relevant_notes "
         f"paths={paths} matched={len(notes)}"
     )
-    return {"content": [{"type": "text", "text": _format_notes_text(notes, paths)}]}
+
+    # Side effect — log each match as an injection so the dashboard's
+    # activity feed updates live. Best-effort; never blocks the tool result.
+    # Body shape constrained to recordInjection's validator (no rich fields).
+    now_iso = _now_iso()
+    for n in notes:
+        primary_path = paths[0] if paths else None
+        _convex_post(
+            "/sync/injection",
+            {
+                "ts": now_iso,
+                "sessionId": f"mcp-{installation_id}",
+                "path": primary_path,
+                "toolName": "Claude Code (hosted MCP)",
+                "noteId": n.get("noteId"),
+                "accepted": True,
+            },
+        )
+
+    return {
+        "content": [{"type": "text", "text": _format_notes_text(notes, paths)}]
+    }
 
 
 def _tool_record_event(args: dict, installation_id: str) -> dict:
     event = args.get("event") or {}
     summary = json.dumps(event)[:300]
     print(f"[hindsight-mcp:{installation_id}] record_event {summary}")
+
+    session_id = (
+        event.get("session_id")
+        or event.get("sessionId")
+        or f"mcp-{installation_id}"
+    )
+    cwd = event.get("cwd") or event.get("project_root") or ""
+    _convex_post(
+        "/sync/session",
+        {
+            "sessionId": session_id,
+            "agentVendor": event.get("agent") or "Claude Code (hosted MCP)",
+            "cwd": cwd,
+            "projectRoot": event.get("project_root") or cwd,
+            "startedAt": event.get("started_at") or _now_iso(),
+            "lastSeenAt": _now_iso(),
+            "messageCount": event.get("message_count") or 1,
+        },
+    )
     return {"content": [{"type": "text", "text": "recorded"}]}
 
 
@@ -136,7 +238,7 @@ def _initialize_result() -> dict:
     return {
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"tools": {"listChanged": False}},
-        "serverInfo": {"name": "hindsight", "version": "0.1.0"},
+        "serverInfo": {"name": "hindsight", "version": "0.2.0"},
         "instructions": (
             "Hindsight is the shared-memory layer for this org's coding agents. "
             "Call get_relevant_notes(file_paths) before reading or editing any "
@@ -205,7 +307,6 @@ def _call_tool(name: str, args: dict, installation_id: str) -> dict:
 
 
 def _route(method: str, params: dict, installation_id: str):
-    """Return a JSON-RPC `result` dict, or None for notifications / unknown."""
     if method == "initialize":
         return _initialize_result()
     if method == "tools/list":
@@ -225,7 +326,6 @@ def _route(method: str, params: dict, installation_id: str):
 
 def _extract_installation_id(path: str) -> str:
     parts = [p for p in path.split("?")[0].split("/") if p]
-    # path looks like /api/mcp/<id>
     if len(parts) >= 3 and parts[0] == "api" and parts[1] == "mcp":
         return parts[2]
     if len(parts) >= 2 and parts[0] == "mcp":
@@ -265,6 +365,7 @@ class handler(BaseHTTPRequestHandler):
                     "installation_id": installation_id,
                     "protocol": PROTOCOL_VERSION,
                     "transport": "streamable-http (request/response)",
+                    "convex": CONVEX_URL,
                 }
             ).encode()
         )
@@ -283,7 +384,6 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(b'{"error":"invalid json"}')
             return
 
-        # Notifications have no `id` field and expect no response.
         method = req.get("method", "")
         params = req.get("params") or {}
         rpc_id = req.get("id")

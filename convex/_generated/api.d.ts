@@ -19,6 +19,7 @@ import type * as gc from "../gc.js";
 import type * as http from "../http.js";
 import type * as hurdles from "../hurdles.js";
 import type * as injections from "../injections.js";
+import type * as libraries from "../libraries.js";
 import type * as notes from "../notes.js";
 import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   hurdles: typeof hurdles;
   injections: typeof injections;
+  libraries: typeof libraries;
   notes: typeof notes;
   seed: typeof seed;
   sessions: typeof sessions;

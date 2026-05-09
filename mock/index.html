@@ -2684,123 +2684,293 @@
   .g-status-pills { display: flex; gap: 4px; }
   .g-status-pills .pill { padding: 3px 9px; font-size: 11px; }
 
-  /* ─── Sources view (convergence) ────────────────────── */
+  /* ─── Sources view (external library registry) ────────── */
   .view-sources { grid-template-columns: 1fr; }
-  .src-stage {
-    overflow: hidden;
+  .src2-stage {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
     background:
-      radial-gradient(ellipse at 30% 30%, rgba(124,158,255,.04), transparent 50%),
-      radial-gradient(ellipse at 70% 70%, rgba(110,231,183,.03), transparent 50%),
+      radial-gradient(ellipse at 30% 0%, rgba(124,158,255,.04), transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(196,155,255,.03), transparent 50%),
       var(--bg);
   }
-  .src-intro { padding: 18px 28px 12px; max-width: 920px; }
-  .src-intro .title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; letter-spacing: -0.005em; }
-  .src-intro .sub { font-size: 12px; color: var(--text-3); line-height: 1.5; }
-  .src-intro .sub b { color: var(--text-2); font-weight: 500; }
+  .src2-header {
+    display: flex; align-items: flex-start; gap: 24px;
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .src2-header-l { flex: 1; min-width: 0; }
+  .src2-title { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; margin-bottom: 4px; }
+  .src2-sub { font-size: 12px; color: var(--text-3); line-height: 1.5; max-width: 720px; }
+  .src2-sub b { color: var(--text-2); font-weight: 500; }
+  .src2-header-r {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    flex-shrink: 0;
+  }
+  .src2-stats { display: flex; gap: 14px; }
+  .src2-stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .src2-stat .num { font-size: 16px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .src2-stat .lbl { font-size: 9.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .src2-stat.fresh .num { color: var(--green); }
+  .src2-stat.stale .num { color: var(--note); }
+  .src2-stat.cve   .num { color: var(--red); }
+  .src2-stat.gap   .num { color: var(--text-2); }
+  .src2-refresh-all {
+    background: linear-gradient(180deg, rgba(124,158,255,0.18), rgba(124,158,255,0.05));
+    border: 1px solid rgba(124,158,255,0.4);
+    color: var(--file);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    transition: all .15s;
+  }
+  .src2-refresh-all:hover { background: linear-gradient(180deg, rgba(124,158,255,0.28), rgba(124,158,255,0.1)); border-color: var(--file); }
+  .src2-refresh-all.running { background: rgba(196,155,255,.12); color: var(--purple); border-color: rgba(196,155,255,.4); }
+  .src2-refresh-all svg { width: 13px; height: 13px; }
+  .src2-refresh-all.running svg { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-  .src-graph {
+  .src2-body {
     flex: 1;
-    position: relative;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 0;
     min-height: 0;
     overflow: hidden;
-    margin: 0 24px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--bg-elev);
   }
-  #src-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  .src-cols {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 0;
-    height: 100%;
-    z-index: 1;
-  }
-  .src-col {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
+  .src2-list-pane {
     border-right: 1px solid var(--border);
+    background: var(--bg-elev);
+    display: flex; flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
   }
-  .src-col:last-child { border-right: none; }
-  .src-col-head {
-    padding: 10px 14px;
+  .src2-list-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
     font-size: 11px;
     color: var(--text-3);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-weight: 600;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elev);
-    display: flex; justify-content: space-between; align-items: center;
   }
-  .src-col-head span { color: var(--text-2); font-variant-numeric: tabular-nums; font-size: 11px; }
-  .src-col-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-height: 0;
-  }
-  .src-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: background .12s, border-color .12s;
+  .src2-filter-pills { display: flex; gap: 4px; }
+  .src2-filter-pills .pill { padding: 3px 9px; font-size: 10.5px; letter-spacing: 0; text-transform: none; }
+  .src2-list { flex: 1; overflow-y: auto; padding: 8px 10px 16px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .src2-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    font-size: 11.5px;
+    border-left: 3px solid var(--text-4);
+    border-radius: 9px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    display: flex; flex-direction: column; gap: 6px;
   }
-  .src-item:hover { background: var(--surface-2); border-color: var(--border-bright); }
-  .src-item.dim { opacity: 0.25; }
-  .src-item.connected { border-color: rgba(110,231,183,.5); background: rgba(110,231,183,.06); }
-  .src-item.active { border-color: var(--file); background: var(--surface-2); box-shadow: 0 0 0 1px var(--file); }
-  .src-item .src-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .src-item .src-dot.file { background: var(--file); }
-  .src-item .src-dot.note { background: var(--note); }
-  .src-item .src-dot.leaf { background: var(--purple); }
-  .src-item .src-dot.finding { background: var(--green); }
-  .src-item .src-dot.finding.critical { background: var(--red); }
-  .src-item .src-dot.finding.high     { background: var(--note); }
-  .src-item .src-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
-  .src-item .src-name.label { font-family: inherit; font-size: 11.5px; }
-  .src-item .src-meta { color: var(--text-3); font-size: 10px; flex-shrink: 0; }
-
-  /* edges between columns */
-  .src-edge {
-    fill: none;
-    stroke: var(--border-bright);
-    stroke-width: 1;
-    stroke-opacity: 0.25;
-    transition: stroke-opacity .15s, stroke-width .15s, stroke .15s;
-  }
-  .src-edge.file-ctx { stroke: var(--file); }
-  .src-edge.ctx-finding { stroke: var(--note); stroke-dasharray: 3 3; }
-  .src-edge.lit { stroke-opacity: 0.95; stroke-width: 1.8; filter: drop-shadow(0 0 4px currentColor); }
-  .src-edge.dim { stroke-opacity: 0.05; }
-
-  .src-legend {
-    display: flex; flex-wrap: wrap; gap: 18px;
-    padding: 12px 28px 18px;
-    font-size: 10.5px;
+  .src2-card:hover { background: var(--surface-2); border-color: var(--border-bright); }
+  .src2-card.selected { background: var(--surface-2); border-color: var(--file); box-shadow: 0 0 0 1px var(--file); }
+  .src2-card.fresh      { border-left-color: var(--green); }
+  .src2-card.stale      { border-left-color: var(--note); }
+  .src2-card.cve        { border-left-color: var(--red); background: linear-gradient(90deg, rgba(255,122,138,.05), var(--surface)); }
+  .src2-card.refreshing { border-left-color: var(--purple); }
+  .src2-card.gap        { border-left-color: var(--text-3); }
+  .src2-card-head { display: flex; align-items: center; gap: 8px; }
+  .src2-card-icon { width: 14px; height: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; font-weight: 700; color: var(--bg); }
+  .src2-card-icon.fresh      { background: var(--green); color: #0a3d2c; }
+  .src2-card-icon.stale      { background: var(--note); color: #4a2a08; }
+  .src2-card-icon.cve        { background: var(--red); color: white; }
+  .src2-card-icon.refreshing { background: var(--purple); color: white; animation: spin 1.4s linear infinite; }
+  .src2-card-icon.gap        { background: var(--text-3); color: var(--bg); }
+  .src2-card-name { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 12px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src2-card-fresh { font-size: 10px; color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .src2-card.cve .src2-card-fresh   { color: var(--red); }
+  .src2-card.stale .src2-card-fresh { color: var(--note); }
+  .src2-card.refreshing .src2-card-fresh { color: var(--purple); }
+  .src2-card-meta { display: flex; gap: 12px; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .src2-card-meta .v { color: var(--text-2); }
+  .src2-card-source-kind {
+    display: inline-flex; align-items: center;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--surface-2);
     color: var(--text-3);
+    margin-left: auto;
   }
-  .src-legend .leg { display: flex; align-items: center; gap: 5px; }
-  .src-legend .dot { width: 9px; height: 9px; border-radius: 50%; }
-  .src-legend .dot.file { background: var(--file); }
-  .src-legend .dot.note { background: var(--note); }
-  .src-legend .dot.leaf { background: var(--purple); }
-  .src-legend .dot.finding { background: var(--green); }
-  .src-legend .line { width: 18px; height: 0; border-top: 1.6px solid; }
-  .src-legend .line.file-ctx    { border-top-color: var(--file); }
-  .src-legend .line.ctx-finding { border-top-color: var(--note); border-top-style: dashed; }
+  .src2-card-source-kind.mcp     { background: rgba(196,155,255,.18); color: var(--purple); }
+  .src2-card-source-kind.url     { background: var(--surface-2); color: var(--text-2); }
+  .src2-card-source-kind.github  { background: rgba(110,231,183,.15); color: var(--green); }
+  .src2-card-source-kind.ghsa    { background: rgba(255,122,138,.15); color: var(--red); }
+  .src2-card-source-kind.openapi { background: rgba(255,184,107,.15); color: var(--note); }
+  .src2-card-source-kind.gap     { background: var(--surface-2); color: var(--text-3); border: 1px dashed var(--text-4); }
+
+  .src2-detail {
+    overflow-y: auto;
+    padding: 0;
+    min-width: 0;
+  }
+  .src2-empty {
+    color: var(--text-3); font-size: 12px; text-align: center;
+    padding: 80px 24px; line-height: 1.6;
+  }
+  .src2-detail-body { padding: 22px 28px 32px; }
+  .src2-detail-head {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .src2-detail-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .src2-detail-version {
+    font-size: 11px;
+    color: var(--text-3);
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--surface);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .src2-detail-fresh-badge {
+    margin-left: auto;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .src2-detail-fresh-badge.fresh      { background: rgba(110,231,183,.15); color: var(--green); }
+  .src2-detail-fresh-badge.stale      { background: rgba(255,184,107,.15); color: var(--note); }
+  .src2-detail-fresh-badge.cve        { background: rgba(255,122,138,.18); color: rgb(255,140,120); }
+  .src2-detail-fresh-badge.refreshing { background: rgba(196,155,255,.15); color: var(--purple); }
+  .src2-detail-fresh-badge.gap        { background: var(--surface-2); color: var(--text-3); border: 1px dashed var(--text-4); }
+
+  .src2-section { margin-bottom: 18px; }
+  .src2-section-head {
+    font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .src2-source-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .src2-source-row { display: flex; gap: 12px; font-size: 11.5px; }
+  .src2-source-row .k { color: var(--text-3); width: 90px; flex-shrink: 0; font-size: 10.5px; }
+  .src2-source-row .v { color: var(--text); flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; word-break: break-all; }
+  .src2-source-row .v a { color: var(--file); text-decoration: none; }
+  .src2-source-row .v a:hover { text-decoration: underline; }
+
+  .src2-files-list { display: flex; flex-direction: column; gap: 4px; }
+  .src2-file-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-2);
+  }
+  .src2-file-chip .repo {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+    background: var(--surface-2); color: var(--text-3);
+    padding: 1px 6px; border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .src2-file-chip .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+
+  .src2-runs-list { display: flex; flex-direction: column; gap: 4px; }
+  .src2-run-row {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 11px;
+  }
+  .src2-run-row .ts { color: var(--text-3); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+  .src2-run-row .summary { color: var(--text); }
+  .src2-run-row .changes {
+    font-size: 10.5px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px;
+    background: var(--surface-2); color: var(--text-3);
+  }
+  .src2-run-row .changes.has  { background: rgba(110,231,183,.12); color: var(--green); }
+
+  .src2-leaves-list { display: flex; flex-direction: column; gap: 4px; }
+  .src2-leaf-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--purple);
+    border-radius: 7px;
+    font-size: 11px;
+  }
+  .src2-leaf-name { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src2-leaf-rules { color: var(--text-3); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+  .src2-refresh-btn {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(110,231,183,0.16), rgba(110,231,183,0.04));
+    border: 1px solid rgba(110,231,183,0.4);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 9px 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all .15s;
+    margin-top: 4px;
+  }
+  .src2-refresh-btn:hover { background: linear-gradient(180deg, rgba(110,231,183,0.26), rgba(110,231,183,0.08)); border-color: var(--green); }
+  .src2-refresh-btn.running { background: rgba(196,155,255,.12); border-color: rgba(196,155,255,.4); color: var(--purple); pointer-events: none; }
+  .src2-refresh-btn svg { width: 14px; height: 14px; }
+  .src2-refresh-btn.running svg { animation: spin 1s linear infinite; }
+
+  .src2-cite-list { display: flex; flex-direction: column; gap: 4px; }
+  .src2-cite-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 11px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+  }
+  .src2-cite-fp { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 10.5px; }
+  .src2-cite-sev {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+  }
+  .src2-cite-sev.critical { background: rgba(255,110,95,.18); color: rgb(255,140,120); }
+  .src2-cite-sev.high     { background: rgba(255,184,107,.18); color: var(--note); }
+  .src2-cite-sev.medium   { background: rgba(124,158,255,.15); color: var(--file); }
+  .src2-cite-path { color: var(--text-2); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -3408,43 +3578,51 @@
 
   <!-- Sources view (convergence: files ↔ context ↔ findings) ── -->
   <div class="view view-sources" data-view="sources">
-    <div class="src-stage">
-      <div class="src-intro">
-        <div class="title">How Guardian sees your codebase</div>
-        <div class="sub">
-          Three columns, one story. <b>Files</b> on the left.
-          Each file's <b>NM notes</b> (institutional memory from prior agent sessions) and
-          <b>docs leaves</b> (constraints from heterogeneous-doc ingestion) in the middle.
-          Guardian's <b>findings</b> on the right — every finding is wired back to the
-          notes + leaves that informed it.
+    <div class="src2-stage">
+      <div class="src2-header">
+        <div class="src2-header-l">
+          <div class="src2-title">External library registry</div>
+          <div class="src2-sub">
+            Detected from manifests + imports across the org's <b>5 ACME repos</b>.
+            Each library tracks where its docs come from (MCP server · direct URL · GHSA feed · OpenAPI · GitHub Pages),
+            how fresh that cache is, and what changed in recent ingestion runs.
+          </div>
+        </div>
+        <div class="src2-header-r">
+          <div class="src2-stats" id="src2-stats">
+            <span class="src2-stat"><span class="num" id="src2-total">0</span><span class="lbl">libs</span></span>
+            <span class="src2-stat fresh"><span class="num" id="src2-fresh">0</span><span class="lbl">fresh</span></span>
+            <span class="src2-stat stale"><span class="num" id="src2-stale">0</span><span class="lbl">stale</span></span>
+            <span class="src2-stat cve"><span class="num" id="src2-cve">0</span><span class="lbl">cve</span></span>
+            <span class="src2-stat gap"><span class="num" id="src2-gap">0</span><span class="lbl">gap</span></span>
+          </div>
+          <button class="src2-refresh-all" id="src2-refresh-all">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            Refresh all
+          </button>
         </div>
       </div>
 
-      <div class="src-graph" id="src-graph">
-        <svg id="src-svg"></svg>
-        <div class="src-cols">
-          <div class="src-col src-col-files">
-            <div class="src-col-head">Files <span id="src-files-count">0</span></div>
-            <div class="src-col-body" id="src-files-list"></div>
+      <div class="src2-body">
+        <aside class="src2-list-pane">
+          <div class="src2-list-head">
+            <span>Tracked libraries</span>
+            <div class="src2-filter-pills">
+              <button class="pill on" data-src2-filter="all">All</button>
+              <button class="pill" data-src2-filter="needs">Needs attention</button>
+            </div>
           </div>
-          <div class="src-col src-col-ctx">
-            <div class="src-col-head">Context <span id="src-ctx-count">0</span></div>
-            <div class="src-col-body" id="src-ctx-list"></div>
-          </div>
-          <div class="src-col src-col-findings">
-            <div class="src-col-head">Findings <span id="src-findings-count">0</span></div>
-            <div class="src-col-body" id="src-findings-list"></div>
-          </div>
-        </div>
-      </div>
+          <div class="src2-list" id="src2-list"></div>
+        </aside>
 
-      <div class="src-legend">
-        <span class="leg"><span class="dot file"></span>file</span>
-        <span class="leg"><span class="dot note"></span>NM note</span>
-        <span class="leg"><span class="dot leaf"></span>docs leaf</span>
-        <span class="leg"><span class="dot finding"></span>Guardian finding</span>
-        <span class="leg"><span class="line file-ctx"></span>file ↔ context</span>
-        <span class="leg"><span class="line ctx-finding"></span>context → finding (provenance)</span>
+        <main class="src2-detail" id="src2-detail">
+          <div class="src2-empty">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 12px">
+              <path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>
+            </svg>
+            <div>Pick a library on the left to see its docs source, ingestion history, and refresh state.</div>
+          </div>
+        </main>
       </div>
     </div>
   </div>
@@ -4025,6 +4203,7 @@ const FINDINGS = [];         // { fingerprint, cycleDetected, status, severity, 
 const DEVIN_RUNS = [];       // { findingId, devinRunId, ts, iteration, prNumber, prUrl, prMergedAt, outcome }
 const GUARDIAN_EVENTS = [];  // { ts, level, message, cycleNumber }
 const DOCS_LEAVES = [];      // { leafPath, lib, topic, ruleCount, appliesTo, sourceUri, sourceUrl }
+const LIBRARIES = [];        // { name, detectedFrom[], source, sourceKind, mcpServer?, version?, lastIngestedAt, freshness, ingestRuns[] }
 
 /* generate injection event log */
 const REJECT_REASONS = ['budget exceeded', 'stale (recently injected)', 'conflict with n_71b2', 'off-topic for current session'];
@@ -6857,11 +7036,246 @@ function setupGuardian() {
   });
 }
 
-/* ─── Sources view (convergence) ────────────── */
+/* ─── Sources view (external library registry) ─────── */
 let sourcesInited = false;
-let srcLayout = null;
+let srcSelectedLib = null;
+let src2Filter = 'all';
 
-function buildSourcesData() {
+const LIBRARIES_BY_NAME = {};
+
+function srcRepoFor(path) {
+  const m = path.match(/^mock_org\/([^/]+)\//);
+  return m ? m[1] : '—';
+}
+
+function srcRefreshLabel(lib) {
+  if (lib.freshness === 'refreshing') return 'refreshing';
+  if (lib.freshness === 'gap') return 'no manifest';
+  const ts = new Date(lib.lastIngestedAt).getTime();
+  if (!ts) return '—';
+  const min = Math.max(1, Math.floor((Date.now() - ts) / 60000));
+  if (min < 60) return min + 'm';
+  const h = Math.floor(min / 60);
+  if (h < 24) return h + 'h';
+  return Math.floor(h / 24) + 'd';
+}
+
+function srcStatusGlyph(freshness) {
+  return freshness === 'cve' ? '!' :
+         freshness === 'stale' ? '·' :
+         freshness === 'refreshing' ? '↻' :
+         freshness === 'gap' ? '?' :
+         '✓';
+}
+
+function renderSources() {
+  const libs = LIBRARIES.slice();
+  // Sort: cve → stale → refreshing → fresh → gap; within group, oldest ingest first
+  const order = { cve: 0, stale: 1, refreshing: 2, fresh: 3, gap: 4 };
+  libs.sort((a, b) => {
+    const da = order[a.freshness] ?? 9;
+    const db = order[b.freshness] ?? 9;
+    if (da !== db) return da - db;
+    return new Date(a.lastIngestedAt).getTime() - new Date(b.lastIngestedAt).getTime();
+  });
+
+  const filtered = src2Filter === 'needs'
+    ? libs.filter(l => ['cve','stale','gap','refreshing'].includes(l.freshness))
+    : libs;
+
+  // header stats
+  document.getElementById('src2-total').textContent = libs.length;
+  document.getElementById('src2-fresh').textContent = libs.filter(l => l.freshness === 'fresh').length;
+  document.getElementById('src2-stale').textContent = libs.filter(l => l.freshness === 'stale').length;
+  document.getElementById('src2-cve').textContent   = libs.filter(l => l.freshness === 'cve').length;
+  document.getElementById('src2-gap').textContent   = libs.filter(l => l.freshness === 'gap').length;
+
+  const list = document.getElementById('src2-list');
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="ms-empty" style="padding:24px 16px">No libraries match this filter.</div>`;
+  } else {
+    list.innerHTML = filtered.map(l => {
+      const fresh = srcRefreshLabel(l);
+      const fileCount = (l.detectedFrom || []).length;
+      return `<div class="src2-card ${l.freshness} ${l.name === srcSelectedLib ? 'selected' : ''}" data-lib="${escapeHtml(l.name)}">
+        <div class="src2-card-head">
+          <span class="src2-card-icon ${l.freshness}">${srcStatusGlyph(l.freshness)}</span>
+          <span class="src2-card-name">${escapeHtml(l.name)}</span>
+          <span class="src2-card-fresh">${fresh}</span>
+        </div>
+        <div class="src2-card-meta">
+          <span><span class="v">${fileCount}</span> file${fileCount === 1 ? '' : 's'}</span>
+          <span><span class="v">${l.version || '—'}</span></span>
+          <span class="src2-card-source-kind ${l.sourceKind}">${l.sourceKind}</span>
+        </div>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.src2-card').forEach(c => {
+      c.addEventListener('click', () => {
+        srcSelectedLib = c.dataset.lib;
+        document.querySelectorAll('.src2-card').forEach(x => x.classList.toggle('selected', x.dataset.lib === srcSelectedLib));
+        renderLibraryDetail(srcSelectedLib);
+      });
+    });
+  }
+
+  // pre-select first library (highest priority — CVE first)
+  if (!srcSelectedLib && libs.length > 0) srcSelectedLib = libs[0].name;
+  if (srcSelectedLib) renderLibraryDetail(srcSelectedLib);
+}
+
+function renderLibraryDetail(name) {
+  const lib = LIBRARIES_BY_NAME[name];
+  const detail = document.getElementById('src2-detail');
+  if (!lib) {
+    detail.innerHTML = `<div class="src2-empty">Library not found.</div>`;
+    return;
+  }
+  // Find leaves whose `lib` matches (best-effort — old leaf names may not align)
+  const matchedLeaves = DOCS_LEAVES.filter(l => l.lib === lib.name);
+  // Findings citing any of those leaves
+  const matchedLeafPaths = new Set(matchedLeaves.map(l => l.leafPath));
+  const citingFindings = FINDINGS.filter(f =>
+    (f.usedContext.docsLeafIds || []).some(id => matchedLeafPaths.has(id))
+  );
+
+  // ingestion source label per kind
+  const sourceKindLabel = {
+    mcp:     'MCP server (live tool)',
+    url:     'Direct HTTP (canonical docs site)',
+    github:  'GitHub releases + Pages',
+    ghsa:    'GHSA security advisory feed',
+    openapi: 'OpenAPI spec (swagger-parser)',
+    gap:     'no manifest detected',
+  }[lib.sourceKind] || lib.sourceKind;
+
+  const html = `<div class="src2-detail-body">
+    <div class="src2-detail-head">
+      <span class="src2-detail-name">${escapeHtml(lib.name)}</span>
+      ${lib.version ? `<span class="src2-detail-version">${escapeHtml(lib.version)}</span>` : ''}
+      <span class="src2-detail-fresh-badge ${lib.freshness}">${lib.freshness}</span>
+    </div>
+
+    <div class="src2-section">
+      <div class="src2-section-head">Source</div>
+      <div class="src2-source-card">
+        <div class="src2-source-row"><span class="k">URL</span><span class="v">${lib.source === '—' ? '—' : `<a href="${escapeHtml(lib.source)}" target="_blank">${escapeHtml(lib.source)}</a>`}</span></div>
+        <div class="src2-source-row"><span class="k">Method</span><span class="v" style="font-family:inherit">${escapeHtml(sourceKindLabel)}</span></div>
+        ${lib.mcpServer ? `<div class="src2-source-row"><span class="k">MCP server</span><span class="v">${escapeHtml(lib.mcpServer)}</span></div>` : ''}
+        <div class="src2-source-row"><span class="k">Last ingest</span><span class="v" style="font-family:inherit">${lib.freshness === 'gap' ? 'never (no manifest)' : new Date(lib.lastIngestedAt).toLocaleString() + ' · ' + srcRefreshLabel(lib) + ' ago'}</span></div>
+      </div>
+    </div>
+
+    <div class="src2-section">
+      <div class="src2-section-head">Detected from (${(lib.detectedFrom || []).length})</div>
+      <div class="src2-files-list">
+        ${(lib.detectedFrom || []).map(p => {
+          const repo = srcRepoFor(p);
+          const after = p.replace(/^mock_org\/[^/]+\//, '');
+          return `<div class="src2-file-chip"><span class="repo">${escapeHtml(repo)}</span><span class="path" title="${escapeHtml(p)}">${escapeHtml(after || p)}</span></div>`;
+        }).join('') || '<div style="color:var(--text-3); font-size:11px; padding:6px 10px">no detection sources</div>'}
+      </div>
+    </div>
+
+    <div class="src2-section">
+      <div class="src2-section-head">Recent ingestion runs (${(lib.ingestRuns || []).length})</div>
+      <div class="src2-runs-list">
+        ${(lib.ingestRuns || []).map(r => {
+          const ts = new Date(r.ts).getTime();
+          const ago = Math.max(1, Math.floor((Date.now() - ts) / 60000));
+          const agoStr = ago < 60 ? ago + 'm ago' : ago < 1440 ? Math.floor(ago/60) + 'h ago' : Math.floor(ago/1440) + 'd ago';
+          const ch = r.changes || 0;
+          return `<div class="src2-run-row">
+            <span class="ts">${agoStr}</span>
+            <span class="summary">${escapeHtml(r.summary)}</span>
+            <span class="changes ${ch > 0 ? 'has' : ''}">${ch > 0 ? '+' + ch : '—'}</span>
+          </div>`;
+        }).join('') || '<div style="color:var(--text-3); font-size:11px; padding:6px 10px">no runs yet</div>'}
+      </div>
+    </div>
+
+    ${matchedLeaves.length > 0 ? `<div class="src2-section">
+      <div class="src2-section-head">Ingested leaves (${matchedLeaves.length})</div>
+      <div class="src2-leaves-list">
+        ${matchedLeaves.map(l => `<div class="src2-leaf-row">
+          <span class="src2-leaf-name">${escapeHtml(l.leafPath)}</span>
+          <span class="src2-leaf-rules">${l.ruleCount} rule${l.ruleCount === 1 ? '' : 's'}</span>
+          <span class="src2-leaf-rules">${escapeHtml(l.topic)}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    ${citingFindings.length > 0 ? `<div class="src2-section">
+      <div class="src2-section-head">Cited in Guardian findings (${citingFindings.length})</div>
+      <div class="src2-cite-list">
+        ${citingFindings.map(f => `<div class="src2-cite-row">
+          <span class="src2-cite-fp">${f.fingerprint}</span>
+          <span class="src2-cite-sev ${f.severity}">${f.severity}</span>
+          <span class="src2-cite-path">${escapeHtml(f.path)}:${f.codeCite.line}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <button class="src2-refresh-btn ${lib.freshness === 'refreshing' ? 'running' : ''}" data-refresh="${escapeHtml(lib.name)}">
+      ${lib.freshness === 'refreshing'
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg> Refreshing via ${escapeHtml(lib.sourceKind === 'mcp' ? lib.mcpServer || 'MCP' : lib.sourceKind)}…`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg> Refresh from ${escapeHtml(lib.sourceKind === 'mcp' ? (lib.mcpServer || 'MCP') : lib.sourceKind === 'gap' ? 'add manifest first' : lib.sourceKind)}`}
+    </button>
+  </div>`;
+  detail.innerHTML = html;
+
+  const btn = detail.querySelector('.src2-refresh-btn');
+  if (btn && lib.freshness !== 'refreshing' && lib.freshness !== 'gap') {
+    btn.addEventListener('click', () => triggerLibraryRefresh(lib.name));
+  }
+}
+
+/* Mock the MCP/HTTP refresh. In production this dispatches a Tensorlake
+   function that re-ingests via the configured source-kind; here we mutate
+   local state, animate "refreshing", and prepend an ingestion run. */
+function triggerLibraryRefresh(name) {
+  const lib = LIBRARIES_BY_NAME[name];
+  if (!lib) return;
+  lib.freshness = 'refreshing';
+  renderSources();
+  setTimeout(() => {
+    lib.lastIngestedAt = new Date().toISOString();
+    lib.freshness = 'fresh';
+    lib.ingestRuns = [
+      { ts: lib.lastIngestedAt, summary: '0 changes detected', changes: 0 },
+      ...(lib.ingestRuns || []),
+    ].slice(0, 8);
+    renderSources();
+  }, 1400);
+}
+
+function setupSources() {
+  document.querySelectorAll('[data-src2-filter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-src2-filter]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      src2Filter = b.dataset.src2Filter;
+      renderSources();
+    });
+  });
+  const allBtn = document.getElementById('src2-refresh-all');
+  if (allBtn) {
+    allBtn.addEventListener('click', () => {
+      allBtn.classList.add('running');
+      const targets = LIBRARIES.filter(l => l.freshness !== 'gap' && l.freshness !== 'refreshing');
+      targets.forEach((l, i) => setTimeout(() => triggerLibraryRefresh(l.name), 200 * i));
+      setTimeout(() => allBtn.classList.remove('running'), 200 * targets.length + 1600);
+    });
+  }
+}
+
+/* legacy convergence functions retired — Sources tab now lives in
+   renderSources / renderLibraryDetail above. The block below is dead
+   code preserved only because some helper names overlap with the
+   library registry's local variables (none anymore). Wrapped in a
+   never-true guard so nothing executes. */
+if (false) {
+function buildSourcesData_legacy() {
   // pull only files that have at least one note edge or docs leaf or finding
   const fileSet = new Set();
   NOTES.forEach(n => n.edges.forEach(e => fileSet.add(e.path)));
@@ -7069,11 +7483,7 @@ function highlightSources(kind, id) {
   });
 }
 
-window.addEventListener('resize', () => {
-  if (sourcesInited && document.querySelector('[data-view="sources"]').classList.contains('on')) {
-    drawSourceEdges();
-  }
-});
+} // close if(false) — legacy convergence Sources block ends
 
 /* ─── Tab switching ──────────────────────────── */
 function switchTab(name) {
@@ -7097,8 +7507,8 @@ function switchTab(name) {
     renderGuardian();
   } else if (name === 'sources') {
     requestAnimationFrame(() => {
-      if (!sourcesInited) { renderSources(); sourcesInited = true; }
-      else { renderSources(); }
+      if (!sourcesInited) { setupSources(); sourcesInited = true; }
+      renderSources();
     });
   }
 }
@@ -7321,6 +7731,21 @@ function applyConvexData(d) {
     extractor: l.extractor,
   }));
   repop(DOCS_LEAVES, newDocsLeaves);
+
+  const newLibraries = (d.libraries || []).map(l => ({
+    name: l.name,
+    detectedFrom: l.detectedFrom || [],
+    source: l.source,
+    sourceKind: l.sourceKind,
+    mcpServer: l.mcpServer,
+    version: l.version,
+    lastIngestedAt: l.lastIngestedAt,
+    freshness: l.freshness,
+    ingestRuns: l.ingestRuns || [],
+  }));
+  repop(LIBRARIES, newLibraries);
+  Object.keys(LIBRARIES_BY_NAME).forEach(k => delete LIBRARIES_BY_NAME[k]);
+  newLibraries.forEach(l => { LIBRARIES_BY_NAME[l.name] = l; });
 
   // recompute matrix similarity
   NOTE_TOKENS.length = 0;
