@@ -8,6 +8,10 @@ import type { DocSource, RawDoc } from "../types.js";
 import { extractRules } from "../extract/rule-extractor.js";
 import { buildLibraryImportMap } from "../link/import-grep.js";
 import { writeLeaf } from "../emit/write-leaves.js";
+import {
+  createConvexRecorder,
+  generateRunId,
+} from "../emit/convex-recorder.js";
 
 interface CliArgs {
   sourceId: string | undefined;
@@ -255,6 +259,22 @@ async function main(): Promise<void> {
     console.log(
       `[emit] wrote ${leaf.absolutePath} (${leaf.ruleCount} rules, applies_to=${JSON.stringify(leaf.appliesTo)})`,
     );
+
+    const recorder = createConvexRecorder({ convexUrl: config.convexUrl });
+    await recorder.record({
+      runId: generateRunId(),
+      lib: source.defaultLibraryName ?? source.id,
+      topic: leaf.relativePath
+        .split("/")
+        .pop()!
+        .replace(/\.md$/, ""),
+      sourceUri: source.uri,
+      ...(source.sourceUrl ? { sourceUrl: source.sourceUrl } : {}),
+      ruleCount: leaf.ruleCount,
+      appliesTo: leaf.appliesTo,
+      leafPath: leaf.relativePath,
+      extractor: extractRes.llmUsed ? "llm" : "regex",
+    });
   }
 
   process.exit(result.errors.length > 0 ? 1 : 0);

@@ -134,6 +134,7 @@ docs-ingest/
 | `DOCS_INGEST_CODEBASE_ROOT` | Codebase the linker greps for imports | sibling demo-target if found, else home |
 | `OPENAI_API_KEY` | If set, LLM extractor activates by default | unset → regex extractor |
 | `OPENAI_MODEL` | LLM model id | `gpt-5` |
+| `CONVEX_URL` | If set, every emitted leaf streams a row to the `docsIngestRuns` table for the live UI feed | unset → Convex skipped (offline demo unaffected) |
 
 ## Tests
 
@@ -141,7 +142,8 @@ docs-ingest/
 npm test
 ```
 
-76 vitest tests across 9 files, hermetic (tmpdirs, OpenAI mocked, no network).
+97 vitest tests across 11 files, hermetic (tmpdirs, OpenAI mocked, no
+network, Convex client mocked).
 Covers the parsers, chunker, modality detector, rule extractor (regex + mocked
 LLM), import grep (including `node_modules` skip), package-imports, leaf path
 helpers, frontmatter rendering, and the byte-identical line-citation

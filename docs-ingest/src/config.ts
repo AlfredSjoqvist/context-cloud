@@ -7,6 +7,10 @@ const EnvSchema = z.object({
   DOCS_INGEST_CODEBASE_ROOT: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default("gpt-5"),
+  CONVEX_URL: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional(),
+  ),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -20,6 +24,7 @@ export interface Config {
     apiKey: string | undefined;
     model: string;
   };
+  convexUrl: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -39,5 +44,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       apiKey: parsed.OPENAI_API_KEY,
       model: parsed.OPENAI_MODEL,
     },
+    convexUrl: parsed.CONVEX_URL,
   };
 }

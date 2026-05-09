@@ -120,18 +120,36 @@ specific demo-target source files.
 - **Direct `nm.db` writes** — kept the integration boundary narrow at
   `.context-map/`. Easy to add later if useful.
 
-## What I'd add next if we have time before 6pm
+## What's been added on top of the original handoff
 
-1. **Live URL ingestion** — `--from-url https://api.github.com/advisories/GHSA-...`
-   so the demo doesn't need a pre-baked fixture. ~45 min.
-2. **Source URL in citation** — store the upstream public URL in frontmatter
-   so every cited rule has a clickable provenance link. ~15 min.
-3. **bcryptjs + cookie-parser fixtures** — they're in demo-target's
+- **Live URL ingestion** — `npx tsx src/cli/ingest.ts --from-url
+  https://api.github.com/advisories/GHSA-XXXX --emit` synthesises an
+  ephemeral source, fetches the GHSA JSON (or any markdown / `text/html`
+  URL), runs the full pipeline, and writes a leaf scoped to the affected
+  package. No registry edits needed.
+- **Source URL preserved in citation** — when known, the upstream public
+  URL is now in both the leaf YAML frontmatter (`source_url:`) and the
+  `## Source` block (`- URL: <https://...>`), so every cited rule has a
+  clickable provenance link.
+- **Convex live ingestion stream** — when `CONVEX_URL` is set, every
+  `--emit` writes one row to a new `docsIngestRuns` table. The schema
+  and `recordRun` mutation live in `convex/docsIngestRuns.ts`. Best-effort:
+  if Convex is unset or unreachable, docs-ingest logs and continues so
+  the offline demo path is unaffected. To make the rows visible in the
+  UI, copy the existing `EventStream.tsx` pattern to subscribe to
+  `api.docsIngestRuns.listRecent`.
+
+## What's still optional if we have time before 6pm
+
+1. **bcryptjs + cookie-parser fixtures** — they're in demo-target's
    `package.json`, would expand the linked-files surface from 7 to 9. ~20 min.
-4. **Convex integration** — write a row per emitted leaf so Nicolas's UI shows
-   ingestion alongside Guardian events live. ~1 hr.
+2. **UI panel for the ingestion stream** — subscribe to
+   `api.docsIngestRuns.listRecent` next to the existing event stream. ~30 min.
+3. **Path-convention linking** — `docs/api/payments.md` →
+   `applies_to: src/api/payments/**`. Strengthens the "doc-to-code grounding"
+   pitch beyond import-only matching. ~45 min.
 
-All optional. Ping me which (if any) you want.
+Ping me which (if any) you want.
 
 ## Where to look if something breaks
 
