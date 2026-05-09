@@ -11,8 +11,7 @@
     "ingest": "tsx src/cli/ingest.ts",
     "register": "tsx src/cli/register.ts",
     "seed": "tsx scripts/seed-sources.ts",
-    "demo": "tsx scripts/demo.ts",
-    "test": "vitest run"
+    "demo": "tsx scripts/demo.ts"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",

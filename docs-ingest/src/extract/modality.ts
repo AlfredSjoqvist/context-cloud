@@ -7,13 +7,13 @@ export interface ModalityHit {
 }
 
 const PATTERNS: Array<{ regex: RegExp; modality: Modality; marker: string }> = [
-  { regex: /\b(must\s+not|MUST\s+NOT)\b/, modality: "must_not", marker: "must not" },
-  { regex: /\b(should\s+not|SHOULD\s+NOT)\b/, modality: "should_not", marker: "should not" },
-  { regex: /\b(never|NEVER)\b/, modality: "must_not", marker: "never" },
-  { regex: /\b(must|MUST)\b/, modality: "must", marker: "must" },
-  { regex: /\b(always|ALWAYS)\b/, modality: "must", marker: "always" },
-  { regex: /\b(should|SHOULD)\b/, modality: "should", marker: "should" },
-  { regex: /\b(warning|caution|do\s+not|DO\s+NOT)\b/i, modality: "warning", marker: "warning" },
+  { regex: /\bmust\s+not\b/i, modality: "must_not", marker: "must not" },
+  { regex: /\bshould\s+not\b/i, modality: "should_not", marker: "should not" },
+  { regex: /\bnever\b/i, modality: "must_not", marker: "never" },
+  { regex: /\bmust\b/i, modality: "must", marker: "must" },
+  { regex: /\balways\b/i, modality: "must", marker: "always" },
+  { regex: /\bshould\b/i, modality: "should", marker: "should" },
+  { regex: /\b(?:warning|caution|do\s+not)\b/i, modality: "warning", marker: "warning" },
 ];
 
 export function detectModality(sentence: string): ModalityHit | null {
