@@ -13,13 +13,23 @@ venv/
 
 # node
 node_modules/
+ui/node_modules/
 package-lock.json.bak
+
+# build / framework
+dist/
+.next/
+out/
+coverage/
+ui/tsconfig.tsbuildinfo
 
 # convex
 convex/_generated/
+.convex/
 
 # vercel
 .vercel/
+.vercel
 
 # os / editors
 .DS_Store

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+sources.json
+.context-map/source/
+.context-map/library/
+!.context-map/.gitkeep

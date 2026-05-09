@@ -1,0 +1,178 @@
+openapi: 3.0.3
+info:
+  title: Payments API
+  version: 1.0.0
+  description: |
+    Internal Payments API for the demo target. Exposes endpoints to create
+    a payment intent and retrieve payment status. All endpoints require a
+    bearer token; callers MUST send `Authorization: Bearer <token>` on every
+    request. Servers MUST validate the token before processing the request.
+servers:
+  - url: https://api.example.com/v1
+    description: Production
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Callers MUST authenticate every request with a bearer JWT issued by
+        the auth service. Servers MUST reject requests with missing,
+        malformed, or expired tokens with HTTP 401.
+  schemas:
+    PaymentRequest:
+      type: object
+      required:
+        - amount
+        - currency
+        - idempotency_key
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+          description: |
+            Charge amount in the smallest currency unit (e.g. cents for USD).
+            MUST be a positive integer; servers MUST reject zero or negative
+            values with HTTP 400.
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: |
+            Currency code. MUST be a 3-letter ISO 4217 code (uppercase).
+            Servers MUST reject any value that is not a recognized ISO 4217
+            currency.
+        idempotency_key:
+          type: string
+          minLength: 8
+          maxLength: 64
+          description: |
+            Client-generated key. MUST be unique per logical request so that
+            retries do not produce duplicate charges. Servers MUST treat
+            repeated keys as the same logical operation and return the
+            original result.
+        description:
+          type: string
+          maxLength: 280
+          description: Optional human-readable description of the charge.
+    Payment:
+      type: object
+      required:
+        - id
+        - amount
+        - currency
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          description: Server-assigned payment id.
+        amount:
+          type: integer
+          description: Charge amount in the smallest currency unit.
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+        status:
+          type: string
+          enum:
+            - pending
+            - succeeded
+            - failed
+          description: Current payment status.
+        description:
+          type: string
+          description: Optional human-readable description of the charge.
+        created_at:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the payment was created.
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable error code.
+        message:
+          type: string
+          description: Human-readable error message; MUST NOT include secrets.
+paths:
+  /payments:
+    post:
+      operationId: createPayment
+      summary: Create a payment
+      description: |
+        Creates a new payment intent. Callers MUST provide a valid bearer
+        token, an idempotency key, a positive integer amount, and a 3-letter
+        ISO 4217 currency code. Servers MUST validate every field and MUST
+        return HTTP 400 on any validation failure.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequest"
+      responses:
+        "201":
+          description: Payment created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      summary: Retrieve a payment by id
+      description: |
+        Returns the payment record for the given id. Callers MUST provide
+        a valid bearer token. Servers MUST return HTTP 404 if the payment
+        does not exist and MUST NOT leak whether an id belongs to another
+        tenant.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: |
+            Payment id returned from POST /payments. MUST be the exact id
+            returned by the server; clients MUST NOT construct ids manually.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

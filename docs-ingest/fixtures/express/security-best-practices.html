@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Production Best Practices: Security — Express</title>
+    <meta name="description" content="Security best practices for Express applications in production." />
+  </head>
+  <body>
+    <article>
+      <h1>Production best practices: security</h1>
+
+      <p>
+        The term <em>"production"</em> refers to the stage in the software
+        lifecycle when an application or API is generally available to its
+        end-users or consumers. In contrast, in the development stage you are
+        still actively writing and testing code, and the application is not open
+        to external access. The corresponding system environments are known as
+        <em>production</em> and <em>development</em> environments, respectively.
+      </p>
+
+      <p>
+        Development and production environments are usually set up differently
+        and have vastly different requirements. What works in development may
+        not be acceptable in production. For example, in a development
+        environment you may want verbose logging of errors for debugging, while
+        the same behaviour can become a security concern in a production
+        environment. And in development, you do not need to worry about
+        scalability, reliability, and performance, while those concerns become
+        critical in production.
+      </p>
+
+      <p>
+        This article discusses some best practices regarding security for
+        Express applications deployed to production.
+      </p>
+
+      <h2>Use Helmet</h2>
+
+      <p>
+        <a href="https://helmetjs.github.io/">Helmet</a> can help protect your
+        app from some well-known web vulnerabilities by setting HTTP headers
+        appropriately. Applications <strong>must</strong> install Helmet and
+        register it as middleware before any route handlers, otherwise default
+        Express headers will leak framework information to clients.
+      </p>
+
+      <p>
+        Helmet is actually just a collection of smaller middleware functions
+        that set security-related HTTP response headers. You <strong>must
+        not</strong> disable the <code>contentSecurityPolicy</code> middleware
+        for production deployments unless you are providing your own equivalent
+        CSP policy elsewhere in the stack.
+      </p>
+
+      <pre><code class="language-javascript">const helmet = require('helmet')
+const express = require('express')
+const app = express()
+
+app.use(helmet())</code></pre>
+
+      <p>
+        At a minimum, applications <strong>should</strong> disable the
+        <code>X-Powered-By</code> header so that attackers cannot easily
+        fingerprint the framework version, and <strong>must</strong> enable
+        HSTS once HTTPS has been deployed end-to-end.
+      </p>
+
+      <h2>Use cookies securely</h2>
+
+      <p>
+        To ensure cookies do not open your app to known exploits, you
+        <strong>must never</strong> use the default session cookie name
+        (<code>connect.sid</code>) and you <strong>must</strong> set cookies
+        with the security options <code>secure</code>, <code>httpOnly</code>,
+        and <code>sameSite</code>.
+      </p>
+
+      <ul>
+        <li><strong>secure</strong> ensures the browser only sends the cookie over HTTPS.</li>
+        <li><strong>httpOnly</strong> ensures the cookie is sent only over HTTP(S), not client JavaScript, helping to protect against cross-site scripting attacks.</li>
+        <li><strong>domain</strong> indicates the domain of the cookie; use it to compare against the domain of the server in which the URL is being requested.</li>
+        <li><strong>path</strong> indicates the path of the cookie; use it to compare against the request path.</li>
+        <li><strong>expires</strong> indicates the expiration date for persistent cookies.</li>
+      </ul>
+
+      <p>
+        Applications <strong>must not</strong> store sensitive information in
+        cookies; always store such data on the server and reference it via an
+        opaque session identifier. Session identifiers <strong>should</strong>
+        be regenerated after authentication state changes to mitigate session
+        fixation attacks.
+      </p>
+
+      <h2>Prevent brute-force attacks against authorization</h2>
+
+      <p>
+        To make login endpoints resilient to brute-force attacks, applications
+        <strong>must</strong> enforce two distinct rate limits: a per-IP limit
+        of consecutive failed attempts before challenging with a CAPTCHA, and a
+        per-account limit that locks the account after a defined number of
+        failed attempts within a rolling time window. Applications <strong>must
+        not</strong> rely on a single global rate limit, as it is trivial for
+        an attacker to spread requests across many IPs to evade detection.
+      </p>
+
+      <p>
+        Login endpoints <strong>should always</strong> respond with a constant
+        latency regardless of whether the supplied account exists, to prevent
+        username enumeration through timing side-channels.
+      </p>
+
+      <h2>Limit request body size</h2>
+
+      <p>
+        With body-parsing middleware such as the built-in
+        <code>express.json()</code> and <code>express.urlencoded()</code>,
+        applications <strong>must</strong> set the <code>limit</code> option
+        to a value appropriate for the endpoint, never accepting unbounded
+        request bodies. Unbounded body parsing makes the application trivial
+        to crash via a memory-exhaustion denial-of-service attack.
+      </p>
+
+      <p>
+        For multipart file uploads, applications <strong>must never</strong>
+        write uploaded files directly to disk without first validating the
+        declared content type, file size, and filename against an allow-list.
+      </p>
+
+      <h2>Set NODE_ENV to "production"</h2>
+
+      <p>
+        The <code>NODE_ENV</code> environment variable specifies the
+        environment in which an application is running (usually, development or
+        production). One of the simplest things you can do to improve
+        performance is to set <code>NODE_ENV</code> to <code>production</code>.
+      </p>
+
+      <p>
+        Applications <strong>must</strong> set <code>NODE_ENV=production</code>
+        in every production deployment, because Express, EJS, and many
+        downstream packages cache view templates and CSS files only when this
+        flag is set, and they generate verbose error messages including stack
+        traces when it is not.
+      </p>
+    </article>
+  </body>
+</html>

@@ -1,238 +1,181 @@
-# NM — Agent Handoff Brief
+# Guardian Agent — Handoff
 
-**Paste this into a fresh agent (Codex / Claude / whoever). Self-contained context to take over.**
+**Date:** 2026-05-09 (during Nozomio Hackathon)
+**Branch:** `nicolas/plan-1-foundation` (despite the name, contains both Plan 1 + most of Plan 2)
+**Remote:** https://github.com/AlfredSjoqvist/context-cloud
+**Demo target repo:** https://github.com/NewCoder3294/demo-target (planted CSRF drift, sliding-TTL drift, lodash CVE)
+**Convex deployment:** `acoustic-fish-389` (project: `nozomioHackathon`, team: `nicolas-dos-santos`)
 
----
-
-## What this project is
-
-**Working name: NM** (placeholder — final name TBD; see "Naming" at the bottom).
-GitHub repo: **https://github.com/AlfredSjoqvist/context-cloud** (private).
-Working directory: `c:\Users\Alfred\Desktop\nozomio` (Windows, PowerShell).
-
-**Pitch:** A shared brain for a team's coding agents — they learn from each other's mistakes, not just their own.
-
-**Mechanic:** An MCP server tails Claude Code's JSONL transcripts. A Note Manager distills moments where the agent got stuck into 4-field notes (`symptom`, `root_cause`, `correction`, files attached). A PreToolUse hook injects matching notes into a different agent's context the moment it touches the same file. A GC keeps the graph clean. A Guardian (other teammate's slot) filters per-injection.
-
-**Hackathon:** Nozomio, May 9 2026. Submissions 6:00pm. Track: **Always-On Agents** (Nia + Tensorlake). Rubric weights: **Background Execution 30%**, **Statefulness 25%**, **Agentic Depth 20%**, Demo 10%, Judge 10%. Top-6 finals are track-agnostic.
+This doc lets a teammate pick up where Nicolas + Claude left off. Read this first, then `docs/superpowers/specs/2026-05-09-guardian-agent-design.md`.
 
 ---
 
-## Read these first, in this order
+## TL;DR
 
-| File | Purpose |
-|---|---|
-| `NM.md` | Product spec, demo arc, rubric framing. **Source of truth for what we're building.** |
-| `SPEC.md` | Sponsor-platform integration spec. Deploy commands. Env vars. File ownership. |
-| `SCHEMA.md` | DB schema reference. v1 (legacy) + v2 (canonical) modules. |
-| `CLAUDE.md` | Operating notes for Claude Code in this repo. |
-| `architecture.pdf` | 5-page visual spec (white-bg academic style). |
+Plan 1 (foundation + skeleton) is **complete and pushed**. Plan 2 (analyzer + GitHub handoff + real Nia) is **~95% complete** — code is in, tests pass, and **3 real GitHub issues have been filed end-to-end** against the demo repo using `USE_MOCK_LLM=1`. The only gap before declaring Plan 2 done is the **real-Nia smoke test (P2-T18)**, which is blocked on a 30-second Nia↔GitHub account link in app.trynia.ai. Once that link is made, re-triggering the index call should unblock everything.
 
----
+## What ships right now
 
-## Repo state
+### Architecture (three independently deployable units)
 
 ```
-.claude/settings.json    — hooks: capture (4 events) + inject (PreToolUse Read|Edit|Write|MultiEdit)
-.mcp.json                — registers nm_server.py as MCP server "nm"
-schema.sql               — v2 schema (additive over v1)
-nm_db.py                 — connect, init_db (creates v1 + applies v2), canonical_path
-nm_capture.py            — hook: tails JSONL → messages/content_blocks/tool_calls/file_touches
-nm_inject.py             — hook: PreToolUse → notes lookup → additionalContext + injections audit
-nm_server.py             — MCP tools: get_relevant_notes, list_sessions, get_messages,
-                            get_tool_calls, get_file_touches, list_recent_injections,
-                            list_notes, find_notes_semantic
-nm_events.py             — normalize messages → Event stream (v1 fallback to transcript_entries)
-nm_signals.py            — 7 hurdle detectors (action_bigram_loop, retry_loop, interrupt,
-                            reverted_edit, correction_phrase, prompt_reask, feedback)
-nm_extract.py            — Note Manager: signals → windows → LLM → notes (gpt-4o-mini default).
-                            Mirrors notes/edges/hurdles to Convex; indexes to Nia.
-                            Recently hardened by another agent: stricter LLM prompt that
-                            preserves user-stated reasons verbatim.
-nm_gc.py                 — standalone GC: decay (7d half-life) → merge (Jaccard 0.6 +
-                            cosine 0.5) → prune (importance < 0.10). Audit + Convex mirror.
-nm_convex.py             — Python HTTP client for convex/http.ts. Best-effort, fail-open.
-nm_nia.py                — Nia wrapper + local cosine fallback (works without NIA_API_KEY).
-
-convex/                  — Convex backend
-  schema.ts              — extended by dashboard agent with users, agents, prunedEdges,
-                            gcRuns + extra optional fields on notes/injections/gcActions
-  notes.ts, injections.ts, hurdles.ts, gc.ts, sessions.ts
-  http.ts                — POST /sync/{note,injection,hurdle,gc,session}; X-NM-TOKEN auth
-package.json             — convex dep at root for `npx convex dev`
-
-dashboard/               — Next.js 15 app for Vercel
-  app/page.tsx           — live-reactive: notes, injections, gc actions, sessions
-  app/providers.tsx      — ConvexProvider with NEXT_PUBLIC_CONVEX_URL
-  README.md              — deploy steps
-
-tensorlake/              — Tensorlake function definitions
-  note_manager.py        — webhook fn wrapping nm_extract.extract_session
-  gc.py                  — cron `*/15 * * * *` fn wrapping nm_gc.run_once
-  README.md              — deploy + local-equivalent commands
-  guardian.py            — DOES NOT EXIST. Reserved slot for another teammate.
-
-mock/index.html          — Original 223KB hand-rolled dashboard. Served by nm_dashboard.py
-                            (local stdlib HTTP). Kept as fallback; Vercel/Next.js is
-                            additive.
-nm_dashboard.py          — Local stdlib HTTP server for mock/index.html. Localhost only.
-
-mock_org/                — UNEXPLORED. Another agent has been building here. Check
-                            mock_org/agent-gateway/.claude/settings.json for what's running.
-mock_traces.py           — UNEXPLORED. Created by another agent.
-
-nm.db                    — Local SQLite (25MB+, in repo). Source of truth for trace.
-                            v1 + v2 tables coexist. Already populated from 13 transcripts.
-
-architecture.pdf         — 5-page system spec, white-bg academic style.
-make_architecture_pdf.py — regenerator (matplotlib).
-
-NM.md / SPEC.md / SCHEMA.md / CLAUDE.md / HANDOFF.md (this file)
+agent/    — Node/TS long-running process. Cycle state machine: WAKE → PLAN → SCAN → ANALYZE → HANDOFF → SLEEP.
+convex/   — State + queries + (eventual) GitHub webhook receiver. Live event stream feeds the UI.
+ui/       — Next.js 15 + Tailwind, subscribes to Convex events live. Built locally; not yet deployed to Vercel.
 ```
 
----
+### Cycle flow today
 
-## Critical schema facts
+1. **PLAN** — `priorityPicks(cycleNumber, candidates, history, budget=3)` returns up to 3 file paths. Never-scanned files have `Number.POSITIVE_INFINITY` priority, then most-stale, with a `cleanScanStreak * 0.5` penalty.
+2. **SCAN** — `nia.readFile(path)` for each pick. Real Nia transport is `apigcp.trynia.ai/mcp`; falls back to local filesystem reads on any error or when `SKIP_NIA=1`.
+3. **ANALYZE** — for `package.json`, runs `npm audit --json` and converts each advisory into a `Finding`. For `*.ts` files, the LLM analyzer (real GPT-5 or `mockAnalyzeFile`) returns `Finding[]` from structured output validated against a Zod schema.
+4. **CRITIQUE** — programmatic citation check verifies the cited code line + the cited `.md` constraint text actually exist. Then an optional cheaper LLM (`gpt-5-mini`) judges confidence; below 80% confidence is dropped. Findings with no `repository` or no critique LLM still file (mock-mode runs with citation-only).
+5. **HANDOFF** — fingerprints the finding (`sha256(JSON.stringify([path, mdFile, mdLine, codeLine]))`), checks `findings.createIfAbsent` for dedup, files a real GitHub issue via Octokit (`PatAuth`), records `findings.setStatus(detected, githubIssueNumber)`. Devin handoff (Plan 3) and the closed loop come later.
 
-- **Two layers, additive.** v1 in `nm_db.py` (events, transcript_entries, notes, files, file_note_edges, hurdles, extract_state). v2 in `schema.sql` (sessions, messages, content_blocks, tool_calls, file_touches, hurdle_signals, injections, note_feedback, gc_actions, nm_meta). v1 product tables (notes, files, file_note_edges, hurdles) are **authoritative** — v2 doesn't redefine them.
-- **The notes "soft delete" column is `t_invalid`** (legacy name, NOT `invalidated_at`). Always query `WHERE t_invalid IS NULL` for active notes. Bit me twice; fixed in nm_gc and nm_nia.
-- **Convex schema (`convex/schema.ts`) was extended by the dashboard agent** with `users`, `agents`, `prunedEdges`, `gcRuns` + extra optional fields. Python sync ignores those extras (they're optional).
-- **Path canonicalization:** every path in v2 tables (file_touches, injections) goes through `nm_db.canonical_path`: forward slashes, lowercase drive letter, project-relative under `CLAUDE_PROJECT_DIR`. Result: `TEST.md`, `c:\…\TEST.md`, `C:/…/TEST.md` collapse to one row.
-- **`.claude/settings.json` hook paths use FORWARD slashes** in the absolute path. Backslashes get mangled by bash on Windows.
+### Repos / paths
 
----
+- **This repo (guardian agent):** `~/projects/guardian-agent` on Nicolas's laptop.
+- **Demo target repo (the codebase guardian scans):** `~/Desktop/guardian-demo-target` locally, pushed as `NewCoder3294/demo-target`. Contains Express+TS source under `src/` plus a hand-authored `.context-map/` with intent/architecture/examples/constraints `.md` files for each topic (login, sessions, payments).
+- **Spec:** `docs/superpowers/specs/2026-05-09-guardian-agent-design.md` — single source of truth for architecture, scan strategy, handoff loop.
+- **Plans:** `docs/superpowers/plans/`
+  - `2026-05-09-guardian-foundation-skeleton.md` (Plan 1 — complete; 25 tasks)
+  - `2026-05-09-guardian-write-pipeline-analyzer.md` (Plan 2 — see status below; 18 tasks)
 
-## What's done vs. open
+## Plan-by-plan status
 
-### DONE
-- [x] MCP server + capture/inject hooks wired into Claude Code, fully working
-- [x] v2 schema designed, applied additively, all 13 existing transcripts re-ingested
-- [x] Hurdle detection (7 signals) + window expansion + LLM extraction (Note Manager)
-- [x] GC with decay/merge/prune + audit log
-- [x] Convex backend (schema, mutations, queries, HTTP actions for Python sync)
-- [x] Vercel/Next.js dashboard scaffold with live `useQuery` hooks
-- [x] Tensorlake function wrappers (note_manager, gc) — code ready
-- [x] Nia integration with local cosine fallback (demo works without API key)
-- [x] All write paths mirror to Convex best-effort fail-open
-- [x] SPEC.md, SCHEMA.md, NM.md, architecture.pdf
-- [x] Repo pushed (private): https://github.com/AlfredSjoqvist/context-cloud
+### Plan 1 — Foundation + Skeleton ✅ COMPLETE
 
-### CRITICAL for demo (not done)
-- [ ] **Deploy Convex** — `npm install && npx convex dev` from project root. Sets up the Convex deployment, generates `convex/_generated/`, gives a deployment URL. Set `CONVEX_URL` (.convex.site) and `NM_SYNC_TOKEN` env vars on the local machine; mirror values into the Convex dashboard's env panel.
-- [ ] **Deploy Vercel dashboard** — `cd dashboard && npm install && npx vercel`. Set `NEXT_PUBLIC_CONVEX_URL` (.convex.cloud) in Vercel project. **Submission requires a public URL — localhost is invalid.**
-- [ ] **Live cron tick** — either `tensorlake deploy tensorlake/gc.py` OR run `python nm_gc.py --loop --interval 900` in a foreground terminal during the demo. The activity feed seeing GC fire is the on-stage proof for Background Execution.
-- [ ] **Pre-test the demo prompt** — pick one prompt that reliably trips a project-specific hurdle in agent A, gets corrected, and lands in nm.db as a note. Then a different prompt that triggers a Read on the same file in agent B and verifies the injected note shows up. Test 20+ times so it's deterministic.
+Tagged `plan-1-foundation-skeleton`. 19 tests green, agent runs cycles against the demo repo, UI builds, fileScanHistory dedup works. See the plan doc for the 25 atomic tasks.
 
-### Nice-to-have
-- [ ] Deploy Tensorlake Note Manager webhook (locally `python nm_extract.py --session <id>` works)
-- [ ] Set `NIA_API_KEY` for real semantic search (local cosine fallback in place)
-- [ ] Pick the final name (10 candidates given; Memex / Cairn recommended)
-- [ ] Explore `mock_org/` and `mock_traces.py` — built by other agents, unexplored by me
+### Plan 2 — Write Pipeline + Real Analyzer ✅ 17/18 tasks done
 
-### NOT MY JOB
-- Guardian agent — owned by another teammate. Reserved path: `tensorlake/guardian.py`. Do not write.
+Done:
+- T1–T2: deps installed (`openai@^4.68`, `@openai/agents@^0.0.5`, `@octokit/rest@^21.0.2`, `dotenv`); config schema extended with `openaiApiKey`/`openaiModel`/`openaiCritiqueModel`/`githubToken`/`githubOwner`/`githubRepo` + conditional zod refines.
+- T3–T5: shared `Finding` type, `GithubAuth` interface + `PatAuth` impl, full `agent/handoff/github.ts` with `createIssueForFinding` / `commentOnPR` / `getPRStatus`.
+- T6: `agent/analyze/npmAudit.ts` — subprocess wrapper, parses CVE advisories, fingerprints them as `path: package.json` findings.
+- T7: `agent/analyze/citation.ts` — TDD'd verifier that compares code line + .md constraint text against the actual file.
+- T8: `agent/analyze/mockAnalyzer.ts` — deterministic planted findings with citations matching the **real** demo-target file lines (login.ts:28 CSRF, db.ts:93 sliding-TTL).
+- T9: `agent/cycle.ts` rewritten to do WAKE → PLAN → SCAN → ANALYZE → HANDOFF; `agent/main.ts` wires the candidates provider to include `package.json`.
+- **T10 — smoke #1 PASSED.** Three real GitHub issues filed on `NewCoder3294/demo-target`:
+  - #1 [security] package.json:18 — lodash CVE
+  - #2 [intent_drift] src/lib/db.ts:93 — sliding-TTL violation
+  - #3 [intent_drift] src/routes/login.ts:28 — missing requireCsrfToken
+- T11–T15: `prompts.ts` (system prompts + Zod schemas), `openaiClient.ts` (OpenAI singleton), `critique.ts` (TDD with mock LLM), `analyzer.ts` (TDD with mock LLM), `openaiAdapters.ts` (raw SDK → typed call shapes via JSON-schema structured output).
+- T16: `cycle.ts` extended with optional `critiqueLLM`; `main.ts` switches between mock and real analyzer based on `USE_MOCK_LLM`.
+- T17: `niaClient.ts` updated to call **Nia's actual MCP tools** — `nia_read` for file fetches, `search` for semantic context. Filesystem fallback retained for `SKIP_NIA=1` and on transient MCP errors. Test injects a mock `mcpClientFactory` so the unit test doesn't hit the network.
 
----
+Pending:
+- **T18 — smoke #2 (real GPT-5 + real Nia)**. Blocked on Nia indexing, which requires a one-time GitHub account link in Nia's UI (Nia returns "Authentication required. GitHub token is mandatory" when trying to index a public repo via API alone).
 
-## File ownership table (so you don't step on other agents)
-
-| File | Owner | Notes |
-|---|---|---|
-| `nm_capture.py`, `nm_inject.py`, `nm_server.py` | shared | sponsor-integration agent (me) added Convex hooks |
-| `nm_extract.py` | extraction agent | I added Convex+Nia mirroring; another agent recently hardened the LLM prompt |
-| `nm_signals.py`, `nm_events.py` | extraction agent | UNTOUCHED |
-| `nm_db.py` | shared | I added canonical_path + schema.sql apply |
-| `schema.sql` + `SCHEMA.md` | shared | update SCHEMA.md whenever you change the schema (memory rule) |
-| `nm_dashboard.py`, `mock/index.html` | dashboard agent | UNTOUCHED |
-| `convex/*` | sponsor-integration agent (me) | dashboard agent extended schema.ts with users/agents/prunedEdges/gcRuns |
-| `dashboard/*` | sponsor-integration agent (me) | hasn't been deployed |
-| `tensorlake/*` | sponsor-integration agent (me) | not deployed |
-| `nm_nia.py`, `nm_gc.py`, `nm_convex.py`, `make_architecture_pdf.py` | sponsor-integration agent (me) | mine |
-| `mock_org/`, `mock_traces.py` | unknown agent | unexplored |
-| `tensorlake/guardian.py` | other teammate | DO NOT WRITE |
-
----
-
-## Environment
-
-- Windows 11, PowerShell + Bash (Git Bash via Bash tool)
-- Python 3.12.4 (`mcp` 1.26, `openai` ≥ 1.50, `matplotlib` 3.10)
-- Node 22 / npm 10
-- gh CLI authenticated as `AlfredSjoqvist` with repo + admin:public_key + read:org + gist scopes
-- No `vercel` CLI (use `npx vercel`)
-- No `tensorlake` SDK installed (`pip install tensorlake` on deploy machine)
-
-## Env vars (none set in this session — set as you deploy)
-
-```
-CONVEX_URL=https://<deployment>.convex.site         # Python sync target
-NM_SYNC_TOKEN=<shared secret>                        # X-NM-TOKEN; optional in dev
-NEXT_PUBLIC_CONVEX_URL=https://<deployment>.convex.cloud   # dashboard target
-OPENAI_API_KEY=...                                   # Note Manager LLM
-NIA_API_KEY=...                                      # else local cosine fallback
-NIA_INDEX_ID=nm-notes
-TENSORLAKE_API_KEY=...                               # only on deploy machine
-```
-
-## Sanity-check commands
+## How to run locally
 
 ```bash
-# Imports + canary inject
-python -c "import nm_db, nm_capture, nm_inject, nm_server, nm_extract, nm_gc, nm_nia, nm_convex; print('ok')"
-echo '{"session_id":"t","tool_name":"Read","tool_input":{"file_path":"TEST.md"}}' | python nm_inject.py
-# Expect: JSON additionalContext with "AAAAAAA"
+# 1. Boot Convex dev (re-uses the linked nozomioHackathon project)
+cd ~/projects/guardian-agent
+npx convex dev --once
 
-# GC dry-run
-python nm_gc.py --dry-run
+# 2. Run the agent for a single cycle (mock-LLM path; produces real GH issues)
+DEMO_REPO_LOCAL_PATH=$HOME/Desktop/guardian-demo-target npm run agent:once
 
-# Extract dry-run, every captured session, no LLM
-python nm_extract.py --all --no-llm --dry-run
-
-# DB inspection
-python -c "import sqlite3; c=sqlite3.connect('nm.db'); print(c.execute('SELECT type,role,COUNT(*) FROM messages GROUP BY type,role').fetchall())"
-
-# Regenerate the spec PDF
-python make_architecture_pdf.py
+# 3. Run UI locally (subscribes live to Convex events)
+cd ui
+npm run dev   # http://localhost:3000
 ```
 
-## Recent commits to know
+For continuous mode: `npm run agent` (interval is `GUARDIAN_CYCLE_INTERVAL_S=60` in `.env`).
 
+## Required environment (`.env`, git-ignored)
+
+Convex auto-fills `CONVEX_DEPLOYMENT`, `CONVEX_URL`, `CONVEX_SITE_URL` when you run `npx convex dev`. Everything else is manual:
+
+```env
+NIA_API_KEY=nk_...
+NIA_MCP_URL=https://apigcp.trynia.ai/mcp
+OPENAI_API_KEY=sk-proj-...
+OPENAI_MODEL=gpt-5
+OPENAI_CRITIQUE_MODEL=gpt-5-mini
+GITHUB_TOKEN=ghp_...           # repo scope, on the demo-target repo
+GITHUB_OWNER=NewCoder3294
+GITHUB_REPO=demo-target
+GUARDIAN_CYCLE_INTERVAL_S=60
+GUARDIAN_PRIORITY_BUDGET=3
+GUARDIAN_JUDGMENT_BUDGET=1
+USE_MOCK_LLM=1                 # flip to 0 once Nia is linked + GPT-5 access confirmed
+USE_MOCK_DEVIN=0
+SKIP_NIA=0                     # 1 forces filesystem fallback (no Nia required)
 ```
-32f7c46  Refactor architecture.pdf: white background, academic style, platform attribution
-f38d452  Add architecture.pdf — 5-page system diagram
-346dd6d  Add Tier-1 sponsor integrations: Convex, Tensorlake, Vercel, Nia
-231c0a9  Initial commit: NM shared memory for coding agents
+
+## Test seams (set these flags in `.env`, no code changes needed)
+
+| Flag             | Effect                                                                 |
+|------------------|------------------------------------------------------------------------|
+| `USE_MOCK_LLM=1` | Replaces analyzer with `mockAnalyzeFile`; planted CSRF + sliding-TTL findings; no critique pass; deterministic output. **This is what produced our 3 real GitHub issues.** |
+| `SKIP_NIA=1`     | Bypasses Nia MCP entirely; reads code from local filesystem; `searchContext` returns `[]`. |
+| `USE_MOCK_DEVIN=1` | Reserved for Plan 3; Devin handoff isn't wired yet so currently a no-op. |
+
+## What broke / pitfalls discovered
+
+1. **Nia tool names ≠ generic MCP names.** I originally coded against `read_file` / `search_code` / `search_context` / `recent_diff` (assumed names from the spec). Nia actually exposes `nia_read` / `search` / `nia_grep` / `nia_explore` / `tracer` and requires a `source_type` + `source_identifier` like `"NewCoder3294/demo-target:src/routes/login.ts"`. Fixed in `agent/tools/niaClient.ts`. **Nia has no `recent_diff` equivalent** — `recentDiff()` returns `""` and the analyzer prompt handles missing diff gracefully.
+2. **Nia `index` requires GitHub auth even for public repos.** This is the current T18 blocker. Linking a GitHub account in app.trynia.ai once unblocks it.
+3. **OpenAI strict structured output needs hand-written JSON Schema.** Zod ↔ OpenAI strict-mode JSON Schema conversion isn't 1:1 — `zod-to-json-schema` produces slight mismatches on `additionalProperties` and `required`. We hand-wrote the schema in `agent/analyze/openaiAdapters.ts::zodToOpenAIJsonSchema`. Two schemas only (analyzer + critique); update both if you change the Zod output shape.
+4. **MCP SDK transport import paths.** We import `@modelcontextprotocol/sdk/client/index.js` + `streamableHttp.js` dynamically from `defaultMcpFactory` in `niaClient.ts`. The MCP SDK exposes both via package `exports`. If a future SDK version re-shuffles, only that one factory function needs adjusting.
+5. **`npm audit` exits non-zero when vulnerabilities exist.** `defaultRunAudit` in `npmAudit.ts` catches the exec error and extracts `stdout` from it — required behavior.
+6. **`fileScanHistory` clean-streak resets on findings.** A finding makes the cycle pass `cleanScan: false` for that file, which sets `cleanScanStreak: 0` in Convex. Subsequent cycles' priority function then treats it as a higher-priority re-scan candidate. This naturally surfaces files with persistent issues on the next cycle.
+7. **`ui/tsconfig.tsbuildinfo` is git-ignored** (added in commit `70df200`) — Next.js writes it on build and it shouldn't be tracked.
+
+## Demo / smoke checklist
+
+To prove the pipeline works without touching real LLM (~30s, no OpenAI tokens burned):
+```bash
+DEMO_REPO_LOCAL_PATH=$HOME/Desktop/guardian-demo-target USE_MOCK_LLM=1 npm run agent:once
+gh issue list --repo NewCoder3294/demo-target --label guardian
+```
+Should show ≥3 open issues with the `guardian` label. Re-running produces 0 new issues (dedup via fingerprint).
+
+## What Plan 3 + Plan 4 will add
+
+Per the spec's §17 phase plan:
+
+- **Plan 3 — Closed Loop with Devin** (8–10 tasks):
+  - `agent/handoff/devin.ts` — Devin REST API client (`POST /sessions`, `GET /sessions/:id`)
+  - `agent/handoff/reconcile.ts` — Reconcile phase: walk findings in `devin_running`/`pr_open`/`verifying` states, transition them based on PR events
+  - `convex/http.ts` — GitHub webhook receiver (HMAC verified) for instant PR-event propagation
+  - Sharpen iteration: when a re-scan finds the constraint still violated, build a sharpened prompt referencing the previous Devin attempt's diff + verbatim constraint citation, spawn a second Devin run. Hard cap at 2 iterations.
+- **Plan 4 — Polish + Tensorlake migration** (5–6 tasks):
+  - `judgmentBudget` + LLM-driven judgment-call picks in `priorityPicks`
+  - Tensorlake sandbox config (`infra/tensorlake.yaml`); migrate from local `npm run agent` to Tensorlake-hosted scheduled execution
+  - Atomic `nextCycleNumber` + `openCycle` so concurrent sandboxes can't collide
+  - Vercel deployment of UI
+
+## Open questions / decisions for the team
+
+1. **Devin auth for Plan 3** — does the team have a Devin org API key, or do we use individual user keys per agent run?
+2. **GitHub webhook routing** — Convex HTTP actions vs a separate Vercel function. Spec says HMAC verification is straightforward in a Convex HTTP action; needs validation.
+3. **Sharpen prompt content** — the Plan 3 design says we feed Devin the previous attempt's diff + the constraint citation. Worth deciding how much of the diff to include (full vs unified ±5 lines).
+4. **Real-time UI vs static log** — Plan 1 ships a basic `EventStream` that subscribes to `events` via `useQuery`. The spec described a "B' log viewer" with terminal aesthetic; the current UI is functional but not styled to spec. Polish in Plan 4 if visible to judges.
+5. **Auto-dedup of GitHub issues across cycles is by fingerprint of `(path, constraintMdFile, constraintMdLine, codeLine)`.** If the LLM cites a slightly different line on a re-scan, dedup misses. Worth considering a fuzzier dedup key (e.g., `path + constraintMdFile` only) once the real-LLM smoke test exposes how stable citations are run-to-run.
+
+## Quick access — credentials we used (for reference only — rotate before shipping to anything but the hackathon demo)
+
+- Nia API key: `nk_1P9BsTX6...` (in `.env`, also bound to Nicolas's Nia account)
+- OpenAI key: `sk-proj-e0we...` (in `.env`)
+- GitHub PAT: `ghp_RH5o...` (in `.env`, repo scope on `NewCoder3294/demo-target`)
+- Convex deploy URL: `https://acoustic-fish-389.convex.cloud`
+
+`.env` is git-ignored. **Don't commit it.**
+
+## Resuming the work
+
+If you're picking this up cold, the first command is:
+```bash
+cd ~/projects/guardian-agent
+git checkout nicolas/plan-1-foundation
+git pull
+npm install                    # install any new deps
+npx convex dev --once          # warm up Convex
+DEMO_REPO_LOCAL_PATH=$HOME/Desktop/guardian-demo-target npm run agent:once
 ```
 
----
+If Nia↔GitHub linking is now done, flip `.env` to `USE_MOCK_LLM=0` and re-run — the real GPT-5 analyzer will fire, query Nia for `.md` context, and the critique pass will cull low-confidence findings before they hit GitHub.
 
-## Naming (open decision)
-
-Working name `NM` is a placeholder. Repo name `context-cloud` is leftover from an earlier idea (registry of context packs) — does not reflect the current product. 10 candidates given to user, ranked best to weakest:
-
-1. **Memex** — V. Bush 1945 "memory extender" (recommended — historical resonance + AI-recognition)
-2. **Cairn** — trail markers for those who follow (recommended — perfect metaphor, monosyllabic)
-3. **Marginalia** — distinctive
-4. **Lore** — warm, plain English
-5. **Errata** — accurate (negative-memory framing)
-6. **Hindsight** — on-the-nose
-7. **Caveat** — heads-up
-8. **Whetstone** — sharpens the next agent
-9. **Maxim** — pithy rule
-10. **Sentinel** — protective
-
-User hasn't picked. Don't rename files or the repo until they do.
-
----
-
-## Highest-leverage next move (if you only have 30 min)
-
-Pick **one** of:
-1. `npx convex dev` → set `CONVEX_URL` → smoke-test that injection rows land in Convex via the dashboard (`useQuery(api.injections.recent)`).
-2. `cd dashboard && npx vercel` → set `NEXT_PUBLIC_CONVEX_URL` → get the public URL into the submission.
-3. Run `python nm_gc.py --loop --interval 60` for the demo's live cron tick. Faster cadence than `*/15` so judges actually see it fire on a 3-min stage.
-
-Do them in this order: **1 → 2 → 3**. Each unblocks the next.
-
-The local pipeline already works end-to-end without any of these — the demo's safety floor.
-<!-- End handoff. -->
+Then move on to Plan 3 (Devin handoff + closed loop) by writing it via the brainstorming → writing-plans skills, or read the spec's §17 phase plan for the task breakdown.
