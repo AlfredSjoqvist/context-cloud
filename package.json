@@ -1,0 +1,28 @@
+{
+  "name": "guardian-agent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "agent": "tsx agent/main.ts",
+    "agent:once": "tsx agent/main.ts --once",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "index-demo": "tsx scripts/index-demo.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "convex": "^1.16.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
