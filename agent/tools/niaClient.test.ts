@@ -84,4 +84,42 @@ describe("niaClient (filesystem fallback)", () => {
     });
     await expect(nia.readFile("../etc/passwd")).rejects.toThrow(/escapes filesystemRoot/);
   });
+
+  it("calls the MCP client when skipNia=false", async () => {
+    const calls: Array<{ tool: string; args: unknown }> = [];
+    const mockMcp = {
+      async callTool(args: { name: string; arguments: unknown }) {
+        calls.push({ tool: args.name, args: args.arguments });
+        if (args.name === "read_file") {
+          return { content: [{ type: "text", text: "mocked code" }] };
+        }
+        if (args.name === "search_context") {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify([{ path: "x.md", line: 1, excerpt: "ok" }]),
+              },
+            ],
+          };
+        }
+        return { content: [] };
+      },
+    };
+
+    const nia = createNiaClient({
+      skipNia: false,
+      mcpUrl: "https://invalid",
+      apiKey: "k",
+      filesystemRoot: workdir,
+      mcpClientFactory: async () => mockMcp,
+    });
+
+    const body = await nia.readFile("src/login.ts");
+    expect(body).toBe("mocked code");
+    expect(calls[0]!.tool).toBe("read_file");
+
+    const hits = await nia.searchContext("auth");
+    expect(hits).toEqual([{ path: "x.md", line: 1, excerpt: "ok" }]);
+  });
 });
