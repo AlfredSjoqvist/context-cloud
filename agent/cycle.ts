@@ -9,6 +9,8 @@ import type { FileScanState } from "./plan/priority.js";
 import { findingFingerprint } from "./lib/fingerprint.js";
 import { auditPackageJson } from "./analyze/npmAudit.js";
 import { verifyCitation } from "./analyze/citation.js";
+import { critiqueFinding } from "./analyze/critique.js";
+import type { CritiqueLLMCall } from "./analyze/critique.js";
 import { createIssueForFinding } from "./handoff/github.js";
 import type { GithubAuth } from "./handoff/githubAuth.js";
 import type { Finding } from "./analyze/types.js";
@@ -27,6 +29,7 @@ export interface CycleDeps {
   githubOwner: string;
   githubRepo: string;
   demoRepoRoot: string;
+  critiqueLLM?: CritiqueLLMCall;
 }
 
 export interface CycleResult {
@@ -91,6 +94,15 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
           const cite = await verifyCitation({ finding: f, nia: deps.nia });
           if (!cite.ok) {
             await log.warn(`drop finding (citation): ${cite.reason}`);
+            continue;
+          }
+        }
+
+        if (deps.critiqueLLM) {
+          const critique = await critiqueFinding({ finding: f, callLLM: deps.critiqueLLM });
+          if (!critique.keep) {
+            const reason = critique.keep ? "" : critique.reason;
+            await log.warn(`drop finding (critique): ${reason}`);
             continue;
           }
         }

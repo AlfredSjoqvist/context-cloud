@@ -6,6 +6,9 @@ import { getConvex, makeConvexEventSink } from "./tools/convexClient.js";
 import { createNiaClient } from "./tools/niaClient.js";
 import { runCycle } from "./cycle.js";
 import { mockAnalyzeFile } from "./analyze/mockAnalyzer.js";
+import { analyzeFile as realAnalyzeFile } from "./analyze/analyzer.js";
+import { getOpenAI } from "./analyze/openaiClient.js";
+import { makeAnalyzerLLMCall, makeCritiqueLLMCall } from "./analyze/openaiAdapters.js";
 import { PatAuth } from "./handoff/githubAuth.js";
 
 const DEMO_REPO_ENV = "DEMO_REPO_LOCAL_PATH";
@@ -54,12 +57,26 @@ async function main(): Promise<void> {
   });
   const candidatesProvider = async () => listCandidateFiles(demoRoot);
 
-  if (!config.useMockLlm) {
-    throw new Error(
-      "USE_MOCK_LLM=0 requires the real analyzer (wired in Plan 2 Task 16). Re-run with USE_MOCK_LLM=1.",
-    );
+  let analyzeFile: (path: string, n: typeof nia) => Promise<import("./analyze/types.js").Finding[]>;
+  let critiqueLLM: import("./analyze/critique.js").CritiqueLLMCall | undefined;
+
+  if (config.useMockLlm) {
+    analyzeFile = async (path) => mockAnalyzeFile(path);
+    critiqueLLM = undefined;
+  } else {
+    const openai = getOpenAI({ apiKey: config.openaiApiKey! });
+    const analyzerLLM = makeAnalyzerLLMCall({
+      client: openai,
+      model: config.openaiModel,
+      critiqueModel: config.openaiCritiqueModel,
+    });
+    critiqueLLM = makeCritiqueLLMCall({
+      client: openai,
+      model: config.openaiModel,
+      critiqueModel: config.openaiCritiqueModel,
+    });
+    analyzeFile = (path, n) => realAnalyzeFile(path, n, analyzerLLM);
   }
-  const analyzeFile = async (path: string) => mockAnalyzeFile(path);
 
   const githubAuth = new PatAuth(config.githubToken!);
 
@@ -89,6 +106,7 @@ async function main(): Promise<void> {
       githubOwner: config.githubOwner!,
       githubRepo: config.githubRepo!,
       demoRepoRoot: demoRoot,
+      critiqueLLM,
     });
     // eslint-disable-next-line no-console
     console.log(
