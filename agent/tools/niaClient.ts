@@ -122,9 +122,10 @@ class MCPNiaClient implements NiaClient {
         name: "nia_explore",
         arguments: {
           source_type: "repository",
-          source_identifier: this.cfg.repository,
-          path: ".context-map/leaves",
+          repository: this.cfg.repository,
           action: "ls",
+          include_paths: [".context-map/leaves"],
+          file_extensions: [".md"],
         },
       });
       const text = res.content[0]?.text ?? "";
