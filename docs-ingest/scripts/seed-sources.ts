@@ -8,6 +8,12 @@ async function main(): Promise<void> {
 
   const stripeFixtures = path.join(config.home, "fixtures", "stripe");
   const lodashFixtures = path.join(config.home, "fixtures", "lodash");
+  const bcryptjsFixtures = path.join(config.home, "fixtures", "bcryptjs");
+  const cookieParserFixtures = path.join(
+    config.home,
+    "fixtures",
+    "cookie-parser",
+  );
   const expressFixture = path.join(
     config.home,
     "fixtures",
@@ -40,6 +46,24 @@ async function main(): Promise<void> {
     uri: lodashFixtures,
     defaultScope: "library",
     defaultLibraryName: "lodash",
+    codebaseRoot: config.codebaseRoot,
+    outputRoot: config.contextMapRoot,
+  });
+
+  const bcryptjs = await registry.upsert({
+    kind: "markdown_dir",
+    uri: bcryptjsFixtures,
+    defaultScope: "library",
+    defaultLibraryName: "bcryptjs",
+    codebaseRoot: config.codebaseRoot,
+    outputRoot: config.contextMapRoot,
+  });
+
+  const cookieParser = await registry.upsert({
+    kind: "markdown_dir",
+    uri: cookieParserFixtures,
+    defaultScope: "library",
+    defaultLibraryName: "cookie-parser",
     codebaseRoot: config.codebaseRoot,
     outputRoot: config.contextMapRoot,
   });
@@ -78,6 +102,8 @@ async function main(): Promise<void> {
   console.log(`Registered:`);
   console.log(`  ${stripe.id}  [${stripe.kind}]  ${stripe.uri}  (lib=stripe — chunker proof only)`);
   console.log(`  ${lodash.id}  [${lodash.kind}]  ${lodash.uri}  (lib=lodash — DEMO target)`);
+  console.log(`  ${bcryptjs.id}  [${bcryptjs.kind}]  ${bcryptjs.uri}  (lib=bcryptjs — DEMO target)`);
+  console.log(`  ${cookieParser.id}  [${cookieParser.kind}]  ${cookieParser.uri}  (lib=cookie-parser — DEMO target)`);
   console.log(`  ${express.id}  [${express.kind}]  ${express.uri}  (lib=express — HTML demo)`);
   console.log(`  ${payments.id}  [${payments.kind}]  ${payments.uri}  (lib=express — Payments OpenAPI fixture)`);
   console.log(`  ${webappRoutes.id}  [${webappRoutes.kind}]  ${webappRoutes.uri}  (module-scope — path-convention demo)`);
