@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as cycles from "../cycles.js";
 import type * as events from "../events.js";
 
 import type {
@@ -17,6 +18,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  cycles: typeof cycles;
   events: typeof events;
 }>;
 
