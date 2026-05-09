@@ -38,15 +38,27 @@ export async function fetchSource(source: DocSource): Promise<FetchResult> {
   const errors: FetchResult["errors"] = [];
   const raw: RawDoc[] = [];
 
-  if (source.kind !== "markdown_dir") {
-    errors.push({
-      stage: "fetch",
-      message: `Source kind '${source.kind}' not supported in v1 (markdown only).`,
-      path: source.uri,
-    });
-    return { raw, errors };
+  if (source.kind === "markdown_dir") {
+    return fetchMarkdownDir(source, raw, errors);
   }
 
+  if (source.kind === "html_url") {
+    return fetchHtmlUrl(source, raw, errors);
+  }
+
+  errors.push({
+    stage: "fetch",
+    message: `Source kind '${source.kind}' not supported in v1.`,
+    path: source.uri,
+  });
+  return { raw, errors };
+}
+
+async function fetchMarkdownDir(
+  source: DocSource,
+  raw: RawDoc[],
+  errors: FetchResult["errors"],
+): Promise<FetchResult> {
   const stat = await fs.stat(source.uri).catch(() => null);
   if (!stat || !stat.isDirectory()) {
     errors.push({
@@ -76,6 +88,65 @@ export async function fetchSource(source: DocSource): Promise<FetchResult> {
         path: filePath,
       });
     }
+  }
+
+  return { raw, errors };
+}
+
+function htmlPathFromUri(uri: string): string {
+  // Derive a reasonable filename from the URL pathname's basename.
+  // Falls back to "index.html" if the URL has no path component.
+  let pathname: string;
+  try {
+    const url = new URL(uri);
+    pathname = url.pathname;
+  } catch {
+    pathname = uri;
+  }
+  const base = path.posix.basename(pathname.replace(/\/+$/, ""));
+  if (!base || base === "/" || base === ".") return "index.html";
+  return base;
+}
+
+async function fetchHtmlUrl(
+  source: DocSource,
+  raw: RawDoc[],
+  errors: FetchResult["errors"],
+): Promise<FetchResult> {
+  try {
+    const docPath = htmlPathFromUri(source.uri);
+    let text: string;
+
+    if (source.uri.startsWith("file://")) {
+      const filePath = new URL(source.uri).pathname;
+      text = await fs.readFile(filePath, "utf8");
+    } else {
+      const response = await fetch(source.uri);
+      if (!response.ok) {
+        errors.push({
+          stage: "fetch",
+          message: `HTTP ${response.status} ${response.statusText} for ${source.uri}`,
+          path: source.uri,
+        });
+        return { raw, errors };
+      }
+      text = await response.text();
+    }
+
+    raw.push({
+      id: `${source.id}:${docPath}`,
+      sourceId: source.id,
+      path: docPath,
+      title: docPath,
+      format: "html",
+      text,
+    });
+  } catch (err) {
+    errors.push({
+      stage: "fetch",
+      message: err instanceof Error ? err.message : String(err),
+      path: source.uri,
+    });
   }
 
   return { raw, errors };
