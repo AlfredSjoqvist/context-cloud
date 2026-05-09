@@ -108,9 +108,48 @@ async function main(): Promise<void> {
     console.log(ANSI.dim("  │ ") + line);
   }
 
+  // Bonus: run the path-convention demo source so the audience sees a
+  // second, structurally different linker firing.
+  const webappRoutes = sources.find(
+    (s) => s.defaultScope === "module" && s.kind === "markdown_dir",
+  );
+  if (webappRoutes) {
+    step(
+      4,
+      `Path-convention linker (source=${webappRoutes.id}, lib-import-free)`,
+    );
+    console.log(
+      ANSI.dim(
+        "Three docs at routes/payments.md, routes/login.md, routes/sessions.md → applies_to grounded purely in codebase layout.",
+      ),
+    );
+    await run("npx", ["tsx", "src/cli/ingest.ts", webappRoutes.id, "--emit"]);
+
+    const webappLeafPath = path.join(
+      sibling,
+      ".context-map",
+      "source",
+      webappRoutes.id,
+      "login.md",
+    );
+    if (existsSync(webappLeafPath)) {
+      console.log("");
+      console.log(ANSI.green(`✓ ${webappLeafPath}`));
+      console.log("");
+      const text = readFileSync(webappLeafPath, "utf8");
+      // Show only the frontmatter so the applies_to list is visible
+      // without dumping all 12 rules.
+      const fmEnd = text.indexOf("\n---", 4);
+      const fm = fmEnd > 0 ? text.slice(0, fmEnd + 4) : text.slice(0, 800);
+      for (const line of fm.split("\n")) {
+        console.log(ANSI.dim("  │ ") + line);
+      }
+    }
+  }
+
   header("Demo complete");
   console.log(
-    `Guardian's ${ANSI.cyan("niaClient.verifyConstraintCite")}() will accept any of the numbered lines above as a verbatim citation, scoped to ${ANSI.cyan("src/lib/db.ts")} via the ${ANSI.cyan("applies_to")} frontmatter.`,
+    `Guardian's ${ANSI.cyan("niaClient.verifyConstraintCite")}() will accept any of the numbered lines above as a verbatim citation, scoped to ${ANSI.cyan("src/lib/db.ts")} via the ${ANSI.cyan("applies_to")} frontmatter. The path-convention source above proves the same flow works without any library import — applies_to is grounded in codebase layout via doc paths alone.`,
   );
   console.log("");
 }

@@ -101,14 +101,16 @@ docs-ingest/
 
 ## Verified end-to-end (with no API key, regex extractor)
 
-| Format | Source | Chunks | Rules extracted | Linked demo-target files |
-|---|---|---|---|---|
-| Markdown | lodash GHSA fixture | 4 | 7 | `src/lib/db.ts` |
-| HTML | Express security fixture | 6 | 13 | 6 files (server + middleware + routes) |
-| OpenAPI | Payments YAML fixture | 3 | 22 | 6 files |
+| Format | Source | Chunks | Rules | Linker firing | Linked demo-target files |
+|---|---|---|---|---|---|
+| Markdown | lodash GHSA fixture | 4 | 7 | import-grep | `src/lib/db.ts` |
+| HTML | Express security fixture | 6 | 13 | import-grep | 6 files (server + middleware + routes) |
+| OpenAPI | Payments YAML fixture | 3 | 22 | import-grep | 6 files |
+| Markdown (module) | webapp-routes fixture | 3 | 12 | **path-convention** | `src/routes/{login,payments,sessions}.ts` (via 6 derived globs, no library import) |
 
-Total: **3 leaves, 42 rules**, all line-citable, all scoped via `applies_to` to
-specific demo-target source files.
+Total: **4 leaves, 54 rules**, all line-citable. The webapp-routes leaf
+demonstrates `applies_to` grounded in codebase layout alone — the linker
+never sees a library import for this source.
 
 ## What I deliberately didn't build
 
@@ -138,6 +140,24 @@ specific demo-target source files.
   the offline demo path is unaffected. To make the rows visible in the
   UI, copy the existing `EventStream.tsx` pattern to subscribe to
   `api.docsIngestRuns.listRecent`.
+- **Path-convention linker** — derives globs from the doc's path. e.g.
+  a doc at `routes/payments.md` produces `src/routes/payments/**` and
+  `src/routes/payments*` candidates. Strips optional `docs/`, `doc/`, or
+  `documentation/` prefix. Only fires for identifier-shaped basenames so
+  topical names like `security-best-practices.md` correctly skip.
+  Demonstrated end-to-end via the new `webapp-routes` fixture (`npm run
+  demo` shows it as step 4 with 6 globs covering 3 demo-target routes,
+  zero import-grep contribution).
+- **Reverse-reference linker** — scans the codebase for `@see foo.md`,
+  `// see foo.md`, `// ref foo.md`, `// doc foo.md` patterns (matching
+  `.md` and `.mdx`). Source files referencing a doc are added to that
+  leaf's `applies_to`. Generic capability — dormant on the current
+  fixtures because demo-target has no `@see` markers, but tested with 8
+  unit cases. Fires automatically when any codebase ships markers.
+
+`writeLeaf` now merges import-grep + path-convention + reverse-ref
+signals, deduplicated. The broad-glob fallback (`src/**/*.{ts,tsx,...}`)
+fires only when the union of all three signals is empty.
 
 ## What's still optional if we have time before 6pm
 
@@ -145,8 +165,7 @@ specific demo-target source files.
    `package.json`, would expand the linked-files surface from 7 to 9. ~20 min.
 2. **UI panel for the ingestion stream** — subscribe to
    `api.docsIngestRuns.listRecent` next to the existing event stream. ~30 min.
-3. **Path-convention linking** — `docs/api/payments.md` →
-   `applies_to: src/api/payments/**`. Strengthens the "doc-to-code grounding"
+3. ~~**Path-convention linking**~~ — DONE (see above).
    pitch beyond import-only matching. ~45 min.
 
 Ping me which (if any) you want.

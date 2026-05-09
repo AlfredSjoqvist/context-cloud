@@ -20,6 +20,11 @@ async function main(): Promise<void> {
     "openapi",
     "payments.yaml",
   );
+  const webappRoutesFixtures = path.join(
+    config.home,
+    "fixtures",
+    "webapp-routes",
+  );
 
   const stripe = await registry.upsert({
     kind: "markdown_dir",
@@ -57,11 +62,25 @@ async function main(): Promise<void> {
     outputRoot: config.contextMapRoot,
   });
 
+  // Module-scope fixture whose docs live at `routes/<name>.md`. Used to
+  // demonstrate the path-convention linker: each doc's path resolves to
+  // a `src/routes/<name>/**` + `src/routes/<name>*` glob, so the leaf's
+  // `applies_to` is grounded in codebase layout alone — no library
+  // import required.
+  const webappRoutes = await registry.upsert({
+    kind: "markdown_dir",
+    uri: webappRoutesFixtures,
+    defaultScope: "module",
+    codebaseRoot: config.codebaseRoot,
+    outputRoot: config.contextMapRoot,
+  });
+
   console.log(`Registered:`);
   console.log(`  ${stripe.id}  [${stripe.kind}]  ${stripe.uri}  (lib=stripe — chunker proof only)`);
   console.log(`  ${lodash.id}  [${lodash.kind}]  ${lodash.uri}  (lib=lodash — DEMO target)`);
   console.log(`  ${express.id}  [${express.kind}]  ${express.uri}  (lib=express — HTML demo)`);
   console.log(`  ${payments.id}  [${payments.kind}]  ${payments.uri}  (lib=express — Payments OpenAPI fixture)`);
+  console.log(`  ${webappRoutes.id}  [${webappRoutes.kind}]  ${webappRoutes.uri}  (module-scope — path-convention demo)`);
   console.log(`Registry: ${config.registryPath}`);
   console.log(`\nNext: npm run ingest -- ${lodash.id} --dump-chunks`);
 }
