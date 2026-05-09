@@ -1,18 +1,17 @@
 """Tensorlake-deployed Guardian Agent cycle.
 
-Runs the Guardian's `npm run agent:once` cycle inside a Tensorlake sandbox on
-a 60-second cron schedule. Each tick is one full WAKE → PLAN → SCAN → ANALYZE
-→ HANDOFF → RECONCILE → SLEEP cycle: the Node agent talks to Convex, Nia,
-OpenAI, GitHub, and Devin directly via its own .env-loaded credentials.
+Runs the Guardian's `npm run agent:once` cycle inside a Tensorlake sandbox.
+Each invocation is one full WAKE → PLAN → SCAN → ANALYZE → HANDOFF →
+RECONCILE → SLEEP cycle. The Node agent talks to Convex, Nia, OpenAI,
+GitHub, and Devin directly via its own .env-loaded credentials.
 
-Trigger: cron `* * * * *` (every minute, configurable at deploy time).
+Trigger: webhook (Tensorlake's standard execution model). For cron-like
+behaviour, an external scheduler (GitHub Actions, Vercel cron, plain
+launchd/cron) hits the function URL on whatever interval you want. The
+function is idempotent — multiple overlapping invocations write to Convex
+under different cycle numbers and dedup via the finding fingerprint.
 
-Local mode (no Tensorlake SDK installed): this file imports cleanly and the
-decorator becomes a no-op, so `python tensorlake/guardian_cycle.py` still
-runs the cycle once via subprocess. That keeps local dev parity with the
-sandbox path.
-
-Required env on the Tensorlake function (mirror our root .env):
+Required env on the Tensorlake function (mirror the root .env):
     NIA_API_KEY, NIA_MCP_URL, CONVEX_URL, OPENAI_API_KEY, OPENAI_MODEL,
     OPENAI_CRITIQUE_MODEL, GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO,
     DEVIN_API_KEY, GUARDIAN_CYCLE_INTERVAL_S, GUARDIAN_PRIORITY_BUDGET,
@@ -22,40 +21,92 @@ Required env on the Tensorlake function (mirror our root .env):
 Deploy:
     pip install tensorlake
     export TENSORLAKE_API_KEY=<your key>
-    tensorlake deploy tensorlake/guardian_cycle.py \\
-        --name guardian-cycle --schedule '* * * * *'
+    tensorlake deploy tensorlake/guardian_cycle.py
 """
-
-from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+
+from pydantic import BaseModel
+
+
+class CycleInput(BaseModel):
+    """Optional payload — Tensorlake invokers pass {} by default."""
+
+    note: str = ""
+
+
+class CycleResult(BaseModel):
+    exit_code: int
+    stdout_tail: str
+    stderr_tail: str
 
 _ROOT = Path(__file__).resolve().parent.parent
 
 try:
-    from tensorlake.functions_sdk.functions import tensorlake_function  # type: ignore
+    from tensorlake.applications import Image, application, function  # type: ignore
+
+    # Image carries Node 20 + git only. Agent source is git-cloned at function
+    # execution time so we never need to walk above the build context.
+    _IMAGE = (
+        Image(name="guardian-runtime")
+        .run("apt-get update && apt-get install -y curl ca-certificates git")
+        .run(
+            "curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && "
+            "apt-get install -y nodejs"
+        )
+    )
+
+    _AGENT_REPO_URL = "https://github.com/AlfredSjoqvist/context-cloud.git"
+    _AGENT_REPO_BRANCH = "nicolas/plan-1-foundation"
+    _DEMO_REPO_URL = "https://github.com/NewCoder3294/demo-target.git"
+    _DEMO_REPO_BRANCH = "main"
+
+    _SECRETS = [
+        "NIA_API_KEY",
+        "NIA_MCP_URL",
+        "CONVEX_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL",
+        "OPENAI_CRITIQUE_MODEL",
+        "GITHUB_TOKEN",
+        "GITHUB_OWNER",
+        "GITHUB_REPO",
+        "DEVIN_API_KEY",
+        "GUARDIAN_CYCLE_INTERVAL_S",
+        "GUARDIAN_PRIORITY_BUDGET",
+        "GUARDIAN_JUDGMENT_BUDGET",
+        "USE_MOCK_LLM",
+        "USE_MOCK_DEVIN",
+        "SKIP_NIA",
+        "DEMO_REPO_LOCAL_PATH",
+    ]
 except Exception:  # pragma: no cover — local fallback
-    def tensorlake_function(*_args: Any, **_kwargs: Any):  # type: ignore
+    Image = None  # type: ignore
+    _IMAGE = None  # type: ignore
+    _SECRETS = []  # type: ignore
+
+    def application(**_kwargs):  # type: ignore
+        def deco(fn):
+            return fn
+
+        return deco
+
+    def function(**_kwargs):  # type: ignore
         def deco(fn):
             return fn
 
         return deco
 
 
-@tensorlake_function(
-    name="guardian-cycle",
-    timeout_seconds=180,
-)
-def cycle(_payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """One Guardian cycle. Returns exit code + tail of stdout/stderr."""
+def _run_cycle_local() -> CycleResult:
+    """Local-dev path: run cycle from the checked-out repo on this machine."""
     env = os.environ.copy()
-    # Demo target path defaults to a sibling directory; override via env on deploy.
-    env.setdefault("DEMO_REPO_LOCAL_PATH", str(_ROOT.parent / "guardian-demo-target"))
-
+    env.setdefault(
+        "DEMO_REPO_LOCAL_PATH",
+        str(_ROOT.parent / "guardian-demo-target"),
+    )
     try:
         proc = subprocess.run(
             ["npm", "run", "agent:once"],
@@ -63,22 +114,112 @@ def cycle(_payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             env=env,
             capture_output=True,
             text=True,
-            timeout=150,
+            timeout=170,
         )
-        return {
-            "exit_code": proc.returncode,
-            "stdout_tail": proc.stdout[-2000:],
-            "stderr_tail": proc.stderr[-2000:],
-        }
+        return CycleResult(
+            exit_code=proc.returncode,
+            stdout_tail=proc.stdout[-2000:],
+            stderr_tail=proc.stderr[-2000:],
+        )
     except subprocess.TimeoutExpired:
-        return {
-            "exit_code": 124,
-            "stdout_tail": "",
-            "stderr_tail": "agent cycle exceeded 150s timeout",
-        }
+        return CycleResult(
+            exit_code=124,
+            stdout_tail="",
+            stderr_tail="agent cycle exceeded 170s timeout",
+        )
+
+
+def _run_cycle_in_sandbox(
+    agent_repo: str,
+    agent_branch: str,
+    demo_repo: str,
+    demo_branch: str,
+) -> CycleResult:
+    """Sandbox path: git-clone agent + demo target, npm install, run one cycle."""
+    APP = Path("/tmp/guardian-app")
+    DEMO = Path("/tmp/guardian-demo")
+
+    if not APP.exists():
+        cp = subprocess.run(
+            ["git", "clone", "--depth", "1", "--branch", agent_branch, agent_repo, str(APP)],
+            capture_output=True,
+            text=True,
+        )
+        if cp.returncode != 0:
+            return CycleResult(
+                exit_code=cp.returncode,
+                stdout_tail=cp.stdout[-2000:],
+                stderr_tail=("agent clone failed: " + cp.stderr)[-2000:],
+            )
+        cp = subprocess.run(
+            ["npm", "install"], cwd=APP, capture_output=True, text=True, timeout=240
+        )
+        if cp.returncode != 0:
+            return CycleResult(
+                exit_code=cp.returncode,
+                stdout_tail=cp.stdout[-2000:],
+                stderr_tail=("npm install failed: " + cp.stderr)[-2000:],
+            )
+
+    if not DEMO.exists():
+        cp = subprocess.run(
+            ["git", "clone", "--depth", "1", "--branch", demo_branch, demo_repo, str(DEMO)],
+            capture_output=True,
+            text=True,
+        )
+        if cp.returncode != 0:
+            return CycleResult(
+                exit_code=cp.returncode,
+                stdout_tail=cp.stdout[-2000:],
+                stderr_tail=("demo clone failed: " + cp.stderr)[-2000:],
+            )
+
+    env = os.environ.copy()
+    env["DEMO_REPO_LOCAL_PATH"] = str(DEMO)
+
+    try:
+        proc = subprocess.run(
+            ["npm", "run", "agent:once"],
+            cwd=APP,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=170,
+        )
+        return CycleResult(
+            exit_code=proc.returncode,
+            stdout_tail=proc.stdout[-2000:],
+            stderr_tail=proc.stderr[-2000:],
+        )
+    except subprocess.TimeoutExpired:
+        return CycleResult(
+            exit_code=124,
+            stdout_tail="",
+            stderr_tail="agent cycle exceeded 170s timeout",
+        )
+
+
+if _IMAGE is not None:
+
+    @application()
+    @function(image=_IMAGE, timeout=240, secrets=_SECRETS)
+    def cycle(payload: CycleInput) -> CycleResult:
+        """One Guardian cycle, executed inside the Tensorlake sandbox."""
+        return _run_cycle_in_sandbox(
+            agent_repo=_AGENT_REPO_URL,
+            agent_branch=_AGENT_REPO_BRANCH,
+            demo_repo=_DEMO_REPO_URL,
+            demo_branch=_DEMO_REPO_BRANCH,
+        )
+else:
+
+    def cycle(payload: CycleInput) -> CycleResult:
+        return _run_cycle_local()
 
 
 if __name__ == "__main__":
-    result = cycle({})
-    print(result)
-    sys.exit(0 if result["exit_code"] == 0 else 1)
+    import sys
+
+    result = cycle(CycleInput())
+    print(result.model_dump_json(indent=2))
+    sys.exit(0 if result.exit_code == 0 else 1)
