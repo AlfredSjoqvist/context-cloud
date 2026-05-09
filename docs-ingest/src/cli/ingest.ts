@@ -3,12 +3,15 @@ import path from "node:path";
 import { loadConfig } from "../config.js";
 import { SourceRegistry } from "../sources/registry.js";
 import { ingestSourceChunks } from "../ingest/index.js";
+import { ingestFromUrl } from "../ingest/fetch-url.js";
+import type { DocSource, RawDoc } from "../types.js";
 import { extractRules } from "../extract/rule-extractor.js";
 import { buildLibraryImportMap } from "../link/import-grep.js";
 import { writeLeaf } from "../emit/write-leaves.js";
 
 interface CliArgs {
   sourceId: string | undefined;
+  fromUrl: string | undefined;
   dumpChunks: boolean;
   dumpRaw: boolean;
   dumpRules: boolean;
@@ -19,10 +22,34 @@ interface CliArgs {
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const flags = new Set(argv.filter((a) => a.startsWith("--")));
-  const positional = argv.filter((a) => !a.startsWith("--"));
+  const flags = new Set<string>();
+  const positional: string[] = [];
+  let fromUrl: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === undefined) continue;
+    if (arg === "--from-url") {
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith("--")) {
+        throw new Error("--from-url requires a URL argument");
+      }
+      fromUrl = next;
+      i++;
+      continue;
+    }
+    if (arg.startsWith("--from-url=")) {
+      fromUrl = arg.slice("--from-url=".length);
+      continue;
+    }
+    if (arg.startsWith("--")) {
+      flags.add(arg);
+      continue;
+    }
+    positional.push(arg);
+  }
   return {
     sourceId: positional[0],
+    fromUrl,
     dumpChunks: flags.has("--dump-chunks"),
     dumpRaw: flags.has("--dump-raw"),
     dumpRules: flags.has("--dump-rules"),
@@ -52,36 +79,88 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const registry = new SourceRegistry(config.registryPath);
 
-  if (args.list || !args.sourceId) {
-    const sources = await registry.list();
-    if (sources.length === 0) {
-      console.log(`No sources registered. Registry: ${config.registryPath}`);
-      console.log(`Run \`npm run seed\` to register the demo fixtures.`);
-    } else {
-      console.log(`Sources (${config.registryPath}):`);
-      for (const s of sources) {
+  // --- URL mode: synthesise an ephemeral source, skip the registry ---
+  let source: DocSource | undefined;
+  let prefetchedRawDocs: RawDoc[] | undefined;
+
+  if (args.fromUrl) {
+    const demoTargetEarly = resolveDemoTarget(config.home);
+    const codebaseRoot = demoTargetEarly?.codebaseRoot ?? config.codebaseRoot;
+    const outputRoot = demoTargetEarly?.contextMapRoot ?? config.contextMapRoot;
+    try {
+      const { source: ephemeralSource, body, docName } = await ingestFromUrl({
+        url: args.fromUrl,
+        codebaseRoot,
+        outputRoot,
+      });
+      source = ephemeralSource;
+      const format =
+        ephemeralSource.kind === "html_url" ? "html" : "md";
+      prefetchedRawDocs = [
+        {
+          id: `${ephemeralSource.id}:${docName}`,
+          sourceId: ephemeralSource.id,
+          path: docName,
+          title: docName.replace(/\.[^.]+$/, ""),
+          format,
+          text: body,
+        },
+      ];
+      console.log(
+        `[from-url] ${args.fromUrl} → kind=${ephemeralSource.kind} lib=${
+          ephemeralSource.defaultLibraryName ?? "(none)"
+        } id=${ephemeralSource.id}`,
+      );
+    } catch (err) {
+      console.error(
+        `[from-url] failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  } else {
+    if (args.list || !args.sourceId) {
+      const sources = await registry.list();
+      if (sources.length === 0) {
+        console.log(`No sources registered. Registry: ${config.registryPath}`);
+        console.log(`Run \`npm run seed\` to register the demo fixtures.`);
+      } else {
+        console.log(`Sources (${config.registryPath}):`);
+        for (const s of sources) {
+          console.log(
+            `  ${s.id}  [${s.kind}] ${s.uri} (scope=${s.defaultScope}${
+              s.defaultLibraryName ? ` lib=${s.defaultLibraryName}` : ""
+            })`,
+          );
+        }
+      }
+      if (!args.sourceId) {
         console.log(
-          `  ${s.id}  [${s.kind}] ${s.uri} (scope=${s.defaultScope}${
-            s.defaultLibraryName ? ` lib=${s.defaultLibraryName}` : ""
-          })`,
+          `\nUsage: npm run ingest -- <sourceId> [--dump-chunks] [--dump-rules] [--emit] [--use-llm | --no-llm]`,
         );
+        console.log(
+          `   or: npm run ingest -- --from-url <url> [--emit]`,
+        );
+        process.exit(args.list ? 0 : 2);
       }
     }
-    if (!args.sourceId) {
-      console.log(
-        `\nUsage: npm run ingest -- <sourceId> [--dump-chunks] [--dump-rules] [--emit] [--use-llm | --no-llm]`,
-      );
-      process.exit(args.list ? 0 : 2);
+
+    source = await registry.get(args.sourceId!);
+    if (!source) {
+      console.error(`Unknown source: ${args.sourceId}`);
+      process.exit(2);
     }
   }
 
-  const source = await registry.get(args.sourceId!);
+  // From here on, `source` is guaranteed defined.
   if (!source) {
-    console.error(`Unknown source: ${args.sourceId}`);
+    console.error(`Internal error: no source resolved.`);
     process.exit(2);
   }
 
-  const result = await ingestSourceChunks(source);
+  const result = await ingestSourceChunks(
+    source,
+    prefetchedRawDocs ? { prefetchedRawDocs } : {},
+  );
 
   if (args.dumpRaw) {
     for (const doc of result.rawDocs) {

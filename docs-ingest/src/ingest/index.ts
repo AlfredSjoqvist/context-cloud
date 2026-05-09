@@ -11,10 +11,22 @@ export interface IngestChunksResult {
   errors: Array<{ stage: string; message: string; path?: string }>;
 }
 
+export interface IngestChunksOptions {
+  /**
+   * If provided, skip the fetch step and treat these as the already-fetched
+   * raw docs. Used for the `--from-url` flow, where the body has been
+   * downloaded in-memory ahead of pipeline entry.
+   */
+  prefetchedRawDocs?: RawDoc[];
+}
+
 export async function ingestSourceChunks(
   source: DocSource,
+  options: IngestChunksOptions = {},
 ): Promise<IngestChunksResult> {
-  const { raw, errors } = await fetchSource(source);
+  const { raw, errors } = options.prefetchedRawDocs
+    ? { raw: options.prefetchedRawDocs, errors: [] as IngestChunksResult["errors"] }
+    : await fetchSource(source);
   const rawDocs: RawDoc[] = [];
   const chunks: DocChunk[] = [];
 
