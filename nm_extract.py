@@ -15,6 +15,13 @@ Env:
     OPENAI_API_KEY      — required unless --no-llm or --dry-run.
     NM_EXTRACT_MODEL    — default 'gpt-4o-mini'.
     NM_EXTRACT_BASE_URL — optional override for OpenAI-compatible endpoints.
+
+INTEGRATIONS NOTICE
+  - Convex mirror: every persisted note + edges + hurdle is also pushed to
+    Convex via nm_convex (best-effort, fail-open). Drives the live dashboard.
+  - Tensorlake: this module is wrapped by tensorlake/note_manager.py to run
+    as a webhook-triggered background agent. Local CLI still works unchanged.
+  - See SPEC.md > Integrations.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from nm_db import connect, init_db, now_iso, upsert_file
+from nm_db import canonical_path, connect, init_db, now_iso, upsert_file
 from nm_events import Event, events_for_session
 from nm_signals import HURDLE_THRESHOLD, Signal, all_signals
 
@@ -54,6 +61,11 @@ class HurdleWindow:
 
 
 def _files_in_range(events: list[Event], start: int, end: int) -> list[str]:
+    """Return canonicalized file paths touched inside the window.
+
+    Canonicalization aligns paths with v2 file_touches / injections rows so
+    cross-table joins and the get_relevant_notes lookup hit the same key.
+    """
     seen: dict[str, None] = {}
     for ev in events[start:end + 1]:
         if ev.kind != "tool_call":
@@ -61,7 +73,8 @@ def _files_in_range(events: list[Event], start: int, end: int) -> list[str]:
         for k in ("file_path", "path", "notebook_path"):
             v = ev.tool_input.get(k)
             if isinstance(v, str) and v:
-                seen[v] = None
+                cp = canonical_path(v) or v
+                seen[cp] = None
     return list(seen.keys())
 
 
@@ -280,8 +293,24 @@ def _seed_importance(score: float, resolved: bool) -> float:
     return round(base, 3)
 
 
+def _convex_sync_safe(fn, *args) -> None:
+    """Best-effort sync — never raises, never blocks long. See SPEC.md > Convex."""
+    try:
+        import nm_convex
+        if nm_convex.is_enabled():
+            fn(*args)
+    except Exception:
+        pass
+
+
 def _persist_hurdle(conn: sqlite3.Connection, session_id: str, win: HurdleWindow,
                     events: list[Event]) -> int:
+    """Persist v1 `hurdles` row + v2 `hurdle_signals` rows.
+
+    `hurdles.start_event_id` / `end_event_id` carry messages.id when the events
+    came from the v2 path, transcript_entries.id when from the v1 fallback —
+    same column, source disambiguated by which trace table populated the row.
+    """
     start_te = events[win.start_idx].te_id if win.start_idx < len(events) else 0
     end_te = events[win.end_idx].te_id if win.end_idx < len(events) else None
     cur = conn.cursor()
@@ -301,7 +330,45 @@ def _persist_hurdle(conn: sqlite3.Connection, session_id: str, win: HurdleWindow
             now_iso(),
         ),
     )
-    return cur.lastrowid
+    hurdle_id = cur.lastrowid
+
+    # v2 audit: one row per individual signal in the cluster.
+    rows = []
+    for s in win.signals:
+        msg_id = events[s.event_idx].te_id if 0 <= s.event_idx < len(events) else None
+        rows.append((
+            hurdle_id,
+            msg_id,
+            s.kind,
+            float(s.weight),
+            json.dumps(s.detail) if s.detail else None,
+        ))
+    if rows:
+        cur.executemany(
+            "INSERT INTO hurdle_signals (hurdle_id, message_id, signal, weight, details) "
+            "VALUES (?, ?, ?, ?, ?)",
+            rows,
+        )
+
+    # Convex mirror.
+    import nm_convex
+    _convex_sync_safe(
+        nm_convex.sync_hurdle,
+        {
+            "hurdleId": hurdle_id,
+            "sessionId": session_id,
+            "score": float(win.score),
+            "signalsJson": json.dumps([
+                {"kind": s.kind, "event_idx": s.event_idx, "weight": s.weight, "detail": s.detail}
+                for s in win.signals
+            ]),
+            "resolved": win.resolved_idx is not None,
+            "resolvedNoteId": None,
+            "createdAt": now_iso(),
+        },
+    )
+
+    return hurdle_id
 
 
 def _persist_note(conn: sqlite3.Connection, session_id: str, hurdle_id: int,
@@ -346,6 +413,7 @@ def _persist_note(conn: sqlite3.Connection, session_id: str, hurdle_id: int,
     # a smaller weight. We don't have a good per-file weight signal yet, so
     # use 1.0 / 0.6 / 0.4 / ... Stepwise.
     weights_table = [1.0, 0.7, 0.5, 0.4, 0.3]
+    edges_for_sync: list[dict[str, Any]] = []
     for i, path in enumerate(files):
         upsert_file(conn, path)
         w = weights_table[i] if i < len(weights_table) else 0.3
@@ -353,6 +421,41 @@ def _persist_note(conn: sqlite3.Connection, session_id: str, hurdle_id: int,
             "INSERT OR REPLACE INTO file_note_edges (note_id, path, weight) VALUES (?, ?, ?)",
             (note_id, path, w),
         )
+        edges_for_sync.append({"path": path, "weight": w})
+
+    # Convex mirror — note + its edges in one round-trip via /sync/note.
+    import nm_convex
+    _convex_sync_safe(
+        nm_convex.sync_note,
+        {
+            "noteId": note_id,
+            "symptom": extracted.get("symptom", "")[:600],
+            "rootCause": extracted.get("root_cause", "")[:1200],
+            "correction": extracted.get("correction", "")[:1200],
+            "importance": float(importance),
+            "injectCount": 0,
+            "lastInjectedAt": None,
+            "invalidatedAt": None,
+            "createdAt": now_iso(),
+            "createdFromSession": session_id,
+            "createdFromHurdle": hurdle_id,
+        },
+        edges_for_sync,
+    )
+
+    # Nia indexing — semantic retrieval surface for `find_notes_semantic`
+    # in nm_server. Best-effort, fails open when NIA_API_KEY is unset.
+    try:
+        import nm_nia
+        text = " ".join(filter(None, [
+            extracted.get("symptom", ""),
+            extracted.get("root_cause", ""),
+            extracted.get("correction", ""),
+        ]))
+        nm_nia.index_note(note_id, text, files)
+    except Exception:
+        pass
+
     return note_id
 
 

@@ -16,6 +16,11 @@ into BOTH:
        file_touches   — projection: (tool_call, canonical path) pairs
 
 Errors are swallowed; capture must never block the agent.
+
+INTEGRATIONS NOTICE
+  - Convex mirror: at the end of each ingest, the touched session is mirrored
+    to Convex (lite — id, vendor, started/last-seen, message count). Trace
+    tables stay local. Best-effort, fail-open. See SPEC.md > Convex.
 """
 
 import json
@@ -291,8 +296,40 @@ def _ingest(transcript_path: str, cwd: str | None) -> int:
         "INSERT OR REPLACE INTO ingest_state (transcript_path, last_line, updated_at) VALUES (?, ?, ?)",
         (transcript_path, total_lines, ingested_at),
     )
+
+    # Snapshot session rows touched by this ingest for Convex mirroring.
+    sessions_to_sync: list[tuple] = []
+    try:
+        cur.execute(
+            """
+            SELECT s.session_id, s.agent_vendor, s.cwd, s.project_root,
+                   s.started_at, s.last_seen_at,
+                   (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.session_id)
+            FROM sessions s
+            WHERE s.transcript_path = ?
+            """,
+            (transcript_path,),
+        )
+        sessions_to_sync = cur.fetchall()
+    except Exception:
+        sessions_to_sync = []
+
     conn.commit()
     conn.close()
+
+    # Convex mirror — fail-open, never blocks the hook. See SPEC.md > Convex.
+    try:
+        import nm_convex
+        if nm_convex.is_enabled() and sessions_to_sync:
+            for r in sessions_to_sync:
+                nm_convex.sync_session({
+                    "sessionId": r[0], "agentVendor": r[1], "cwd": r[2],
+                    "projectRoot": r[3], "startedAt": r[4], "lastSeenAt": r[5],
+                    "messageCount": int(r[6] or 0),
+                })
+    except Exception:
+        pass
+
     return inserted
 
 

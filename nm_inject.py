@@ -8,6 +8,13 @@ table (drives the on-stage "47 injections in the last 15 min" metric).
 Configured in .claude/settings.json under hooks.PreToolUse with a matcher of
 Read|Edit|Write|MultiEdit. Errors are swallowed so a broken hook never blocks
 the agent.
+
+INTEGRATIONS NOTICE
+  - Convex mirror: every injection row written to local `injections` is also
+    POSTed to Convex via nm_convex.sync_injection. Best-effort, fail-open.
+  - Nia fallback: when path-key match returns zero notes, optionally fall
+    through to nm_nia.semantic_lookup.
+  - See SPEC.md > Integrations.
 """
 
 import json
@@ -50,10 +57,10 @@ def _extract_paths(tool_input: dict) -> list[str]:
 def _log_injections(session_id, tool_name, path, notes, accepted_ids):
     if not notes:
         return
+    ts = datetime.now(timezone.utc).isoformat()
     try:
         init_db()
         conn = connect()
-        ts = datetime.now(timezone.utc).isoformat()
         rows = [
             (ts, session_id, path, tool_name, n.get("id"),
              1 if n.get("id") in accepted_ids else 0,
@@ -67,6 +74,24 @@ def _log_injections(session_id, tool_name, path, notes, accepted_ids):
         )
         conn.commit()
         conn.close()
+    except Exception:
+        pass
+
+    # Convex mirror — best-effort, never blocks. See SPEC.md > Convex.
+    try:
+        import nm_convex
+        if nm_convex.is_enabled():
+            for n in notes:
+                accepted = n.get("id") in accepted_ids
+                nm_convex.sync_injection({
+                    "ts": ts,
+                    "sessionId": session_id,
+                    "path": path,
+                    "toolName": tool_name,
+                    "noteId": n.get("id"),
+                    "accepted": accepted,
+                    "reason": None if accepted else "filtered",
+                })
     except Exception:
         pass
 

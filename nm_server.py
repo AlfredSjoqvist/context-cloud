@@ -7,6 +7,12 @@ existing notes / file_note_edges product graph.
 Capture and injection happen automatically via Claude Code hooks
 (nm_capture.py + nm_inject.py); these MCP tools are for explicit inspection,
 debugging, and use by other agents (Note Manager / Guardian / GC / dashboard).
+
+INTEGRATIONS NOTICE
+  - find_notes_semantic uses nm_nia (Nia when configured, local cosine
+    fallback otherwise). See SPEC.md > Nia.
+  - Read paths still hit local SQLite for low latency. The Vercel dashboard
+    reads the Convex mirror, not this MCP server. See SPEC.md > Convex.
 """
 
 import os
@@ -391,6 +397,21 @@ def list_recent_injections(limit: int = 50, since_minutes: int | None = None) ->
         }
         for r in rows
     ]
+
+
+@mcp.tool()
+def find_notes_semantic(query: str, limit: int = 5) -> list[dict]:
+    """Semantic note lookup. Hits Nia when configured, falls back to a local
+    cosine ranker over notes when not. See SPEC.md > Nia.
+
+    Use when you have a query / topic but no specific file path — the
+    file-path-keyed `get_relevant_notes` returns nothing in that case.
+    """
+    try:
+        import nm_nia
+        return nm_nia.semantic_lookup(query, limit=limit)
+    except Exception:
+        return []
 
 
 @mcp.tool()

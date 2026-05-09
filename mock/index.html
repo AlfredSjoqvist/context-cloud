@@ -488,6 +488,24 @@
   .file-row.connected { background: rgba(255,184,107,.05); color: var(--text); }
   .folder-row .name { font-size: 12.5px; flex: 1; }
   .folder-row .badge { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .folder-merge-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 1px 6px 1px 4px;
+    background: var(--note-soft);
+    color: var(--note);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    pointer-events: auto;
+    white-space: nowrap;
+  }
+  .folder.collapsed > .folder-row .folder-merge-badge {
+    background: rgba(255,184,107,0.18);
+  }
 
   /* ─── Notes panel (right) ────────────────────────────────────── */
   aside.notes {
@@ -2435,6 +2453,63 @@
   .r-edge { fill: none; stroke: var(--border-bright); stroke-width: 1; transition: stroke-opacity .3s, stroke .3s, stroke-width .3s; }
   .r-edge.active { stroke: url(#replay-edge-grad); stroke-width: 2.2; }
   .r-edge.invalid { stroke-dasharray: 2 3; stroke-opacity: 0.1; }
+  .r-edge.just-pruned {
+    stroke: var(--red);
+    stroke-width: 2.4;
+    stroke-dasharray: 4 3;
+    animation: r-prune-flash 0.6s cubic-bezier(.4,0,.2,1) forwards;
+    filter: drop-shadow(0 0 4px rgba(255,122,138,.55));
+  }
+  @keyframes r-prune-flash {
+    0%   { stroke: #FFFFFF; stroke-width: 3.2; filter: drop-shadow(0 0 8px rgba(255,255,255,.8)); }
+    35%  { stroke: var(--red); stroke-width: 2.6; }
+    100% { stroke: var(--red); stroke-width: 2.0; }
+  }
+  .r-note-circle.recent-invalid {
+    fill: var(--red);
+    stroke: #FF4D5C;
+    fill-opacity: 0.45;
+    animation: r-invalid-pop 0.55s cubic-bezier(.4,0,.2,1) forwards;
+    filter: drop-shadow(0 0 8px rgba(255,122,138,.7));
+  }
+  @keyframes r-invalid-pop {
+    0%   { fill-opacity: 1; transform-origin: center; filter: drop-shadow(0 0 12px rgba(255,255,255,.8)); }
+    50%  { fill-opacity: 0.7; }
+    100% { fill-opacity: 0.45; }
+  }
+  .r-note-circle.recent-merge {
+    fill: var(--note);
+    stroke: var(--note);
+    fill-opacity: 0.6;
+    filter: drop-shadow(0 0 7px rgba(255,184,107,.7));
+    animation: r-merge-pulse 0.7s cubic-bezier(.4,0,.2,1) forwards;
+  }
+  @keyframes r-merge-pulse {
+    0%   { fill-opacity: 0.95; }
+    100% { fill-opacity: 0.55; }
+  }
+  .r-note-x {
+    stroke: #FFFFFF;
+    stroke-width: 2;
+    stroke-linecap: round;
+    pointer-events: none;
+  }
+  .r-merge-line {
+    stroke: var(--note);
+    stroke-width: 1.6;
+    stroke-dasharray: 4 3;
+    pointer-events: none;
+    animation: r-merge-flow 1s linear infinite;
+  }
+  @keyframes r-merge-flow {
+    0%   { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -14; }
+  }
+  .replay-state-pill .a { color: var(--note); font-weight: 600; }
+  .replay-state-pill .i { color: var(--red); font-weight: 600; }
+  .replay-state-pill .m { color: var(--note); font-weight: 600; }
+  .replay-state-pill .e { color: var(--file); font-weight: 600; }
+  .replay-state-pill .p { color: var(--purple); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -3364,6 +3439,148 @@ HISTORY_NOTES.forEach((n, i) => {
     feedback_score: fbUseful / fbTotal,
   };
   n.metrics.retained_score = computeRetained(n);
+  // legacy history notes: lifecycle just before window for replay continuity
+  n.lifecycle_at = n.created_at + Math.floor(ageMin * 0.7) * 60 * 1000;
+  n.lifecycle_type = n.status === 'invalidated' ? 'invalidate' : 'merge';
+  n.lifecycle_target = (typeof n.status === 'string' && n.status.startsWith('merged_into')) ? n.status.split(':')[1] : null;
+});
+
+/* ── Ephemeral notes: born and die within the 14-day window.
+   These give the Replay view a continuous lifecycle story:
+   creation pulse → injections → GC kills (invalidate or merge into a sibling). */
+const EPHEMERAL_HISTORY_DATA = [
+  {
+    id: 'n_eph_01', importance: 0.42, inject_count: 5,
+    created_offset_min: 13 * 1440, lifecycle_offset_min: 8 * 1440,
+    lifecycle_type: 'invalidate', lifecycle_target: null,
+    lifecycle_reason: 'no inject in 5d · retained_score 0.18 below 0.20 threshold',
+    symptom: 'Logging used console.log directly',
+    root_cause: 'Quick debug left in. Should use the structured logger.',
+    correction: 'Use logger.info() with a context object.',
+    edges: [{ path: 'src/api/webhooks.ts', weight: 0.6 }, { path: 'src/agents/noteManager.ts', weight: 0.4 }],
+  },
+  {
+    id: 'n_eph_02', importance: 0.51, inject_count: 7,
+    created_offset_min: 12 * 1440, lifecycle_offset_min: 5 * 1440,
+    lifecycle_type: 'merge', lifecycle_target: 'n_92ac',
+    lifecycle_reason: 'similarity 0.81 with n_92ac · merged into higher-importance note',
+    symptom: 'API URL stored as a const at module top',
+    root_cause: 'Constants file leaked staging URLs into prod.',
+    correction: 'Read from env var instead of storing constants.',
+    edges: [{ path: 'src/api/client.ts', weight: 0.85 }],
+  },
+  {
+    id: 'n_eph_03', importance: 0.39, inject_count: 4,
+    created_offset_min: 11 * 1440, lifecycle_offset_min: 4 * 1440,
+    lifecycle_type: 'invalidate', lifecycle_target: null,
+    lifecycle_reason: 'feedback score 0.36 below threshold · superseded by Prettier config',
+    symptom: 'Inconsistent indent in Dashboard.tsx',
+    root_cause: 'Mix of 2-space and 4-space indent.',
+    correction: 'Run npm run format; CI gate added in #523.',
+    edges: [{ path: 'src/components/Dashboard.tsx', weight: 0.7 }],
+  },
+  {
+    id: 'n_eph_04', importance: 0.46, inject_count: 6,
+    created_offset_min: 10 * 1440, lifecycle_offset_min: 6 * 1440,
+    lifecycle_type: 'merge', lifecycle_target: 'n_b73e',
+    lifecycle_reason: 'similarity 0.78 with n_b73e about webhook 5xx errors',
+    symptom: 'Webhook returned 503 for malformed payloads',
+    root_cause: 'Variant of n_b73e — same retry storm pattern.',
+    correction: 'Return 400 on validation errors; see ADR-011.',
+    edges: [{ path: 'src/api/webhooks.ts', weight: 0.9 }],
+  },
+  {
+    id: 'n_eph_05', importance: 0.34, inject_count: 3,
+    created_offset_min: 9 * 1440, lifecycle_offset_min: 1 * 1440,
+    lifecycle_type: 'invalidate', lifecycle_target: null,
+    lifecycle_reason: 'idle 7d · retained_score 0.14 below threshold',
+    symptom: 'Empty catch block silenced an error',
+    root_cause: 'Catch with no rethrow lost a Convex transaction error.',
+    correction: 'Always rethrow or log + handle explicitly.',
+    edges: [{ path: 'src/lib/convex.ts', weight: 0.55 }],
+  },
+  {
+    id: 'n_eph_06', importance: 0.48, inject_count: 4,
+    created_offset_min: 9 * 1440, lifecycle_offset_min: 3 * 1440,
+    lifecycle_type: 'invalidate', lifecycle_target: null,
+    lifecycle_reason: 'feedback score 0.50 below 0.55 threshold · 4 injects only',
+    symptom: 'Used setInterval without cleanup',
+    root_cause: 'Memory leak in Header.tsx — interval never cleared.',
+    correction: 'Always clear in useEffect cleanup.',
+    edges: [{ path: 'src/components/Header.tsx', weight: 0.8 }],
+  },
+  {
+    id: 'n_eph_07', importance: 0.43, inject_count: 5,
+    created_offset_min: 7 * 1440, lifecycle_offset_min: 2 * 1440,
+    lifecycle_type: 'merge', lifecycle_target: 'n_e6c4',
+    lifecycle_reason: 'similarity 0.74 with n_e6c4 about Tensorlake budgets',
+    symptom: 'Spawned sandbox with 8GB RAM',
+    root_cause: 'Variant of n_e6c4 — also exceeds default org budget.',
+    correction: 'Set memory_mb: 4096 explicitly when calling spawnSandbox().',
+    edges: [{ path: 'src/lib/tensorlake.ts', weight: 0.7 }],
+  },
+  {
+    id: 'n_eph_08', importance: 0.36, inject_count: 2,
+    created_offset_min: 6 * 1440, lifecycle_offset_min: 90,
+    lifecycle_type: 'invalidate', lifecycle_target: null,
+    lifecycle_reason: 'inject_count 2 · idle 5d · retained_score 0.12',
+    symptom: 'Magic number 86400 in date math',
+    root_cause: 'Should use dayMs constant from lib/time.',
+    correction: 'Import dayMs from lib/time; PR #530.',
+    edges: [{ path: 'src/utils/formatDate.ts', weight: 0.5 }],
+  },
+  {
+    id: 'n_eph_09', importance: 0.40, inject_count: 3,
+    created_offset_min: 5 * 1440, lifecycle_offset_min: 60,
+    lifecycle_type: 'invalidate', lifecycle_target: null,
+    lifecycle_reason: 'inject_count 3 · feedback score 0.33 below threshold',
+    symptom: 'Type assertion used instead of guard',
+    root_cause: 'as Foo bypassed runtime check; broke under malformed payload.',
+    correction: 'Use isFoo() type guard.',
+    edges: [{ path: 'src/api/types.ts', weight: 0.6 }, { path: 'src/api/auth.ts', weight: 0.3 }],
+  },
+  {
+    id: 'n_eph_10', importance: 0.45, inject_count: 4,
+    created_offset_min: 4 * 1440, lifecycle_offset_min: 1440,
+    lifecycle_type: 'merge', lifecycle_target: 'n_2c08',
+    lifecycle_reason: 'similarity 0.83 with n_2c08 — same Convex re-render issue',
+    symptom: 'NoteCard re-renders on unrelated mutations',
+    root_cause: 'Same root cause as n_2c08 — useQuery without selector.',
+    correction: 'Pass selector to useQuery in NoteCard.',
+    edges: [{ path: 'src/components/NoteCard.tsx', weight: 0.85 }, { path: 'src/hooks/useNotes.ts', weight: 0.4 }],
+  },
+];
+EPHEMERAL_HISTORY_DATA.forEach((n, i) => {
+  const created_at = NOW_TS - n.created_offset_min * 60 * 1000;
+  const lifecycle_at = NOW_TS - n.lifecycle_offset_min * 60 * 1000;
+  const lastInjectMin = Math.floor((n.created_offset_min + n.lifecycle_offset_min) / 2);
+  HISTORY_NOTES.push({
+    id: n.id,
+    importance: n.importance,
+    inject_count: n.inject_count,
+    age: Math.floor(n.created_offset_min / 1440) + 'd',
+    symptom: n.symptom,
+    root_cause: n.root_cause,
+    correction: n.correction,
+    edges: n.edges,
+    status: n.lifecycle_type === 'merge' ? 'merged_into:' + n.lifecycle_target : 'invalidated',
+    invalidated_reason: n.lifecycle_reason,
+    created_by: AGENTS[(i + 2) % AGENTS.length].id,
+    created_at,
+    last_inject_at: NOW_TS - lastInjectMin * 60 * 1000,
+    lifecycle_at,
+    lifecycle_type: n.lifecycle_type,
+    lifecycle_target: n.lifecycle_target,
+    metrics: {
+      age_min: n.created_offset_min,
+      last_inject_min: lastInjectMin,
+      inject_count: n.inject_count,
+      feedback_total: Math.max(1, Math.floor(n.inject_count * 0.5)),
+      feedback_useful: Math.max(0, Math.floor(n.inject_count * 0.3)),
+      feedback_score: 0.40 + (i % 3) * 0.04,
+      retained_score: 0.10 + (i % 5) * 0.02,
+    },
+  });
 });
 
 const ALL_NOTES   = NOTES.concat(HISTORY_NOTES);
@@ -3408,63 +3625,133 @@ INJECTIONS.forEach(inj => {
   }
 });
 
-/* generate GC run history — every ~16h over 14 days */
+/* ── Pruned edges: phantom edges that existed in the past on currently-active
+   notes. They show up in the Replay graph until their prune timestamp, then
+   briefly flash red and disappear. */
+const PRUNED_EDGES_DATA = [
+  { note_id: 'n_92ac', file: 'src/lib/mcp.ts',              weight: 0.18, pruned_offset_min: 9 * 1440, reason: 'edge weight 0.18 · never anchored an injection' },
+  { note_id: 'n_92ac', file: 'src/agents/noteManager.ts',   weight: 0.12, pruned_offset_min: 6 * 1440, reason: 'edge weight 0.12 · 0 injections anchored to this file' },
+  { note_id: 'n_2c08', file: 'src/utils/debounce.ts',       weight: 0.09, pruned_offset_min: 5 * 1440, reason: 'edge weight 0.09 below 0.10 threshold' },
+  { note_id: 'n_b73e', file: 'src/lib/nia.ts',              weight: 0.14, pruned_offset_min: 5 * 1440, reason: 'unrelated file · stale anchor for 11d' },
+  { note_id: 'n_4f1d', file: 'src/components/Header.tsx',   weight: 0.07, pruned_offset_min: 4 * 1440, reason: 'edge weight 0.07 · spurious match' },
+  { note_id: 'n_71b2', file: 'src/utils/formatDate.ts',     weight: 0.11, pruned_offset_min: 3 * 1440, reason: 'edge weight 0.11 · file reorg in #519' },
+  { note_id: 'n_e6c4', file: 'src/api/types.ts',            weight: 0.13, pruned_offset_min: 3 * 1440, reason: 'edge weight 0.13 · stale anchor' },
+  { note_id: 'n_d8e2', file: 'src/components/EdgeCanvas.tsx', weight: 0.06, pruned_offset_min: 2 * 1440, reason: 'edge weight 0.06 · 0 injections in 7d' },
+  { note_id: 'n_5a91', file: 'src/components/Dashboard.tsx', weight: 0.16, pruned_offset_min: 2 * 1440, reason: 'edge weight 0.16 · ADR-014 narrowed scope' },
+  { note_id: 'n_c402', file: 'src/lib/convex.ts',           weight: 0.10, pruned_offset_min: 1 * 1440, reason: 'edge weight 0.10 below threshold' },
+  { note_id: 'n_8d77', file: 'src/lib/mcp.ts',              weight: 0.08, pruned_offset_min: 1 * 1440, reason: 'edge weight 0.08 · never anchored' },
+  { note_id: 'n_a519', file: 'src/api/types.ts',            weight: 0.07, pruned_offset_min: 1 * 1440, reason: 'edge weight 0.07 below threshold' },
+];
+NOTES.forEach(n => n.pruned_edges = []);
+PRUNED_EDGES_DATA.forEach(p => {
+  const n = NOTE_BY_ID[p.note_id];
+  if (n) {
+    if (!n.pruned_edges) n.pruned_edges = [];
+    n.pruned_edges.push({
+      path: p.file,
+      weight: p.weight,
+      pruned_at: NOW_TS - p.pruned_offset_min * 60 * 1000,
+      pruned_offset_min: p.pruned_offset_min,
+      reason: p.reason,
+    });
+  }
+});
+
+/* ── Scripted GC sweeps: each ephemeral lifecycle and each edge prune is
+   bunched into a real GC run. Multiple actions at the same moment land
+   together for dramatic effect. */
+const SCRIPTED_GC_ACTIONS = [];
+HISTORY_NOTES.forEach(n => {
+  if (!n.lifecycle_at) return;
+  const offset_min = Math.round((NOW_TS - n.lifecycle_at) / 60000);
+  if (offset_min < 60 || offset_min > 14 * 1440) return; // outside replay window
+  if (n.lifecycle_type === 'invalidate') {
+    SCRIPTED_GC_ACTIONS.push({
+      offset_min,
+      type: 'invalidate',
+      target_note: n.id,
+      reason: n.invalidated_reason || 'retained_score below threshold',
+      metrics: {
+        retained: n.metrics.retained_score.toFixed(2),
+        idle_days: Math.floor(n.metrics.last_inject_min / 1440),
+        inject_count: n.metrics.inject_count,
+      },
+    });
+  } else if (n.lifecycle_type === 'merge') {
+    const targetN = NOTE_BY_ID[n.lifecycle_target];
+    SCRIPTED_GC_ACTIONS.push({
+      offset_min,
+      type: 'merge',
+      source: n.id,
+      target: n.lifecycle_target,
+      reason: n.invalidated_reason || 'similarity above threshold',
+      metrics: {
+        similarity: '0.' + (78 + (n.id.charCodeAt(5) || 0) % 12).toString(),
+        edge_overlap: '0.' + (60 + (n.id.charCodeAt(6) || 0) % 30).toString(),
+        target_importance: targetN ? targetN.importance.toFixed(2) : '—',
+      },
+    });
+  }
+});
+PRUNED_EDGES_DATA.forEach(p => {
+  SCRIPTED_GC_ACTIONS.push({
+    offset_min: p.pruned_offset_min,
+    type: 'prune',
+    target_note: p.note_id,
+    target_file: p.file,
+    reason: p.reason,
+    metrics: { weight: p.weight.toFixed(2), anchored: 0 },
+  });
+});
+
+/* sort newest-first then group within ~45 min into runs */
+SCRIPTED_GC_ACTIONS.sort((a, b) => b.offset_min - a.offset_min);
 const GC_RUNS = [];
 let runIdCounter = 30;
-const HISTORY_NOTE_IDS = HISTORY_NOTES.map(n => n.id);
-for (let runOffset = 14 * 24 * 60; runOffset >= 60; runOffset -= 16 * 60 + Math.floor(rand() * 240) - 120) {
-  runIdCounter++;
-  const run = {
-    id: 'gc_' + runIdCounter,
-    ts: NOW_TS - runOffset * 60 * 1000,
-    offset_min: runOffset,
-    duration_ms: 800 + Math.floor(rand() * 1800),
-    actions: [],
-  };
-  if (rand() < 0.45) {
-    run.actions.push({ type: 'skip', target: 'all_notes', reason: 'all retained scores above threshold; no action' });
-  } else {
-    if (rand() < 0.6) {
-      run.actions.push({
-        type: 'prune',
-        target_note: NOTES[Math.floor(rand() * NOTES.length)].id,
-        target_file: ['src/lib/mcp.ts','src/lib/convex.ts','src/lib/tensorlake.ts','src/lib/nia.ts'][Math.floor(rand() * 4)],
-        reason: 'edge weight below threshold; never anchored an injection',
-        metrics: { weight: (0.02 + rand() * 0.07).toFixed(2), anchored: 0 },
-      });
-    }
-    if (rand() < 0.35) {
-      run.actions.push({
-        type: 'invalidate',
-        target_note: HISTORY_NOTE_IDS[Math.floor(rand() * HISTORY_NOTE_IDS.length)],
-        reason: 'retained_score below 0.15 threshold · idle window exceeded',
-        metrics: { retained: (0.10 + rand() * 0.04).toFixed(2), idle_days: Math.floor(20 + rand() * 12), inject_count: Math.floor(rand() * 3 + 1) },
-      });
-    }
-    if (rand() < 0.18) {
-      run.actions.push({
-        type: 'merge',
-        source: 'n_old3',
-        target: 'n_92ac',
-        reason: 'similarity above 0.70 threshold; n_92ac is higher importance (0.94 vs 0.46)',
-        metrics: { similarity: (0.82 + rand() * 0.12).toFixed(2), edge_overlap: (0.5 + rand() * 0.4).toFixed(2) },
-      });
-    }
+let currentRun = null;
+SCRIPTED_GC_ACTIONS.forEach(action => {
+  if (!currentRun || Math.abs(currentRun.offset_min - action.offset_min) > 45) {
+    if (currentRun) GC_RUNS.push(currentRun);
+    runIdCounter++;
+    currentRun = {
+      id: 'gc_' + runIdCounter,
+      ts: NOW_TS - action.offset_min * 60 * 1000,
+      offset_min: action.offset_min,
+      duration_ms: 1100 + Math.floor(rand() * 600),
+      actions: [],
+    };
   }
-  GC_RUNS.push(run);
-}
+  currentRun.actions.push(action);
+});
+if (currentRun) GC_RUNS.push(currentRun);
+
+/* throw in some no-op runs so the schedule looks alive between dramatic moments */
+[12 * 1440, 10 * 1440, 7 * 1440, 4 * 1440, 12 * 60].forEach(off => {
+  if (!GC_RUNS.some(r => Math.abs(r.offset_min - off) < 90)) {
+    runIdCounter++;
+    GC_RUNS.push({
+      id: 'gc_' + runIdCounter,
+      ts: NOW_TS - off * 60 * 1000,
+      offset_min: off,
+      duration_ms: 700 + Math.floor(rand() * 400),
+      actions: [{ type: 'skip', target: 'all_notes', reason: 'all retained scores above threshold; no action' }],
+    });
+  }
+});
+
 GC_RUNS.sort((a, b) => a.ts - b.ts);
 GC_RUNS.forEach((r, i) => r.id = 'gc_' + (30 + i));
 
-/* metrics-after by playing forward */
+/* metrics-after by playing forward — track real counts */
 {
-  let active = NOTES.length;
+  let active = NOTES.length + EPHEMERAL_HISTORY_DATA.length;
   let invalidated = 0;
-  let edges = NOTES.reduce((s, n) => s + n.edges.length, 0);
+  let edges = NOTES.reduce((s, n) => s + n.edges.length, 0)
+            + NOTES.reduce((s, n) => s + (n.pruned_edges ? n.pruned_edges.length : 0), 0);
   GC_RUNS.forEach(r => {
     r.actions.forEach(a => {
-      if (a.type === 'invalidate' || a.type === 'merge') invalidated++;
-      if (a.type === 'prune') edges = Math.max(0, edges);
+      if (a.type === 'invalidate' || a.type === 'merge') { active--; invalidated++; }
+      if (a.type === 'prune') edges--;
     });
     r.metrics_after = { active, invalidated, edges };
   });
@@ -3642,10 +3929,37 @@ function getAnchor(el, side) {
 }
 
 let edgeData = [];
+
+/* effective anchor: if a file is hidden inside a collapsed folder, anchor at the
+   topmost collapsed folder row instead — that's where multiple edges merge. */
+function effectiveAnchorEl(fileEls, path) {
+  const fileEl = fileEls[path];
+  if (!fileEl) return null;
+  if (fileEl.offsetParent !== null) return { el: fileEl, key: 'file:' + path, kind: 'file' };
+  let collapsedFolder = null;
+  let p = fileEl.parentElement;
+  while (p) {
+    if (p.classList && p.classList.contains('folder') && p.classList.contains('collapsed')) {
+      collapsedFolder = p;
+    }
+    p = p.parentElement;
+  }
+  if (collapsedFolder) {
+    const folderRow = collapsedFolder.querySelector(':scope > .folder-row');
+    if (folderRow && folderRow.offsetParent !== null) {
+      return { el: folderRow, key: 'folder:' + collapsedFolder.dataset.folder, kind: 'folder' };
+    }
+  }
+  return null; // hidden by search filter, no visible ancestor — skip the edge
+}
+
 function drawEdges() {
   ensureGradient();
   [...svg.querySelectorAll('path')].forEach(p => p.remove());
   edgeData = [];
+  // clear any previous merge badges on folder rows
+  document.querySelectorAll('.folder-merge-badge').forEach(b => b.remove());
+  const folderMergeCounts = new Map(); // folderEl → total merged edge count
 
   const fileEls = {};
   document.querySelectorAll('.file-row[data-path]').forEach(el => fileEls[el.dataset.path] = el);
@@ -3656,27 +3970,60 @@ function drawEdges() {
     const noteEl = noteEls[n.id];
     if (!noteEl) return;
     const noteAnchor = getAnchor(noteEl, 'left');
+
+    /* group edges of THIS note by their effective anchor key
+       (multiple file edges into the same collapsed folder collapse to one) */
+    const grouped = new Map();
     n.edges.forEach(e => {
-      const fEl = fileEls[e.path];
-      if (!fEl) return;
-      const fAnchor = getAnchor(fEl, 'right');
+      const eff = effectiveAnchorEl(fileEls, e.path);
+      if (!eff) return;
+      if (!grouped.has(eff.key)) {
+        grouped.set(eff.key, { el: eff.el, key: eff.key, kind: eff.kind, files: [], maxWeight: 0, sumWeight: 0 });
+      }
+      const g = grouped.get(eff.key);
+      g.files.push({ path: e.path, weight: e.weight });
+      g.maxWeight = Math.max(g.maxWeight, e.weight);
+      g.sumWeight += e.weight;
+    });
+
+    grouped.forEach(g => {
+      const fAnchor = getAnchor(g.el, 'right');
       const a = fAnchor, b = noteAnchor;
       const dx = Math.max(80, Math.abs(b.x - a.x) * 0.55);
       const d = `M ${a.x},${a.y} C ${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;
       const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('d', d);
       path.setAttribute('stroke', 'url(#edge-grad)');
-      path.setAttribute('stroke-width', String(0.6 + e.weight * 1.8));
-      path.setAttribute('stroke-opacity', String(0.18 + e.weight * 0.55));
+      const isMerged = g.kind === 'folder' && g.files.length > 1;
+      const w = g.maxWeight;
+      const boost = isMerged ? Math.min((g.files.length - 1) * 0.6, 1.6) : 0;
+      path.setAttribute('stroke-width', String(0.6 + w * 1.8 + boost));
+      path.setAttribute('stroke-opacity', String(0.18 + w * 0.55));
       path.setAttribute('stroke-linecap', 'round');
       path.dataset.note = n.id;
-      path.dataset.path = e.path;
-      path.dataset.weight = e.weight;
+      path.dataset.key = g.key;
+      path.dataset.kind = g.kind;
+      path.dataset.weight = w;
+      path.dataset.fileCount = g.files.length;
       path.style.pointerEvents = 'stroke';
       svg.appendChild(path);
-      edgeData.push({ path, noteId: n.id, filePath: e.path, weight: e.weight });
+      edgeData.push({ path, noteId: n.id, anchorKey: g.key, anchorKind: g.kind, files: g.files, weight: w });
+
+      if (isMerged) {
+        folderMergeCounts.set(g.el, (folderMergeCounts.get(g.el) || 0) + g.files.length);
+      }
     });
   });
+
+  /* tag folder rows that have any merged edges from any note (cumulative) */
+  folderMergeCounts.forEach((count, folderRow) => {
+    const badge = document.createElement('span');
+    badge.className = 'folder-merge-badge';
+    badge.textContent = '⤵ ' + count;
+    badge.title = `${count} edge${count === 1 ? '' : 's'} merged into this folder while collapsed`;
+    folderRow.appendChild(badge);
+  });
+
   applyHighlight();
 }
 function resizeSvg() {
@@ -3695,39 +4042,37 @@ function setHighlight(h) { highlight = h; applyHighlight(); }
 function applyHighlight() {
   const fileRows = document.querySelectorAll('.file-row[data-path]');
   const noteCards = document.querySelectorAll('.note[data-id]');
+  const baseWidth = (w, kind, fileCount) => 0.6 + w * 1.8 + (kind === 'folder' && fileCount > 1 ? Math.min((fileCount-1) * 0.6, 1.6) : 0);
+  const litWidth  = (w, kind, fileCount) => 1.4 + w * 2.0 + (kind === 'folder' && fileCount > 1 ? Math.min((fileCount-1) * 0.6, 1.6) : 0);
   if (!highlight) {
     fileRows.forEach(el => el.classList.remove('active','dim','connected'));
     noteCards.forEach(el => el.classList.remove('active','dim','connected'));
-    edgeData.forEach(({ path, weight }) => {
+    edgeData.forEach(({ path, weight, anchorKind, files }) => {
       path.setAttribute('stroke-opacity', String(0.18 + weight * 0.55));
-      path.setAttribute('stroke-width', String(0.6 + weight * 1.8));
+      path.setAttribute('stroke-width', String(baseWidth(weight, anchorKind, files.length)));
       path.removeAttribute('filter');
     });
     return;
   }
-  const connectedFiles = new Set(), connectedNotes = new Set(), litEdges = new Set();
+  const connectedFiles = new Set(), connectedNotes = new Set();
   if (highlight.kind === 'file') {
     NOTES.forEach(n => n.edges.forEach(e => {
       if (e.path === highlight.key) {
         connectedNotes.add(n.id);
         connectedFiles.add(e.path);
-        litEdges.add(n.id + '|' + e.path);
       }
     }));
   } else if (highlight.kind === 'note') {
     const note = NOTES.find(n => n.id === highlight.key);
     if (note) {
       connectedNotes.add(note.id);
-      note.edges.forEach(e => {
-        connectedFiles.add(e.path);
-        litEdges.add(note.id + '|' + e.path);
-      });
+      note.edges.forEach(e => connectedFiles.add(e.path));
     }
   } else if (highlight.kind === 'edge') {
-    const [nid, fpath] = highlight.key.split('|');
+    const [nid, anchorKey] = highlight.key.split('||');
     connectedNotes.add(nid);
-    connectedFiles.add(fpath);
-    litEdges.add(highlight.key);
+    const rec = edgeData.find(ed => ed.noteId === nid && ed.anchorKey === anchorKey);
+    if (rec) rec.files.forEach(f => connectedFiles.add(f.path));
   }
   fileRows.forEach(el => {
     const p = el.dataset.path;
@@ -3741,15 +4086,21 @@ function applyHighlight() {
     el.classList.toggle('connected', connectedNotes.has(id) && !(highlight.kind === 'note' && id === highlight.key));
     el.classList.toggle('dim', !connectedNotes.has(id));
   });
-  edgeData.forEach(({ path, noteId, filePath, weight }) => {
-    const key = noteId + '|' + filePath;
-    if (litEdges.has(key)) {
+  edgeData.forEach(({ path, noteId, anchorKey, files, weight, anchorKind }) => {
+    let lit = false;
+    if (highlight.kind === 'note' && noteId === highlight.key) lit = true;
+    else if (highlight.kind === 'file' && files.some(f => f.path === highlight.key)) lit = true;
+    else if (highlight.kind === 'edge') {
+      const [hNote, hKey] = highlight.key.split('||');
+      if (noteId === hNote && anchorKey === hKey) lit = true;
+    }
+    if (lit) {
       path.setAttribute('stroke-opacity', '0.95');
-      path.setAttribute('stroke-width', String(1.4 + weight * 2.0));
+      path.setAttribute('stroke-width', String(litWidth(weight, anchorKind, files.length)));
       path.setAttribute('filter', 'url(#glow)');
     } else {
       path.setAttribute('stroke-opacity', '0.04');
-      path.setAttribute('stroke-width', String(0.6 + weight * 1.8));
+      path.setAttribute('stroke-width', String(baseWidth(weight, anchorKind, files.length)));
       path.removeAttribute('filter');
     }
   });
@@ -3804,14 +4155,31 @@ bindNoteCards();
 svg.addEventListener('mousemove', (e) => {
   const target = e.target;
   if (target && target.tagName === 'path' && target.dataset.note) {
-    setHighlight({ kind: 'edge', key: target.dataset.note + '|' + target.dataset.path });
-    const note = NOTES.find(n => n.id === target.dataset.note);
-    const fname = target.dataset.path.split('/').pop();
-    tooltip.innerHTML = `
-      <div class="k">edge weight</div>
-      <div><span class="w">${parseFloat(target.dataset.weight).toFixed(2)}</span></div>
-      <div class="k" style="margin-top:6px">${fname}</div>
-      <div style="color:var(--text-2);font-size:11px;line-height:1.35">${note ? escapeHtml(note.symptom) : ''}</div>`;
+    const noteId = target.dataset.note;
+    const anchorKey = target.dataset.key;
+    setHighlight({ kind: 'edge', key: noteId + '||' + anchorKey });
+    const note = NOTES.find(n => n.id === noteId);
+    const isFolder = target.dataset.kind === 'folder';
+    const fileCount = +target.dataset.fileCount;
+    const rec = edgeData.find(ed => ed.noteId === noteId && ed.anchorKey === anchorKey);
+    let html = `<div class="k">${isFolder && fileCount > 1 ? 'merged · ' + fileCount + ' files' : 'edge weight'}</div>
+      <div><span class="w">${parseFloat(target.dataset.weight).toFixed(2)}</span></div>`;
+    if (isFolder && fileCount > 1 && rec) {
+      const folderPath = anchorKey.replace(/^folder:/, '');
+      html += `<div class="k" style="margin-top:6px">↳ ${folderPath}/</div>`;
+      html += `<div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--text-2); line-height:1.55; margin-top:2px">`;
+      rec.files.forEach(f => {
+        html += `${f.path.split('/').pop()} <span style="color:var(--text-3)">${f.weight.toFixed(2)}</span><br>`;
+      });
+      html += `</div>`;
+    } else {
+      const fname = anchorKey.startsWith('file:')
+        ? anchorKey.replace(/^file:/, '').split('/').pop()
+        : anchorKey.replace(/^folder:/, '') + '/';
+      html += `<div class="k" style="margin-top:6px">${fname}</div>`;
+    }
+    html += `<div style="color:var(--text-2);font-size:11px;line-height:1.35;margin-top:4px">${note ? escapeHtml(note.symptom) : ''}</div>`;
+    tooltip.innerHTML = html;
     const cr = canvas.getBoundingClientRect();
     tooltip.style.left = (e.clientX - cr.left) + 'px';
     tooltip.style.top = (e.clientY - cr.top) + 'px';
@@ -4938,11 +5306,13 @@ function getStateAtTs(ts) {
     notesActive: new Set(),
     notesInvalid: new Set(),
     notesMerged: new Map(),
+    prunedEdges: new Map(),       // 'noteId|file' → ts when pruned (only for prunes <= ts)
     recentInject: null,
     recentEvent: null,
     activeActor: null,
     activeFile: null,
-    counts: { created: 0, invalidated: 0, merged: 0, edges: 0, injections: 0 },
+    lastTransitionByNote: new Map(),    // note_id → { type, ts }
+    counts: { created: 0, invalidated: 0, merged: 0, edges: 0, injections: 0, pruned: 0 },
   };
   let lastEvent = null;
   let lastInjection = null;
@@ -4951,17 +5321,24 @@ function getStateAtTs(ts) {
     lastEvent = ev;
     if (ev.type === 'note_created') {
       state.notesActive.add(ev.note_id);
+      state.lastTransitionByNote.set(ev.note_id, { type: 'create', ts: ev.ts });
       state.counts.created++;
     } else if (ev.type === 'gc_invalidate') {
       const tgt = ev.action.target_note;
       if (state.notesActive.has(tgt)) state.notesActive.delete(tgt);
       state.notesInvalid.add(tgt);
+      state.lastTransitionByNote.set(tgt, { type: 'invalidate', ts: ev.ts });
       state.counts.invalidated++;
     } else if (ev.type === 'gc_merge') {
       const src = ev.action.source;
       if (state.notesActive.has(src)) state.notesActive.delete(src);
       state.notesMerged.set(src, ev.action.target);
+      state.lastTransitionByNote.set(src, { type: 'merge', ts: ev.ts, target: ev.action.target });
       state.counts.merged++;
+    } else if (ev.type === 'gc_prune') {
+      const key = ev.action.target_note + '|' + ev.action.target_file;
+      state.prunedEdges.set(key, ev.ts);
+      state.counts.pruned++;
     } else if (ev.type === 'injection') {
       lastInjection = ev;
       state.counts.injections++;
@@ -4969,7 +5346,6 @@ function getStateAtTs(ts) {
       lastInjection = ev;
     }
   }
-  // active for last 25 minutes (in mock-time)
   const ACTIVE_WINDOW = 25 * 60 * 1000;
   if (lastInjection && (ts - lastInjection.ts) < ACTIVE_WINDOW) {
     state.recentInject = lastInjection;
@@ -4980,10 +5356,16 @@ function getStateAtTs(ts) {
     state.recentEvent = lastEvent;
     if (!state.activeActor) state.activeActor = lastEvent.actor;
   }
-  // edges count
   state.notesActive.forEach(id => {
     const n = NOTE_BY_ID[id];
-    if (n) state.counts.edges += n.edges.length;
+    if (n) {
+      state.counts.edges += n.edges.length;
+      if (n.pruned_edges) {
+        n.pruned_edges.forEach(pe => {
+          if (pe.pruned_at > ts) state.counts.edges++; // still alive at ts
+        });
+      }
+    }
   });
   return state;
 }
@@ -4996,10 +5378,12 @@ function drawReplayGraph() {
   svg.setAttribute('width', r.width);
   svg.setAttribute('height', r.height);
 
-  const state = getStateAtTs(replayState.currentTs);
+  const t = replayState.currentTs;
+  const RECENT_MS = 35 * 60 * 1000;          // mock-time window for "just happened"
+  const STALE_INVALID_MS = 36 * 60 * 60 * 1000; // hide invalid/merged notes older than this
+  const state = getStateAtTs(t);
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  // preserve defs
   const defs = svg.querySelector('defs');
   svg.innerHTML = '';
   if (defs) svg.appendChild(defs);
@@ -5010,32 +5394,70 @@ function drawReplayGraph() {
   const noteById = {};
   replayLayout.noteNodes.forEach(nn => noteById[nn.note.id] = nn);
 
-  // edges
+  // ── EDGES (live, pruning, fading) ──
   replayLayout.noteNodes.forEach(nn => {
-    const isActive = state.notesActive.has(nn.note.id);
-    const isInvalid = state.notesInvalid.has(nn.note.id);
-    const isMerged = state.notesMerged.has(nn.note.id);
-    if (!isActive && !isInvalid && !isMerged) return;
+    const n = nn.note;
+    const isActive = state.notesActive.has(n.id);
+    const isInvalid = state.notesInvalid.has(n.id);
+    const isMerged = state.notesMerged.has(n.id);
+    const trans = state.lastTransitionByNote.get(n.id);
+    const sinceTransition = trans ? t - trans.ts : Infinity;
+    const stillVisible = isActive || (sinceTransition < STALE_INVALID_MS);
+    if (!stillVisible) return;
 
-    nn.note.edges.forEach(e => {
+    // build candidate edges with status at time t
+    const liveEdges = [];
+    if (isActive) {
+      n.edges.forEach(e => liveEdges.push({ path: e.path, weight: e.weight, status: 'live' }));
+      if (n.pruned_edges) {
+        n.pruned_edges.forEach(pe => {
+          if (pe.pruned_at > t) {
+            // still exists at t
+            liveEdges.push({ path: pe.path, weight: pe.weight, status: 'live' });
+          } else if (t - pe.pruned_at < RECENT_MS) {
+            // recently pruned: red flash, fades over the window
+            liveEdges.push({ path: pe.path, weight: pe.weight, status: 'just-pruned', sinceMs: t - pe.pruned_at });
+          }
+        });
+      }
+    } else {
+      // recently transitioned (invalid/merge): show old edges as fading
+      n.edges.forEach(e => liveEdges.push({ path: e.path, weight: e.weight, status: isMerged ? 'merging' : 'fading' }));
+    }
+
+    liveEdges.forEach(e => {
       const fn = fileByPath[e.path];
       if (!fn) return;
       const a = fn, b = nn;
       const dx = Math.max(60, (b.x - a.x) * 0.5);
       const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('d', `M ${a.x},${a.y} C ${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`);
+
       let cls = 'r-edge';
-      const isInjEdge = state.recentInject && state.recentInject.note_id === nn.note.id && state.recentInject.file === e.path;
-      if (isInjEdge && state.recentInject.type === 'injection') cls += ' active';
-      if (isInvalid) cls += ' invalid';
+      let opacity = 0.18 + e.weight * 0.4;
+      const isInjEdge = state.recentInject && state.recentInject.note_id === n.id && state.recentInject.file === e.path;
+      if (isInjEdge && state.recentInject.type === 'injection') {
+        cls += ' active';
+        opacity = 0.95;
+      }
+      if (e.status === 'just-pruned') {
+        cls += ' just-pruned';
+        const k = Math.min(1, e.sinceMs / RECENT_MS);
+        opacity = Math.max(0.08, 0.85 - k * 0.75);
+      } else if (e.status === 'fading') {
+        cls += ' invalid';
+        opacity = Math.max(0.05, 0.25 - sinceTransition / STALE_INVALID_MS * 0.2);
+      } else if (e.status === 'merging') {
+        cls += ' invalid';
+        opacity = Math.max(0.04, 0.22 - sinceTransition / STALE_INVALID_MS * 0.2);
+      }
       path.setAttribute('class', cls);
-      const opacity = isInvalid ? 0.08 : isMerged ? 0.18 : (isInjEdge ? 0.95 : (0.18 + e.weight * 0.4));
       path.setAttribute('stroke-opacity', String(opacity));
       svg.appendChild(path);
     });
   });
 
-  // file nodes
+  // ── FILES ──
   replayLayout.fileNodes.forEach(fn => {
     const isActive = state.activeFile === fn.file.path;
     const rect = document.createElementNS(SVG_NS, 'rect');
@@ -5055,52 +5477,91 @@ function drawReplayGraph() {
     svg.appendChild(text);
   });
 
-  // note nodes
+  // ── NOTES ──
   replayLayout.noteNodes.forEach(nn => {
-    const isActive = state.notesActive.has(nn.note.id);
-    const isInvalid = state.notesInvalid.has(nn.note.id);
-    const isMerged = state.notesMerged.has(nn.note.id);
+    const n = nn.note;
+    const isActive = state.notesActive.has(n.id);
+    const isInvalid = state.notesInvalid.has(n.id);
+    const isMerged = state.notesMerged.has(n.id);
+    const trans = state.lastTransitionByNote.get(n.id);
+    const sinceTransition = trans ? t - trans.ts : Infinity;
     if (!isActive && !isInvalid && !isMerged) return;
+    if ((isInvalid || isMerged) && sinceTransition >= STALE_INVALID_MS) return; // hide long-dead
 
-    const isRecentCreate = state.recentEvent && state.recentEvent.type === 'note_created' &&
-                           state.recentEvent.note_id === nn.note.id;
-    const isRecentInject = state.recentInject && state.recentInject.note_id === nn.note.id &&
-                           state.recentInject.type === 'injection';
-    const ageOfNote = Math.max(0, replayState.currentTs - nn.note.created_at);
-    const NEW_WINDOW = 45 * 60 * 1000;
+    const sinceCreate = isActive ? t - n.created_at : Infinity;
+    const recentCreate = isActive && sinceCreate >= 0 && sinceCreate < RECENT_MS;
+    const recentInject = state.recentInject && state.recentInject.note_id === n.id && state.recentInject.type === 'injection';
+    const recentInvalid = isInvalid && sinceTransition >= 0 && sinceTransition < RECENT_MS;
+    const recentMerged = isMerged && sinceTransition >= 0 && sinceTransition < RECENT_MS;
 
     const circle = document.createElementNS(SVG_NS, 'circle');
     circle.setAttribute('cx', nn.x);
     circle.setAttribute('cy', nn.y);
-    let r = 8;
-    if (isActive && ageOfNote < NEW_WINDOW) r = 10;
-    if (isInvalid) r = 6;
-    circle.setAttribute('r', r);
+    let radius = 8;
+    if (recentCreate) radius = 11;
+    if (recentInvalid) radius = 10;
+    if (recentMerged) radius = 9;
+    if (isInvalid && !recentInvalid) radius = 6;
+    if (isMerged && !recentMerged) radius = 6;
+    circle.setAttribute('r', radius);
     let cls = 'r-note-circle';
     if (isInvalid) cls += ' invalidated';
     else if (isMerged) cls += ' merged';
     else if (isActive) cls += ' active';
-    if (isRecentCreate) cls += ' recent-create';
-    else if (isRecentInject) cls += ' recent';
+    if (recentCreate) cls += ' recent-create';
+    if (recentInject) cls += ' recent';
+    if (recentInvalid) cls += ' recent-invalid';
+    if (recentMerged) cls += ' recent-merge';
     circle.setAttribute('class', cls);
     svg.appendChild(circle);
+
+    // X mark for recent invalidation
+    if (recentInvalid) {
+      const fade = 1 - Math.min(1, sinceTransition / RECENT_MS);
+      const sz = 5;
+      const x1 = document.createElementNS(SVG_NS, 'line');
+      x1.setAttribute('x1', nn.x - sz); x1.setAttribute('y1', nn.y - sz);
+      x1.setAttribute('x2', nn.x + sz); x1.setAttribute('y2', nn.y + sz);
+      x1.setAttribute('class', 'r-note-x');
+      x1.setAttribute('stroke-opacity', String(0.4 + fade * 0.5));
+      svg.appendChild(x1);
+      const x2 = document.createElementNS(SVG_NS, 'line');
+      x2.setAttribute('x1', nn.x - sz); x2.setAttribute('y1', nn.y + sz);
+      x2.setAttribute('x2', nn.x + sz); x2.setAttribute('y2', nn.y - sz);
+      x2.setAttribute('class', 'r-note-x');
+      x2.setAttribute('stroke-opacity', String(0.4 + fade * 0.5));
+      svg.appendChild(x2);
+    }
+
+    // merge connector to target during recent merge
+    if (recentMerged && trans && trans.target) {
+      const targetN = noteById[trans.target];
+      if (targetN) {
+        const fade = 1 - Math.min(1, sinceTransition / RECENT_MS);
+        const line = document.createElementNS(SVG_NS, 'line');
+        line.setAttribute('x1', nn.x); line.setAttribute('y1', nn.y);
+        line.setAttribute('x2', targetN.x); line.setAttribute('y2', targetN.y);
+        line.setAttribute('class', 'r-merge-line');
+        line.setAttribute('stroke-opacity', String(0.3 + fade * 0.6));
+        svg.appendChild(line);
+      }
+    }
 
     if (isActive || isMerged) {
       const text = document.createElementNS(SVG_NS, 'text');
       text.setAttribute('x', nn.x);
       text.setAttribute('y', nn.y + 22);
       text.setAttribute('class', 'r-note-label');
-      text.textContent = nn.note.id.replace('n_', '');
+      text.textContent = n.id.replace('n_', '').replace('eph_', 'eph');
       svg.appendChild(text);
     }
   });
 
-  // update overlay pills
+  // overlay pills
   document.getElementById('replay-time-pill').textContent = fmtRelTime(replayState.currentTs);
   const sp = document.getElementById('replay-state-pill');
-  sp.innerHTML = `<span class="a">${state.notesActive.size}</span> active · <span class="i">${state.notesInvalid.size}</span> invalid · <span class="e">${state.counts.edges}</span> edges · ${state.counts.injections} injects`;
+  sp.innerHTML = `<span class="a">${state.notesActive.size}</span> active · <span class="i">${state.notesInvalid.size}</span> invalid · <span class="m">${state.notesMerged.size}</span> merged · <span class="e">${state.counts.edges}</span> edges · ${state.counts.injections} injects · <span class="p">${state.counts.pruned}</span> pruned`;
 
-  // update time cursor on lanes
   drawTimeCursor();
 }
 
@@ -5304,44 +5765,101 @@ function toggleAutoTour() {
 }
 
 function runTour() {
-  // pick narrative-rich events from the timeline
-  const wanted = [
-    e => e.type === 'note_created' && e.note_id === 'n_92ac',
-    e => e.type === 'injection' && e.note_id === 'n_92ac',
-    e => e.type === 'note_created' && e.note_id === 'n_91d5',
-    e => e.type === 'gc_invalidate',
-    e => e.type === 'gc_merge',
-    e => e.type === 'gc_prune',
-  ];
-  const highlights = [];
-  wanted.forEach(pred => {
-    const ev = replayState.events.find(pred);
-    if (ev) highlights.push(ev);
-  });
-  if (highlights.length === 0) {
+  const beats = [];
+  const evs = replayState.events;
+  if (evs.length === 0) {
     replayState.tourActive = false;
     document.getElementById('replay-tour').classList.remove('on');
     return;
   }
+  /* B1 — back to the very beginning */
+  beats.push({
+    ts: replayState.minTs - 60_000,
+    caption: '<em>14 days ago.</em> An empty org. No notes yet.',
+    hold: 2400,
+  });
+  /* B2 — first note in history (likely n_92ac or earlier) */
+  const firstNote = evs.find(e => e.type === 'note_created');
+  if (firstNote) beats.push({
+    ts: firstNote.ts + 60_000,
+    caption: 'First note created — <span class="mono">' + firstNote.note_id + '</span>. The system starts learning.',
+    hold: 2700,
+  });
+  /* B3 — first ephemeral note appears */
+  const ephCreate = evs.find(e => e.type === 'note_created' && e.note_id && e.note_id.startsWith('n_eph_'));
+  if (ephCreate) beats.push({
+    ts: ephCreate.ts + 60_000,
+    caption: 'A note about <em>console.log</em> usage joins the graph — <span class="mono">' + ephCreate.note_id + '</span>.',
+    hold: 2600,
+  });
+  /* B4 — first edge prune */
+  const firstPrune = evs.find(e => e.type === 'gc_prune');
+  if (firstPrune) beats.push({
+    ts: firstPrune.ts + 5 * 60_000,
+    caption: '<span class="gc">GC pruned an edge</span> — weight ' + (firstPrune.action.metrics ? firstPrune.action.metrics.weight : '?') + ', never anchored an injection. The edge snaps.',
+    hold: 3100,
+  });
+  /* B5 — first invalidation */
+  const firstInvalidate = evs.find(e => e.type === 'gc_invalidate');
+  if (firstInvalidate) beats.push({
+    ts: firstInvalidate.ts + 5 * 60_000,
+    caption: '<span class="gc">Invalidated</span> — <span class="mono">' + firstInvalidate.action.target_note + '</span> went unused. Kept queryable, but no longer injected.',
+    hold: 3100,
+  });
+  /* B6 — first merge */
+  const firstMerge = evs.find(e => e.type === 'gc_merge');
+  if (firstMerge) beats.push({
+    ts: firstMerge.ts + 5 * 60_000,
+    caption: '<span class="gc">Merged</span> — <span class="mono">' + firstMerge.action.source + '</span> → <span class="mono">' + firstMerge.action.target + '</span>. Two notes about the same bug become one.',
+    hold: 3100,
+  });
+  /* B7 — biggest GC run (max actions in one run) */
+  const runCounts = {};
+  evs.forEach(e => {
+    if (e.type && e.type.startsWith('gc_') && e.run_id) {
+      runCounts[e.run_id] = (runCounts[e.run_id] || 0) + 1;
+    }
+  });
+  let biggestRun = null, biggestCount = 0;
+  Object.entries(runCounts).forEach(([id, c]) => { if (c > biggestCount) { biggestCount = c; biggestRun = id; } });
+  if (biggestRun) {
+    const biggestEv = evs.find(e => e.run_id === biggestRun);
+    if (biggestEv) beats.push({
+      ts: biggestEv.ts + 8 * 60_000,
+      caption: '<em>Big sweep —</em> ' + biggestCount + ' actions in <span class="mono">' + biggestRun + '</span>. Watch the graph reshape.',
+      hold: 3600,
+    });
+  }
+  /* B8 — final state */
+  beats.push({
+    ts: replayState.maxTs,
+    caption: 'Today. The graph keeps itself clean — every edge here has earned its place.',
+    hold: 3200,
+  });
+
   let idx = 0;
   const advance = () => {
     if (!replayState.tourActive) return;
-    const ev = highlights[idx];
-    if (!ev) {
-      replayState.currentTs = replayState.maxTs;
-      const span = replayState.maxTs - replayState.minTs;
-      document.getElementById('replay-scrubber').value = String(1000);
-      updateReplayDisplay();
+    const beat = beats[idx];
+    if (!beat) {
       replayState.tourActive = false;
       document.getElementById('replay-tour').classList.remove('on');
       return;
     }
-    replayState.currentTs = ev.ts;
+    const ts = Math.max(replayState.minTs, Math.min(replayState.maxTs, beat.ts));
+    replayState.currentTs = ts;
     const span = replayState.maxTs - replayState.minTs;
-    document.getElementById('replay-scrubber').value = String(((replayState.currentTs - replayState.minTs) / span) * 1000);
+    document.getElementById('replay-scrubber').value = String(((ts - replayState.minTs) / span) * 1000);
     updateReplayDisplay();
+    /* override caption with beat narration */
+    if (beat.caption) {
+      const cap = document.getElementById('replay-caption');
+      cap.querySelector('.replay-caption-text').innerHTML = beat.caption;
+      cap.classList.add('beat-pulse');
+      setTimeout(() => cap.classList.remove('beat-pulse'), 600);
+    }
     idx++;
-    replayState.tourTimeout = setTimeout(advance, 2400);
+    replayState.tourTimeout = setTimeout(advance, beat.hold || 2700);
   };
   advance();
 }
