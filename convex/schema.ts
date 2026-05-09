@@ -82,4 +82,16 @@ export default defineSchema({
     message: v.string(),
     metadata: v.optional(v.any()),
   }).index("by_timestamp", ["timestamp"]),
+
+  docsIngestRuns: defineTable({
+    runId: v.string(),
+    lib: v.string(),
+    topic: v.string(),
+    sourceUri: v.string(),
+    sourceUrl: v.optional(v.string()),
+    ruleCount: v.number(),
+    appliesTo: v.array(v.string()),
+    leafPath: v.string(),
+    extractor: v.optional(v.string()),
+  }).index("by_run", ["runId"]),
 });

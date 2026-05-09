@@ -1,0 +1,319 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { loadConfig } from "../config.js";
+import { SourceRegistry } from "../sources/registry.js";
+import { ingestSourceChunks } from "../ingest/index.js";
+import { ingestFromUrl } from "../ingest/fetch-url.js";
+import type { DocSource, RawDoc } from "../types.js";
+import { extractRules } from "../extract/rule-extractor.js";
+import { buildLibraryImportMap } from "../link/import-grep.js";
+import { derivePathGlobs } from "../link/path-conventions.js";
+import {
+  scanReverseReferences,
+  selectReferencingSourceFiles,
+} from "../link/reverse-refs.js";
+import { writeLeaf } from "../emit/write-leaves.js";
+import {
+  createConvexRecorder,
+  generateRunId,
+} from "../emit/convex-recorder.js";
+
+interface CliArgs {
+  sourceId: string | undefined;
+  fromUrl: string | undefined;
+  dumpChunks: boolean;
+  dumpRaw: boolean;
+  dumpRules: boolean;
+  emit: boolean;
+  list: boolean;
+  useLlm: boolean;
+  noLlm: boolean;
+}
+
+function parseArgs(argv: string[]): CliArgs {
+  const flags = new Set<string>();
+  const positional: string[] = [];
+  let fromUrl: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === undefined) continue;
+    if (arg === "--from-url") {
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith("--")) {
+        throw new Error("--from-url requires a URL argument");
+      }
+      fromUrl = next;
+      i++;
+      continue;
+    }
+    if (arg.startsWith("--from-url=")) {
+      fromUrl = arg.slice("--from-url=".length);
+      continue;
+    }
+    if (arg.startsWith("--")) {
+      flags.add(arg);
+      continue;
+    }
+    positional.push(arg);
+  }
+  return {
+    sourceId: positional[0],
+    fromUrl,
+    dumpChunks: flags.has("--dump-chunks"),
+    dumpRaw: flags.has("--dump-raw"),
+    dumpRules: flags.has("--dump-rules"),
+    emit: flags.has("--emit"),
+    list: flags.has("--list"),
+    useLlm: flags.has("--use-llm"),
+    noLlm: flags.has("--no-llm"),
+  };
+}
+
+function resolveDemoTarget(home: string): {
+  codebaseRoot: string;
+  contextMapRoot: string;
+} | null {
+  const sibling = path.resolve(home, "..", "..", "demo-target");
+  if (existsSync(sibling) && existsSync(path.join(sibling, "package.json"))) {
+    return {
+      codebaseRoot: sibling,
+      contextMapRoot: path.join(sibling, ".context-map"),
+    };
+  }
+  return null;
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2));
+  const config = loadConfig();
+  const registry = new SourceRegistry(config.registryPath);
+
+  // --- URL mode: synthesise an ephemeral source, skip the registry ---
+  let source: DocSource | undefined;
+  let prefetchedRawDocs: RawDoc[] | undefined;
+
+  if (args.fromUrl) {
+    const demoTargetEarly = resolveDemoTarget(config.home);
+    const codebaseRoot = demoTargetEarly?.codebaseRoot ?? config.codebaseRoot;
+    const outputRoot = demoTargetEarly?.contextMapRoot ?? config.contextMapRoot;
+    try {
+      const { source: ephemeralSource, body, docName } = await ingestFromUrl({
+        url: args.fromUrl,
+        codebaseRoot,
+        outputRoot,
+      });
+      source = ephemeralSource;
+      const format =
+        ephemeralSource.kind === "html_url" ? "html" : "md";
+      prefetchedRawDocs = [
+        {
+          id: `${ephemeralSource.id}:${docName}`,
+          sourceId: ephemeralSource.id,
+          path: docName,
+          title: docName.replace(/\.[^.]+$/, ""),
+          format,
+          text: body,
+        },
+      ];
+      console.log(
+        `[from-url] ${args.fromUrl} → kind=${ephemeralSource.kind} lib=${
+          ephemeralSource.defaultLibraryName ?? "(none)"
+        } id=${ephemeralSource.id}`,
+      );
+    } catch (err) {
+      console.error(
+        `[from-url] failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  } else {
+    if (args.list || !args.sourceId) {
+      const sources = await registry.list();
+      if (sources.length === 0) {
+        console.log(`No sources registered. Registry: ${config.registryPath}`);
+        console.log(`Run \`npm run seed\` to register the demo fixtures.`);
+      } else {
+        console.log(`Sources (${config.registryPath}):`);
+        for (const s of sources) {
+          console.log(
+            `  ${s.id}  [${s.kind}] ${s.uri} (scope=${s.defaultScope}${
+              s.defaultLibraryName ? ` lib=${s.defaultLibraryName}` : ""
+            })`,
+          );
+        }
+      }
+      if (!args.sourceId) {
+        console.log(
+          `\nUsage: npm run ingest -- <sourceId> [--dump-chunks] [--dump-rules] [--emit] [--use-llm | --no-llm]`,
+        );
+        console.log(
+          `   or: npm run ingest -- --from-url <url> [--emit]`,
+        );
+        process.exit(args.list ? 0 : 2);
+      }
+    }
+
+    source = await registry.get(args.sourceId!);
+    if (!source) {
+      console.error(`Unknown source: ${args.sourceId}`);
+      process.exit(2);
+    }
+  }
+
+  // From here on, `source` is guaranteed defined.
+  if (!source) {
+    console.error(`Internal error: no source resolved.`);
+    process.exit(2);
+  }
+
+  const result = await ingestSourceChunks(
+    source,
+    prefetchedRawDocs ? { prefetchedRawDocs } : {},
+  );
+
+  if (args.dumpRaw) {
+    for (const doc of result.rawDocs) {
+      console.log(`\n=== RAW: ${doc.path} (title: ${doc.title}) ===`);
+      console.log(doc.text);
+    }
+  }
+
+  if (args.dumpChunks) {
+    for (const chunk of result.chunks) {
+      console.log(`\n--- CHUNK ${chunk.id} ---`);
+      console.log(`headingPath: ${JSON.stringify(chunk.headingPath)}`);
+      console.log(`anchorRef:   ${chunk.anchorRef}`);
+      console.log(`length:      ${chunk.text.length} chars`);
+      console.log(`text:`);
+      console.log(chunk.text);
+    }
+  }
+
+  console.log(
+    `\n[ingest] source=${source.id} rawDocs=${result.rawDocs.length} chunks=${result.chunks.length} errors=${result.errors.length}`,
+  );
+  for (const e of result.errors) {
+    console.error(`  ! ${e.stage}: ${e.message}${e.path ? ` (${e.path})` : ""}`);
+  }
+
+  if (!args.dumpRules && !args.emit) {
+    process.exit(result.errors.length > 0 ? 1 : 0);
+  }
+
+  // === Linking + extraction + emission ===
+  const demoTarget = resolveDemoTarget(config.home);
+  const codebaseRoot = demoTarget?.codebaseRoot ?? source.codebaseRoot;
+  const contextMapRoot =
+    demoTarget?.contextMapRoot ?? source.outputRoot;
+
+  if (args.emit && !demoTarget) {
+    console.warn(
+      `[emit] could not auto-detect ../demo-target/. Falling back to source.outputRoot=${contextMapRoot}`,
+    );
+  }
+
+  const libNames = source.defaultLibraryName ? [source.defaultLibraryName] : [];
+  const importMap =
+    libNames.length > 0
+      ? (await buildLibraryImportMap(codebaseRoot, libNames))[0] ?? null
+      : null;
+
+  const extractRes = await extractRules(result.chunks, {
+    source,
+    openaiApiKey: config.openai.apiKey,
+    openaiModel: config.openai.model,
+    defaultCategory: "correctness",
+    llmOnly: args.useLlm,
+    noLlm: args.noLlm,
+  });
+
+  console.log(
+    `[extract] rules=${extractRes.rules.length} llm=${extractRes.llmUsed} errors=${extractRes.errors.length}`,
+  );
+  for (const e of extractRes.errors) {
+    console.warn(`  ~ ${e.chunkId}: ${e.message}`);
+  }
+
+  if (args.dumpRules) {
+    for (const r of extractRes.rules) {
+      console.log(
+        `  [${r.modality}/${r.category} ${r.confidence.toFixed(2)}] ${r.ruleText}`,
+      );
+    }
+  }
+
+  if (importMap) {
+    console.log(
+      `[link] library=${importMap.library} importers=${importMap.matches.length}` +
+        (importMap.matches.length > 0
+          ? ` paths=${importMap.matches.map((m) => m.relativePath).join(",")}`
+          : ` (none — falling back to broad glob)`),
+    );
+  }
+
+  // Path-convention globs derived from each raw doc's path (e.g.,
+  // "docs/api/payments.md" → ["src/api/payments/**", "src/api/payments*"]).
+  const pathGlobs = result.rawDocs.flatMap((d) => derivePathGlobs(d.path));
+  if (pathGlobs.length > 0) {
+    console.log(
+      `[link] path-convention globs: ${pathGlobs.join(", ")}`,
+    );
+  }
+
+  // Reverse-reference scan: source files in the codebase that point
+  // back to one of this source's docs via @see / // see / // ref / etc.
+  const docBasenames = result.rawDocs.map((d) =>
+    path.posix.basename(d.path.split(path.sep).join("/")),
+  );
+  const reverseRefs = await scanReverseReferences(codebaseRoot);
+  const reverseRefFiles = selectReferencingSourceFiles(
+    reverseRefs,
+    docBasenames,
+  );
+  if (reverseRefFiles.length > 0) {
+    console.log(
+      `[link] reverse-refs: ${reverseRefFiles.length} source file(s) → ${reverseRefFiles.join(", ")}`,
+    );
+  }
+
+  const additionalAppliesTo: string[] = [...pathGlobs, ...reverseRefFiles];
+
+  if (args.emit) {
+    const primaryDocPath = result.rawDocs[0]?.path;
+    const leaf = await writeLeaf({
+      contextMapRoot,
+      source,
+      rules: extractRes.rules,
+      importMap,
+      extractedAt: new Date().toISOString(),
+      additionalAppliesTo,
+      ...(primaryDocPath ? { primaryDocPath } : {}),
+    });
+    console.log(
+      `[emit] wrote ${leaf.absolutePath} (${leaf.ruleCount} rules, applies_to=${JSON.stringify(leaf.appliesTo)})`,
+    );
+
+    const recorder = createConvexRecorder({ convexUrl: config.convexUrl });
+    await recorder.record({
+      runId: generateRunId(),
+      lib: source.defaultLibraryName ?? source.id,
+      topic: leaf.relativePath
+        .split("/")
+        .pop()!
+        .replace(/\.md$/, ""),
+      sourceUri: source.uri,
+      ...(source.sourceUrl ? { sourceUrl: source.sourceUrl } : {}),
+      ruleCount: leaf.ruleCount,
+      appliesTo: leaf.appliesTo,
+      leafPath: leaf.relativePath,
+      extractor: extractRes.llmUsed ? "llm" : "regex",
+    });
+  }
+
+  process.exit(result.errors.length > 0 ? 1 : 0);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
