@@ -110,7 +110,45 @@ class MCPNiaClient implements NiaClient {
   }
 
   async searchContext(query: string, opts?: { topK?: number }): Promise<NiaSearchHit[]> {
-    return this.semanticSearch(query, opts);
+    // The query is a source path (e.g., "src/routes/login.ts"). For the analyzer
+    // to find verbatim constraint text it can cite, we need raw .md chunks from
+    // the indexed repo's .context-map/leaves/ directory. Nia's `search` returns
+    // a prose answer, not raw chunks — so we use `nia_explore` to enumerate the
+    // .md files under .context-map/, and the analyzer reads each via nia_read.
+    if (!this.cfg.repository) return [];
+    try {
+      const client = await this.getClient();
+      const res = await client.callTool({
+        name: "nia_explore",
+        arguments: {
+          source_type: "repository",
+          source_identifier: this.cfg.repository,
+          path: ".context-map/leaves",
+          action: "ls",
+        },
+      });
+      const text = res.content[0]?.text ?? "";
+      // Parse markdown listing — entries like "- login-constraints.md" or
+      // a JSON array. Be liberal in what we accept.
+      const mdPaths: string[] = [];
+      for (const line of text.split("\n")) {
+        const m = line.match(/([\w/.-]+\.md)/);
+        if (m && m[1]) {
+          const name = m[1];
+          const full = name.includes("/") ? name : `.context-map/leaves/${name}`;
+          if (!mdPaths.includes(full)) mdPaths.push(full);
+        }
+      }
+      if (mdPaths.length === 0) return [];
+      // Filename-stem match: source "src/routes/login.ts" → prefer "login-*.md".
+      const stem = (query.split("/").pop() ?? "").replace(/\.[^.]+$/, "").toLowerCase();
+      const stemMatches = mdPaths.filter((p) => p.split("/").pop()!.toLowerCase().startsWith(stem + "-"));
+      const chosen = stemMatches.length > 0 ? stemMatches : mdPaths;
+      const topK = opts?.topK ?? 8;
+      return chosen.slice(0, topK).map((p) => ({ path: p, line: 1, excerpt: "" }));
+    } catch {
+      return [];
+    }
   }
 
   private async semanticSearch(
@@ -127,10 +165,6 @@ class MCPNiaClient implements NiaClient {
           repositories: [this.cfg.repository],
         },
       });
-      // Nia returns a markdown-formatted answer in `content[0].text`. We can't
-      // reliably parse it into NiaSearchHit[] without re-LLM-ing it. Instead,
-      // return a single synthetic hit whose `excerpt` carries the full Nia
-      // answer; the analyzer feeds this into the GPT-5 prompt as one chunk.
       const text = res.content[0]?.text ?? "";
       if (text.length === 0) return [];
       const limited = text.slice(0, 8000);
