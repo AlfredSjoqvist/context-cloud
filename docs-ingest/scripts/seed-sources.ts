@@ -8,6 +8,12 @@ async function main(): Promise<void> {
 
   const stripeFixtures = path.join(config.home, "fixtures", "stripe");
   const lodashFixtures = path.join(config.home, "fixtures", "lodash");
+  const expressFixture = path.join(
+    config.home,
+    "fixtures",
+    "express",
+    "security-best-practices.html",
+  );
 
   const stripe = await registry.upsert({
     kind: "markdown_dir",
@@ -27,9 +33,19 @@ async function main(): Promise<void> {
     outputRoot: config.contextMapRoot,
   });
 
+  const express = await registry.upsert({
+    kind: "html_url",
+    uri: `file://${expressFixture}`,
+    defaultScope: "library",
+    defaultLibraryName: "express",
+    codebaseRoot: config.codebaseRoot,
+    outputRoot: config.contextMapRoot,
+  });
+
   console.log(`Registered:`);
   console.log(`  ${stripe.id}  [${stripe.kind}]  ${stripe.uri}  (lib=stripe — chunker proof only)`);
   console.log(`  ${lodash.id}  [${lodash.kind}]  ${lodash.uri}  (lib=lodash — DEMO target)`);
+  console.log(`  ${express.id}  [${express.kind}]  ${express.uri}  (lib=express — HTML demo)`);
   console.log(`Registry: ${config.registryPath}`);
   console.log(`\nNext: npm run ingest -- ${lodash.id} --dump-chunks`);
 }
