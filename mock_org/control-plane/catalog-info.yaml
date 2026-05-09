@@ -1,0 +1,8 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: control-plane
+spec:
+  type: service
+  owner: team-product
+  lifecycle: experimental

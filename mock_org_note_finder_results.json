@@ -1,0 +1,50 @@
+[
+  {
+    "session_id": "demo-s16-context_nia_namespace",
+    "returncode": 0,
+    "result": {
+      "session_id": "demo-s16-context_nia_namespace",
+      "events": 22,
+      "signals": 2,
+      "windows": 1,
+      "notes": [
+        {
+          "preview": true,
+          "score": 3.0,
+          "files": [
+            "mock_org/memory-graph/src/context/nia_index.py"
+          ],
+          "skip": false,
+          "symptom": "Patching org data handling in memory-graph/src/context/nia_index.py did not satisfy org requirements.",
+          "root_cause": "The org data must stay inside the org-scoped Nia namespace. Build Nia index ids from org_id and source_id, never from global defaults.",
+          "correction": "Always derive Nia index ids using org_id and source_id in memory-graph/src/context/nia_index.py."
+        }
+      ],
+      "skipped": []
+    }
+  },
+  {
+    "session_id": "demo-s20-integrations_vercel_preview",
+    "returncode": 0,
+    "result": {
+      "session_id": "demo-s20-integrations_vercel_preview",
+      "events": 22,
+      "signals": 2,
+      "windows": 1,
+      "notes": [
+        {
+          "preview": true,
+          "score": 3.0,
+          "files": [
+            "mock_org/connectors/src/vercel/deployments.ts"
+          ],
+          "skip": false,
+          "symptom": "Edited connectors/src/vercel/deployments.ts without waiting for the ready event before attaching preview links.",
+          "root_cause": "Vercel emits multiple deployment events before the final ready state. We need to wait for the ready event.",
+          "correction": "Ensure that we wait for the ready event before attaching preview links to PR briefs in connectors/src/vercel/deployments.ts."
+        }
+      ],
+      "skipped": []
+    }
+  }
+]

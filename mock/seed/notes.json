@@ -1,0 +1,466 @@
+[
+  {
+    "id": "demo_org_env_base",
+    "scope": "org",
+    "symptom": "Agent hardcoded an internal API host.",
+    "root_cause": "Northstar services route through INTERNAL_API_BASE so staging, preview, and production stay isolated.",
+    "correction": "Read service hosts from INTERNAL_API_BASE and fail fast when it is missing.",
+    "provenance": "Created 2026-05-09 from signals: reverted diff + correction phrase + failed lint.",
+    "files": [
+      {
+        "path": "agent-gateway/src/api/mcp.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "control-plane/lib/convex.ts",
+        "weight": 0.65
+      },
+      {
+        "path": "connectors/src/convex/sync.ts",
+        "weight": 0.55
+      }
+    ],
+    "created_from_session": "demo-s01-env-base"
+  },
+  {
+    "id": "demo_org_redact_tokens",
+    "scope": "org",
+    "symptom": "Agent logged bearer tokens in an MCP request trace.",
+    "root_cause": "Session traces are retained for replay, so secrets must be redacted before persistence.",
+    "correction": "Pass all request headers and tool inputs through redactSecrets before writing traces or activity rows.",
+    "provenance": "Created 2026-05-09 from signals: security correction + reverted diff + review rejection.",
+    "files": [
+      {
+        "path": "agent-gateway/src/lib/redaction.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "agent-gateway/src/api/mcp.ts",
+        "weight": 0.75
+      },
+      {
+        "path": "memory-graph/src/context/extract.py",
+        "weight": 0.45
+      }
+    ],
+    "created_from_session": "demo-s02-redaction"
+  },
+  {
+    "id": "demo_runtime_microvm_state",
+    "scope": "repo",
+    "symptom": "Agent stored job recovery state only in process memory.",
+    "root_cause": "Tensorlake microVMs can restart between steps; recovery state must survive sandbox restarts.",
+    "correction": "Persist job checkpoints through StateStore before acknowledging each step.",
+    "provenance": "Created 2026-05-09 from signals: tool error loop + failed test + correction phrase.",
+    "files": [
+      {
+        "path": "runtime-orchestrator/src/runtime/state_store.py",
+        "weight": 1.0
+      },
+      {
+        "path": "runtime-orchestrator/src/runtime/recovery.py",
+        "weight": 0.9
+      },
+      {
+        "path": "runtime-orchestrator/tests/test_recovery.py",
+        "weight": 0.7
+      }
+    ],
+    "created_from_session": "demo-s03-runtime-state"
+  },
+  {
+    "id": "demo_runtime_cron_idempotency",
+    "scope": "repo",
+    "symptom": "Agent made scheduled GC jobs non-idempotent.",
+    "root_cause": "Tensorlake cron can retry after transient exits; duplicate GC runs must not double-prune notes.",
+    "correction": "Use the run id as an idempotency key before applying any GC action.",
+    "provenance": "Created 2026-05-09 from signals: repeated failed test + production incident link.",
+    "files": [
+      {
+        "path": "runtime-orchestrator/src/runtime/scheduler.py",
+        "weight": 1.0
+      },
+      {
+        "path": "memory-graph/src/context/gc.py",
+        "weight": 0.65
+      },
+      {
+        "path": "runtime-orchestrator/tests/test_scheduler.py",
+        "weight": 0.7
+      }
+    ],
+    "created_from_session": "demo-s04-cron-idempotent"
+  },
+  {
+    "id": "demo_context_no_patch_briefs",
+    "scope": "repo",
+    "symptom": "Agent embedded suggested patches inside autonomous PR briefs.",
+    "root_cause": "Fixing agents copied stale patches from the brief instead of verifying HEAD.",
+    "correction": "Briefs may state the requirement and cited paths, but must not include code snippets or patch text.",
+    "provenance": "Created 2026-05-09 from signals: reverted diff + failed review + correction phrase.",
+    "files": [
+      {
+        "path": "memory-graph/src/context/briefs.py",
+        "weight": 1.0
+      },
+      {
+        "path": "memory-graph/tests/test_briefs.py",
+        "weight": 0.8
+      }
+    ],
+    "created_from_session": "demo-s05-briefs"
+  },
+  {
+    "id": "demo_context_guardian_budget",
+    "scope": "repo",
+    "symptom": "Guardian injected every file-matched note into a short session.",
+    "root_cause": "File match alone overfills context and causes agents to re-triage instead of acting.",
+    "correction": "Apply the per-call token budget after relevance scoring and keep only the highest-scoring notes.",
+    "provenance": "Created 2026-05-09 from signals: user interruption + low usefulness feedback.",
+    "files": [
+      {
+        "path": "memory-graph/src/context/guardian.py",
+        "weight": 1.0
+      },
+      {
+        "path": "memory-graph/tests/test_guardian.py",
+        "weight": 0.75
+      },
+      {
+        "path": "agent-gateway/src/api/injections.ts",
+        "weight": 0.45
+      }
+    ],
+    "created_from_session": "demo-s06-budget"
+  },
+  {
+    "id": "demo_dashboard_activity_window",
+    "scope": "repo",
+    "symptom": "Dashboard counted all-time injections as live activity.",
+    "root_cause": "Judge-facing metrics must use a recent window or the background execution proof is misleading.",
+    "correction": "Compute activity metrics over the last fifteen minutes and label seeded rows clearly.",
+    "provenance": "Created 2026-05-09 from signals: user correction + dashboard mismatch.",
+    "files": [
+      {
+        "path": "control-plane/components/ActivityFeed.tsx",
+        "weight": 1.0
+      },
+      {
+        "path": "control-plane/components/InjectionPanel.tsx",
+        "weight": 0.7
+      },
+      {
+        "path": "control-plane/lib/format.ts",
+        "weight": 0.3
+      }
+    ],
+    "created_from_session": "demo-s07-activity-window"
+  },
+  {
+    "id": "demo_dashboard_graph_edges",
+    "scope": "file",
+    "symptom": "Collapsed folder edges anchored at the graph origin.",
+    "root_cause": "Hidden file rows have no usable bounding box, so edge rendering must target the collapsed folder row.",
+    "correction": "When a file is hidden by a collapsed ancestor, merge those edges onto the visible folder anchor.",
+    "provenance": "Created 2026-05-09 from signals: visual bug report + accepted fix.",
+    "files": [
+      {
+        "path": "control-plane/components/NoteGraph.tsx",
+        "weight": 1.0
+      },
+      {
+        "path": "control-plane/components/ReplayTimeline.tsx",
+        "weight": 0.35
+      }
+    ],
+    "created_from_session": "demo-s08-graph-edges"
+  },
+  {
+    "id": "demo_integrations_verify_github_signature",
+    "scope": "repo",
+    "symptom": "GitHub webhook handler trusted unsigned payloads.",
+    "root_cause": "Webhook events can create PR briefs, so unsigned payloads can trigger arbitrary agent work.",
+    "correction": "Verify the GitHub HMAC signature before parsing or enqueueing webhook bodies.",
+    "provenance": "Created 2026-05-09 from signals: security correction + failed test.",
+    "files": [
+      {
+        "path": "connectors/src/github/webhooks.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "connectors/tests/github-webhooks.test.ts",
+        "weight": 0.85
+      }
+    ],
+    "created_from_session": "demo-s09-github-sig"
+  },
+  {
+    "id": "demo_integrations_hyperspell_source",
+    "scope": "repo",
+    "symptom": "Hyperspell enrichment was treated as the source of truth.",
+    "root_cause": "NM notes must originate from observed coding friction; company-brain connectors only enrich the note.",
+    "correction": "Keep live-session signals as the primary provenance and attach Hyperspell references as supporting context.",
+    "provenance": "Created 2026-05-09 from signals: design correction + review comment.",
+    "files": [
+      {
+        "path": "connectors/src/slack/hyperspell.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "memory-graph/src/context/extract.py",
+        "weight": 0.55
+      }
+    ],
+    "created_from_session": "demo-s10-hyperspell"
+  },
+  {
+    "id": "demo_api_session_replay_order",
+    "scope": "repo",
+    "symptom": "Session replay sorted messages by ingest time.",
+    "root_cause": "Hook writes can arrive out of order; replay must sort by transcript timestamp and parent chain.",
+    "correction": "Order replay events by timestamp and use parent_uuid as a deterministic tie-breaker.",
+    "provenance": "Created 2026-05-09 from signals: replay mismatch + corrected output.",
+    "files": [
+      {
+        "path": "agent-gateway/src/api/sessions.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "agent-gateway/tests/mcp.test.ts",
+        "weight": 0.55
+      }
+    ],
+    "created_from_session": "demo-s11-replay-order"
+  },
+  {
+    "id": "demo_api_injection_dedupe",
+    "scope": "repo",
+    "symptom": "The same note was injected repeatedly in one session.",
+    "root_cause": "Repeated injections make agents focus on memory mechanics instead of the current code task.",
+    "correction": "Suppress notes already injected in the current session unless the touched path changes materially.",
+    "provenance": "Created 2026-05-09 from signals: low usefulness feedback + repeated injection log.",
+    "files": [
+      {
+        "path": "agent-gateway/src/api/injections.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "memory-graph/src/context/guardian.py",
+        "weight": 0.65
+      }
+    ],
+    "created_from_session": "demo-s12-dedupe"
+  },
+  {
+    "id": "demo_runtime_timeout_bounds",
+    "scope": "repo",
+    "symptom": "Agent removed the sandbox timeout guard.",
+    "root_cause": "Long-running background jobs must terminate so Tensorlake credits are predictable.",
+    "correction": "Keep timeout_s bounded and surface timeout failures as recoverable job states.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + review feedback.",
+    "files": [
+      {
+        "path": "runtime-orchestrator/src/runtime/job_runner.py",
+        "weight": 1.0
+      },
+      {
+        "path": "runtime-orchestrator/src/runtime/recovery.py",
+        "weight": 0.65
+      }
+    ],
+    "created_from_session": "demo-s13-runtime_timeout_bounds"
+  },
+  {
+    "id": "demo_runtime_metric_labels",
+    "scope": "file",
+    "symptom": "Metrics used raw user emails as labels.",
+    "root_cause": "High-cardinality labels break dashboard aggregation and leak identities.",
+    "correction": "Hash user identifiers before metric emission and keep labels bounded.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + failed test.",
+    "files": [
+      {
+        "path": "runtime-orchestrator/src/runtime/metrics.py",
+        "weight": 1.0
+      }
+    ],
+    "created_from_session": "demo-s14-runtime_metric_labels"
+  },
+  {
+    "id": "demo_context_gc_rejection_rule",
+    "scope": "repo",
+    "symptom": "GC re-pruned a note after maintainer rejection.",
+    "root_cause": "Maintainer feedback must persist as a learned GC rule.",
+    "correction": "Record rejected prune patterns and check them before future GC actions.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + review feedback.",
+    "files": [
+      {
+        "path": "memory-graph/src/context/gc.py",
+        "weight": 1.0
+      },
+      {
+        "path": "memory-graph/src/context/graph.py",
+        "weight": 0.65
+      }
+    ],
+    "created_from_session": "demo-s15-context_gc_rejection_rule"
+  },
+  {
+    "id": "demo_context_nia_namespace",
+    "scope": "org",
+    "symptom": "Nia search used a shared test index.",
+    "root_cause": "Org data must stay inside the org-scoped Nia namespace.",
+    "correction": "Build Nia index ids from org_id and source_id, never from global defaults.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + failed test.",
+    "files": [
+      {
+        "path": "memory-graph/src/context/nia_index.py",
+        "weight": 1.0
+      },
+      {
+        "path": "connectors/src/nia/search.ts",
+        "weight": 0.55
+      }
+    ],
+    "created_from_session": "demo-s16-context_nia_namespace"
+  },
+  {
+    "id": "demo_dashboard_timezone",
+    "scope": "file",
+    "symptom": "Activity timestamps rendered in UTC.",
+    "root_cause": "Demo users expect America/Los_Angeles for the hackathon dashboard.",
+    "correction": "Render relative times client-side and keep absolute timestamps in the tooltip.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + review feedback.",
+    "files": [
+      {
+        "path": "control-plane/lib/format.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "control-plane/components/ActivityFeed.tsx",
+        "weight": 0.65
+      }
+    ],
+    "created_from_session": "demo-s17-dashboard_timezone"
+  },
+  {
+    "id": "demo_dashboard_replay_seed_label",
+    "scope": "repo",
+    "symptom": "Seeded replay events looked like live production activity.",
+    "root_cause": "Judges need to distinguish seeded proof data from live background ticks.",
+    "correction": "Mark seeded events explicitly while keeping the live activity feed unmarked.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + failed test.",
+    "files": [
+      {
+        "path": "control-plane/components/ReplayTimeline.tsx",
+        "weight": 1.0
+      },
+      {
+        "path": "control-plane/components/ActivityFeed.tsx",
+        "weight": 0.65
+      }
+    ],
+    "created_from_session": "demo-s18-dashboard_replay_seed_label"
+  },
+  {
+    "id": "demo_integrations_linear_issue_once",
+    "scope": "repo",
+    "symptom": "Linear issue creation duplicated on webhook retry.",
+    "root_cause": "Webhook retries are normal and issue creation must be idempotent.",
+    "correction": "Use the NM note id as the external id before creating a Linear issue.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + review feedback.",
+    "files": [
+      {
+        "path": "connectors/src/linear/issues.ts",
+        "weight": 1.0
+      }
+    ],
+    "created_from_session": "demo-s19-integrations_linear_issue_once"
+  },
+  {
+    "id": "demo_integrations_vercel_preview",
+    "scope": "repo",
+    "symptom": "Vercel deploy status was read before the preview URL existed.",
+    "root_cause": "Vercel emits multiple deployment events before the final ready state.",
+    "correction": "Wait for the ready event before attaching preview links to PR briefs.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + failed test.",
+    "files": [
+      {
+        "path": "connectors/src/vercel/deployments.ts",
+        "weight": 1.0
+      }
+    ],
+    "created_from_session": "demo-s20-integrations_vercel_preview"
+  },
+  {
+    "id": "demo_api_rate_limit_scope",
+    "scope": "repo",
+    "symptom": "Rate limits were keyed only by IP address.",
+    "root_cause": "Coding agents in the same office share egress IPs and can throttle each other.",
+    "correction": "Key rate limits by org_id and agent_id with IP as a secondary signal.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + review feedback.",
+    "files": [
+      {
+        "path": "agent-gateway/src/api/rateLimit.ts",
+        "weight": 1.0
+      }
+    ],
+    "created_from_session": "demo-s21-api_rate_limit_scope"
+  },
+  {
+    "id": "demo_api_auth_org_boundary",
+    "scope": "org",
+    "symptom": "Auth accepted source ids outside the caller org.",
+    "root_cause": "A source belongs to exactly one org; cross-org reads break the privacy model.",
+    "correction": "Validate org ownership before returning notes, sessions, or injection history.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + failed test.",
+    "files": [
+      {
+        "path": "agent-gateway/src/api/auth.ts",
+        "weight": 1.0
+      },
+      {
+        "path": "agent-gateway/src/db/schema.ts",
+        "weight": 0.65
+      }
+    ],
+    "created_from_session": "demo-s22-api_auth_org_boundary"
+  },
+  {
+    "id": "demo_readme_catalog_owner",
+    "scope": "org",
+    "symptom": "Agent guessed code ownership from file names.",
+    "root_cause": "Ownership lives in catalog-info.yaml and CODEOWNERS, not naming conventions.",
+    "correction": "Read catalog metadata before assigning review owners or team labels.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + review feedback.",
+    "files": [
+      {
+        "path": "runtime-orchestrator/catalog-info.yaml",
+        "weight": 1.0
+      },
+      {
+        "path": "control-plane/catalog-info.yaml",
+        "weight": 0.55
+      }
+    ],
+    "created_from_session": "demo-s23-readme_catalog_owner"
+  },
+  {
+    "id": "demo_testing_no_snapshot_update",
+    "scope": "org",
+    "symptom": "Agent updated snapshots to hide a regression.",
+    "root_cause": "Snapshot changes require a visible behavior explanation in this org.",
+    "correction": "Do not update snapshots unless the task explicitly asks for a UI text or layout change.",
+    "provenance": "Created 2026-05-09 from signals: correction phrase + file touch + failed test.",
+    "files": [
+      {
+        "path": "control-plane/components/ActivityFeed.tsx",
+        "weight": 1.0
+      },
+      {
+        "path": "agent-gateway/tests/mcp.test.ts",
+        "weight": 0.55
+      }
+    ],
+    "created_from_session": "demo-s24-testing_no_snapshot_update"
+  }
+]

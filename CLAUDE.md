@@ -83,3 +83,17 @@ Don't ask for permission to read files, run searches, run typechecks, or fix obv
 ## When in doubt
 
 The demo runs for **3 minutes**, in front of judges, on a **deployed URL**, scored against **Background Execution (30%) + Statefulness (25%) + Agentic Depth (20%) + Demo (10%) + Judge's rating (10%)**. Every decision should make at least one of those numbers go up.
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

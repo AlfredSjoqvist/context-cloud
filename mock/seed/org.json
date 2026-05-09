@@ -1,0 +1,265 @@
+{
+  "id": "northstar-ai",
+  "name": "Northstar AI",
+  "github_org": "github.com/northstar-ai",
+  "description": "Agent infrastructure startup building shared memory, sandboxed background agents, and context dashboards.",
+  "users": [
+    {
+      "id": "u_ava",
+      "name": "Ava Chen",
+      "email": "ava@northstar-ai.dev",
+      "role": "Platform lead"
+    },
+    {
+      "id": "u_mateo",
+      "name": "Mateo Silva",
+      "email": "mateo@northstar-ai.dev",
+      "role": "Runtime engineer"
+    },
+    {
+      "id": "u_priya",
+      "name": "Priya Raman",
+      "email": "priya@northstar-ai.dev",
+      "role": "Product engineer"
+    },
+    {
+      "id": "u_noah",
+      "name": "Noah Kim",
+      "email": "noah@northstar-ai.dev",
+      "role": "Integrations engineer"
+    },
+    {
+      "id": "u_eli",
+      "name": "Eli Brooks",
+      "email": "eli@northstar-ai.dev",
+      "role": "Infra engineer"
+    },
+    {
+      "id": "u_sam",
+      "name": "Sam Ivers",
+      "email": "sam@northstar-ai.dev",
+      "role": "Founding designer"
+    },
+    {
+      "id": "u_lina",
+      "name": "Lina Ortiz",
+      "email": "lina@northstar-ai.dev",
+      "role": "Solutions engineer"
+    },
+    {
+      "id": "u_mina",
+      "name": "Mina Patel",
+      "email": "mina@northstar-ai.dev",
+      "role": "Security engineer"
+    },
+    {
+      "id": "u_owen",
+      "name": "Owen Hart",
+      "email": "owen@northstar-ai.dev",
+      "role": "Developer advocate"
+    },
+    {
+      "id": "u_zoe",
+      "name": "Zoe Quinn",
+      "email": "zoe@northstar-ai.dev",
+      "role": "SRE"
+    }
+  ],
+  "agents": [
+    {
+      "id": "claude-code-u_ava",
+      "vendor": "claude-code",
+      "user_id": "u_ava"
+    },
+    {
+      "id": "codex-u_ava",
+      "vendor": "codex",
+      "user_id": "u_ava"
+    },
+    {
+      "id": "codex-u_mateo",
+      "vendor": "codex",
+      "user_id": "u_mateo"
+    },
+    {
+      "id": "cursor-u_mateo",
+      "vendor": "cursor",
+      "user_id": "u_mateo"
+    },
+    {
+      "id": "cursor-u_priya",
+      "vendor": "cursor",
+      "user_id": "u_priya"
+    },
+    {
+      "id": "windsurf-u_priya",
+      "vendor": "windsurf",
+      "user_id": "u_priya"
+    },
+    {
+      "id": "windsurf-u_noah",
+      "vendor": "windsurf",
+      "user_id": "u_noah"
+    },
+    {
+      "id": "aider-u_noah",
+      "vendor": "aider",
+      "user_id": "u_noah"
+    },
+    {
+      "id": "aider-u_eli",
+      "vendor": "aider",
+      "user_id": "u_eli"
+    },
+    {
+      "id": "claude-code-u_eli",
+      "vendor": "claude-code",
+      "user_id": "u_eli"
+    },
+    {
+      "id": "claude-code-u_sam",
+      "vendor": "claude-code",
+      "user_id": "u_sam"
+    },
+    {
+      "id": "codex-u_sam",
+      "vendor": "codex",
+      "user_id": "u_sam"
+    },
+    {
+      "id": "codex-u_lina",
+      "vendor": "codex",
+      "user_id": "u_lina"
+    },
+    {
+      "id": "cursor-u_lina",
+      "vendor": "cursor",
+      "user_id": "u_lina"
+    },
+    {
+      "id": "cursor-u_mina",
+      "vendor": "cursor",
+      "user_id": "u_mina"
+    },
+    {
+      "id": "windsurf-u_mina",
+      "vendor": "windsurf",
+      "user_id": "u_mina"
+    },
+    {
+      "id": "windsurf-u_owen",
+      "vendor": "windsurf",
+      "user_id": "u_owen"
+    },
+    {
+      "id": "aider-u_owen",
+      "vendor": "aider",
+      "user_id": "u_owen"
+    },
+    {
+      "id": "aider-u_zoe",
+      "vendor": "aider",
+      "user_id": "u_zoe"
+    },
+    {
+      "id": "claude-code-u_zoe",
+      "vendor": "claude-code",
+      "user_id": "u_zoe"
+    }
+  ],
+  "repos": [
+    {
+      "id": "runtime",
+      "name": "runtime-orchestrator",
+      "team": "team-runtime",
+      "language": "python",
+      "files": [
+        "src/runtime/sandbox.py",
+        "src/runtime/scheduler.py",
+        "src/runtime/state_store.py",
+        "src/runtime/recovery.py",
+        "src/runtime/job_runner.py",
+        "src/runtime/metrics.py",
+        "tests/test_scheduler.py",
+        "tests/test_recovery.py",
+        "pyproject.toml",
+        "README.md",
+        "catalog-info.yaml"
+      ]
+    },
+    {
+      "id": "dashboard",
+      "name": "control-plane",
+      "team": "team-product",
+      "language": "typescript",
+      "files": [
+        "app/page.tsx",
+        "app/packs/[slug]/page.tsx",
+        "components/ActivityFeed.tsx",
+        "components/NoteGraph.tsx",
+        "components/InjectionPanel.tsx",
+        "components/ReplayTimeline.tsx",
+        "lib/convex.ts",
+        "lib/format.ts",
+        "package.json",
+        "README.md",
+        "catalog-info.yaml"
+      ]
+    },
+    {
+      "id": "context",
+      "name": "memory-graph",
+      "team": "team-memory",
+      "language": "python",
+      "files": [
+        "src/context/extract.py",
+        "src/context/guardian.py",
+        "src/context/gc.py",
+        "src/context/briefs.py",
+        "src/context/graph.py",
+        "src/context/nia_index.py",
+        "tests/test_briefs.py",
+        "tests/test_guardian.py",
+        "README.md",
+        "catalog-info.yaml"
+      ]
+    },
+    {
+      "id": "integrations",
+      "name": "connectors",
+      "team": "team-integrations",
+      "language": "typescript",
+      "files": [
+        "src/github/webhooks.ts",
+        "src/slack/hyperspell.ts",
+        "src/linear/issues.ts",
+        "src/vercel/deployments.ts",
+        "src/convex/sync.ts",
+        "src/nia/search.ts",
+        "tests/github-webhooks.test.ts",
+        "package.json",
+        "README.md",
+        "catalog-info.yaml"
+      ]
+    },
+    {
+      "id": "agent-api",
+      "name": "agent-gateway",
+      "team": "team-api",
+      "language": "typescript",
+      "files": [
+        "src/api/mcp.ts",
+        "src/api/sessions.ts",
+        "src/api/injections.ts",
+        "src/api/auth.ts",
+        "src/api/rateLimit.ts",
+        "src/db/schema.ts",
+        "src/lib/redaction.ts",
+        "tests/mcp.test.ts",
+        "package.json",
+        "README.md",
+        "catalog-info.yaml"
+      ]
+    }
+  ]
+}

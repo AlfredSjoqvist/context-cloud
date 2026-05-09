@@ -1,0 +1,8 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: memory-graph
+spec:
+  type: service
+  owner: team-memory
+  lifecycle: experimental

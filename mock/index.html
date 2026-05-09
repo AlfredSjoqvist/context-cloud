@@ -2346,6 +2346,14 @@
   .replay-caption-text em { color: var(--green); font-style: normal; font-weight: 600; }
   .replay-caption-text .gc { color: var(--red); font-weight: 600; }
   .replay-caption-text .mono { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .replay-caption.beat-pulse .replay-caption-text {
+    animation: beat-pulse-anim 0.55s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes beat-pulse-anim {
+    0%   { color: #FFFFFF; transform: translateX(-2px); }
+    40%  { color: var(--text); }
+    100% { color: var(--text); transform: translateX(0); }
+  }
 
   .replay-cumulative {
     display: flex;
@@ -3326,14 +3334,14 @@ FILES.forEach(f => f.noteCount = 0);
 NOTES.forEach(n => n.edges.forEach(e => FILE_BY_PATH[e.path].noteCount++));
 
 /* ─── Org / agents / metrics / events ───────────── */
-const ORG_USERS = [
+let ORG_USERS = [
   { id: 'u_alfred', name: 'Alfred Sjöqvist', handle: 'alfred', email: 'alfred@acme.eng', role: 'Founding eng', initial: 'AS', color: '#7C9EFF', joined_days_ago: 270 },
   { id: 'u_jenna',  name: 'Jenna Park',      handle: 'jenna',  email: 'jenna@acme.eng',  role: 'Senior eng',   initial: 'JP', color: '#FFB86B', joined_days_ago: 247 },
   { id: 'u_kai',    name: 'Kai Tanaka',      handle: 'kai',    email: 'kai@acme.eng',    role: 'Backend eng',  initial: 'KT', color: '#6EE7B7', joined_days_ago: 114 },
   { id: 'u_mira',   name: 'Mira Reyes',      handle: 'mira',   email: 'mira@acme.eng',   role: 'Frontend eng', initial: 'MR', color: '#C49BFF', joined_days_ago: 70 },
   { id: 'u_ren',    name: 'Ren Bakhtin',     handle: 'ren',    email: 'ren@acme.eng',    role: 'Eng intern',   initial: 'RB', color: '#FF7A8A', joined_days_ago: 22 },
 ];
-const AGENTS = [
+let AGENTS = [
   { id: 'a_codex_alfred',  user_id: 'u_alfred', vendor: 'Codex',       label: 'Codex' },
   { id: 'a_cc_alfred',     user_id: 'u_alfred', vendor: 'Claude Code', label: 'Claude Code' },
   { id: 'a_cursor_jenna',  user_id: 'u_jenna',  vendor: 'Cursor',      label: 'Cursor' },
@@ -3342,9 +3350,31 @@ const AGENTS = [
   { id: 'a_cc_mira',       user_id: 'u_mira',   vendor: 'Claude Code', label: 'Claude Code' },
   { id: 'a_cursor_ren',    user_id: 'u_ren',    vendor: 'Cursor',      label: 'Cursor' },
 ];
+if (__NM_DATA && __NM_DATA.org && Array.isArray(__NM_DATA.org.users)) {
+  const colors = ['#7C9EFF', '#FFB86B', '#6EE7B7', '#C49BFF', '#FF7A8A', '#5CC8FF', '#FFD166', '#8BD17C', '#F78C6C', '#B8A1FF'];
+  ORG_USERS = __NM_DATA.org.users.map((u, i) => ({
+    id: u.id,
+    name: u.name,
+    handle: (u.email || u.id).split('@')[0],
+    email: u.email || `${u.id}@nozomio-labs.dev`,
+    role: u.role || 'Engineer',
+    initial: String(u.name || u.id).split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase(),
+    color: colors[i % colors.length],
+    joined_days_ago: 300 - i * 19,
+  }));
+}
+if (__NM_DATA && __NM_DATA.org && Array.isArray(__NM_DATA.org.agents)) {
+  const label = v => ({ 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', windsurf: 'Windsurf', aider: 'Aider' }[v] || v);
+  AGENTS = __NM_DATA.org.agents.map(a => ({
+    id: a.id,
+    user_id: a.user_id,
+    vendor: label(a.vendor),
+    label: label(a.vendor),
+  }));
+}
 const AGENT_BY_ID = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 const USER_BY_ID  = Object.fromEntries(ORG_USERS.map(u => [u.id, u]));
-const VENDOR_KEY = { 'Codex': 'codex', 'Claude Code': 'cc', 'Cursor': 'cursor' };
+const VENDOR_KEY = { 'Codex': 'codex', 'Claude Code': 'cc', 'Cursor': 'cursor', 'Windsurf': 'windsurf', 'Aider': 'aider' };
 
 /* seed-stable random so demo data is identical every reload */
 function mulberry32(seed) {
@@ -5211,7 +5241,11 @@ function buildReplayEvents() {
 function setupReplay() {
   replayState.events = buildReplayEvents();
   if (replayState.events.length === 0) return;
-  replayState.minTs = replayState.events[0].ts;
+  /* Clamp the visible window to 14d. We keep ALL events in the array (including
+     creations of legacy notes that predate the window) so getStateAtTs is
+     correct, but lanes & density only show events inside the window. */
+  const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+  replayState.minTs = NOW_TS - WINDOW_MS;
   replayState.maxTs = NOW_TS;
   replayState.currentTs = replayState.maxTs;
 
@@ -5571,6 +5605,7 @@ function drawReplayDensity() {
   if (span <= 0) return;
   const buckets = new Array(BUCKETS).fill(0);
   replayState.events.forEach(ev => {
+    if (ev.ts < replayState.minTs) return;
     const idx = Math.min(BUCKETS - 1, Math.floor(((ev.ts - replayState.minTs) / span) * BUCKETS));
     buckets[idx]++;
   });
@@ -5605,6 +5640,7 @@ function drawReplayLanes() {
 
   const span = replayState.maxTs - replayState.minTs;
   replayState.events.forEach((ev, idx) => {
+    if (ev.ts < replayState.minTs) return; // outside window — skip lane dot
     const trackEl = document.querySelector(`.replay-lane-track[data-track-actor="${ev.actor}"]`);
     if (!trackEl) return;
     const xPct = ((ev.ts - replayState.minTs) / span) * 100;
@@ -5774,8 +5810,8 @@ function runTour() {
   }
   /* B1 — back to the very beginning */
   beats.push({
-    ts: replayState.minTs - 60_000,
-    caption: '<em>14 days ago.</em> An empty org. No notes yet.',
+    ts: replayState.minTs,
+    caption: '<em>14 days ago.</em> A handful of legacy notes from earlier sessions. Watch the graph grow.',
     hold: 2400,
   });
   /* B2 — first note in history (likely n_92ac or earlier) */
@@ -6298,6 +6334,202 @@ setInterval(() => {
     }
   }
 }, 5000);
+
+/* ─── Convex live data swap ─────────────────────────── */
+/* When Convex data arrives, we mutate the existing globals in-place
+   (since they're declared const arrays/objects) and rerun renderers.
+   Falls back gracefully: if Convex never connects, the inline data
+   we already rendered stays visible. */
+function fmtAgeMin(min) {
+  if (min < 60) return Math.max(1, Math.round(min)) + 'm';
+  if (min < 1440) return Math.max(1, Math.round(min/60)) + 'h';
+  return Math.max(1, Math.round(min/1440)) + 'd';
+}
+
+function applyConvexData(d) {
+  if (!d || !d.notes) return;
+  const now = Date.now();
+
+  // ---- map convex shapes to mock shapes ----
+  const edgesByNote = {};
+  d.noteFiles.forEach(e => { (edgesByNote[e.noteId] = edgesByNote[e.noteId] || []).push({ path: e.path, weight: e.weight }); });
+  const prunedByNote = {};
+  d.prunedEdges.forEach(p => {
+    (prunedByNote[p.noteId] = prunedByNote[p.noteId] || []).push({
+      path: p.path, weight: p.weight,
+      pruned_at: new Date(p.prunedAt).getTime(),
+      pruned_offset_min: Math.floor((now - new Date(p.prunedAt).getTime()) / 60000),
+      reason: p.reason,
+    });
+  });
+
+  const mappedNotes = d.notes.map(n => {
+    const created_at = new Date(n.createdAt).getTime();
+    const last_inject_at = n.lastInjectedAt ? new Date(n.lastInjectedAt).getTime() : null;
+    const lifecycle_at = n.invalidatedAt ? new Date(n.invalidatedAt).getTime() : null;
+    const ageMin = Math.max(1, Math.floor((now - created_at) / 60000));
+    const lastInjectMin = last_inject_at ? Math.max(1, Math.floor((now - last_inject_at) / 60000)) : ageMin;
+    const status = !n.invalidatedAt ? 'active'
+                   : (n.mergedInto ? 'merged_into:' + n.mergedInto : 'invalidated');
+    return {
+      id: n.noteId, importance: n.importance, inject_count: n.injectCount,
+      age: fmtAgeMin(ageMin), recent: lastInjectMin < 60,
+      symptom: n.symptom, root_cause: n.rootCause, correction: n.correction || '',
+      edges: edgesByNote[n.noteId] || [],
+      pruned_edges: prunedByNote[n.noteId] || [],
+      created_by: n.createdBy, created_at, last_inject_at,
+      status, invalidated_reason: n.invalidatedReason,
+      lifecycle_at,
+      lifecycle_type: !n.invalidatedAt ? null : (n.mergedInto ? 'merge' : 'invalidate'),
+      lifecycle_target: n.mergedInto || null,
+      consumed_by: new Set(),
+      metrics: {
+        age_min: ageMin, last_inject_min: lastInjectMin, inject_count: n.injectCount,
+        feedback_total: n.feedbackTotal || 0, feedback_useful: n.feedbackUseful || 0,
+        feedback_score: n.feedbackScore || 0, retained_score: n.retainedScore || 0,
+      },
+    };
+  });
+  const newActive = mappedNotes.filter(n => n.status === 'active').sort((a,b) => b.importance - a.importance);
+  const newHistory = mappedNotes.filter(n => n.status !== 'active');
+
+  const newFiles = d.files.map(f => ({ path: f.path, type: f.type || 'txt', noteCount: 0 }));
+  const newUsers = d.users.map(u => ({
+    id: u.userId, name: u.name, handle: u.handle, email: u.email, role: u.role,
+    initial: u.initial, color: u.color,
+    joined_days_ago: Math.max(1, Math.floor((now - new Date(u.joinedAt).getTime()) / 86400000)),
+  }));
+  const newAgents = d.agents.map(a => ({ id: a.agentId, user_id: a.userId, vendor: a.vendor, label: a.label || a.vendor }));
+
+  const newInjections = d.injections.map(inj => {
+    const ts = new Date(inj.ts).getTime();
+    return {
+      id: inj._id, ts, offset_min: Math.max(0, Math.floor((now - ts) / 60000)),
+      note_id: inj.noteId, agent_id: inj.agentId, file: inj.path,
+      bytes: inj.bytes || 0, accepted: !!inj.accepted,
+      latency_ms: inj.latencyMs || 0, guardian_score: inj.guardianScore || 0,
+      guardian_reason: inj.reason || null, used_by_agent: !!inj.usedByAgent,
+    };
+  }).filter(x => x.note_id && x.agent_id).sort((a,b) => b.ts - a.ts);
+
+  const actionsByRun = {};
+  d.gcActions.forEach(a => { (actionsByRun[a.runId] = actionsByRun[a.runId] || []).push(a); });
+  const newRuns = d.gcRuns.map(r => {
+    const ts = new Date(r.ts).getTime();
+    return {
+      id: r.runId, ts, offset_min: Math.max(0, Math.floor((now - ts) / 60000)),
+      duration_ms: r.durationMs || 1000,
+      actions: (actionsByRun[r.runId] || []).map(a => ({
+        type: a.action,
+        target_note: a.targetNote, target_file: a.targetFile,
+        source: a.sourceNote, target: a.action === 'merge' ? a.targetNote : undefined,
+        reason: a.reason,
+        metrics: a.metricsJson ? safeJSONParse(a.metricsJson) : {},
+      })),
+      metrics_after: { active: r.activeAfter || 0, invalidated: r.invalidatedAfter || 0, edges: r.edgesAfter || 0 },
+    };
+  }).sort((a,b) => a.ts - b.ts);
+
+  // ---- mutate globals in place ----
+  function repop(arr, src) { arr.length = 0; arr.push(...src); }
+  function reMap(obj, src, key) {
+    Object.keys(obj).forEach(k => delete obj[k]);
+    src.forEach(x => { obj[x[key]] = x; });
+  }
+
+  repop(NOTES, newActive);
+  repop(HISTORY_NOTES, newHistory);
+  repop(FILES, newFiles);
+  reMap(FILE_BY_PATH, newFiles, 'path');
+  NOTES.forEach(n => n.edges.forEach(e => { if (FILE_BY_PATH[e.path]) FILE_BY_PATH[e.path].noteCount++; }));
+
+  repop(ALL_NOTES, NOTES.concat(HISTORY_NOTES));
+  reMap(NOTE_BY_ID, ALL_NOTES, 'id');
+
+  repop(ORG_USERS, newUsers);
+  reMap(USER_BY_ID, newUsers, 'id');
+  repop(AGENTS, newAgents);
+  reMap(AGENT_BY_ID, newAgents, 'id');
+
+  repop(INJECTIONS, newInjections);
+  ALL_NOTES.forEach(n => n.consumed_by = new Set());
+  INJECTIONS.forEach(inj => {
+    if (inj.accepted && NOTE_BY_ID[inj.note_id]) NOTE_BY_ID[inj.note_id].consumed_by.add(inj.agent_id);
+  });
+
+  repop(GC_RUNS, newRuns);
+  if (newRuns.length > 0) { newRuns.forEach(r => r.fresh = false); newRuns[newRuns.length - 1].fresh = true; }
+
+  // recompute matrix similarity
+  NOTE_TOKENS.length = 0;
+  NOTE_FILES.length = 0;
+  PAIR_SCORES.length = 0;
+  NOTES.forEach(n => {
+    NOTE_TOKENS.push(tokenize(n.symptom + ' ' + n.root_cause + ' ' + n.correction));
+    NOTE_FILES.push(new Set(n.edges.map(e => e.path)));
+  });
+  for (let i = 0; i < NOTES.length; i++) {
+    PAIR_SCORES.push([]);
+    for (let j = 0; j < NOTES.length; j++) {
+      if (i === j) { PAIR_SCORES[i].push(null); continue; }
+      const edge = jaccard(NOTE_FILES[i], NOTE_FILES[j]);
+      const text = tfCosine(NOTE_TOKENS[i], NOTE_TOKENS[j]);
+      PAIR_SCORES[i].push({ edge, text, combined: 0.45 * edge + 0.55 * text });
+    }
+  }
+
+  // ---- rerender visible UI ----
+  document.getElementById('tree').innerHTML = renderTree(buildTree(FILES));
+  document.querySelectorAll('.folder-row').forEach(row => {
+    row.addEventListener('click', () => { row.parentElement.classList.toggle('collapsed'); requestAnimationFrame(drawEdges); });
+  });
+  bindFileRows();
+  renderNotes();
+  bindNoteCards();
+
+  const totalEdges = NOTES.reduce((s, n) => s + n.edges.length, 0);
+  const avgImp = NOTES.length ? NOTES.reduce((s, n) => s + n.importance, 0) / NOTES.length : 0;
+  document.getElementById('stat-files').textContent = FILES.length;
+  document.getElementById('stat-notes').textContent = NOTES.length;
+  document.getElementById('stat-edges').textContent = totalEdges;
+  document.getElementById('stat-imp').textContent = avgImp.toFixed(2);
+  document.getElementById('files-count').textContent = FILES.length;
+
+  requestAnimationFrame(() => { resizeSvg(); drawEdges(); });
+
+  // reset lazy view init flags so they re-render with new data
+  injInited = false; agInited = false; gcInited = false; replayInited = false;
+
+  const liveSpan = document.querySelector('.live span:last-child');
+  if (liveSpan) liveSpan.textContent = 'live · convex';
+  const dot = document.querySelector('.live .pulse-dot');
+  if (dot) dot.style.background = 'var(--green)';
+}
+function safeJSONParse(s) { try { return JSON.parse(s); } catch { return {}; } }
+window.applyConvexData = applyConvexData;
+</script>
+
+<!-- Convex SDK loader: connects via WebSocket and pushes live updates -->
+<script type="module">
+  const CONVEX_URL = 'https://colorless-porcupine-926.convex.cloud';
+  try {
+    const liveSpan = document.querySelector('.live span:last-child');
+    if (liveSpan) liveSpan.textContent = 'connecting…';
+    const mod = await import('https://esm.sh/convex@1.38.0/browser');
+    const ConvexClient = mod.ConvexClient;
+    const client = new ConvexClient(CONVEX_URL);
+    client.onUpdate('dashboard:everything', {}, (data) => {
+      if (window.applyConvexData) window.applyConvexData(data);
+    }, (err) => {
+      console.warn('[convex] subscription error:', err);
+      if (liveSpan) liveSpan.textContent = 'inline · convex offline';
+    });
+    window.__convex = client;
+  } catch (e) {
+    console.warn('[convex] SDK load failed, sticking with inline data:', e);
+    const liveSpan = document.querySelector('.live span:last-child');
+    if (liveSpan) liveSpan.textContent = 'inline · convex offline';
+  }
 </script>
 </body>
 </html>

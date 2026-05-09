@@ -1,0 +1,320 @@
+[
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/src/runtime/sandbox.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/src/runtime/scheduler.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/src/runtime/state_store.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/src/runtime/recovery.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/src/runtime/job_runner.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/src/runtime/metrics.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/tests/test_scheduler.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/tests/test_recovery.py",
+    "team": "team-runtime",
+    "type": "py"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/pyproject.toml",
+    "team": "team-runtime",
+    "type": "toml"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/README.md",
+    "team": "team-runtime",
+    "type": "md"
+  },
+  {
+    "repo": "runtime-orchestrator",
+    "path": "runtime-orchestrator/catalog-info.yaml",
+    "team": "team-runtime",
+    "type": "yaml"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/app/page.tsx",
+    "team": "team-product",
+    "type": "tsx"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/app/packs/[slug]/page.tsx",
+    "team": "team-product",
+    "type": "tsx"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/components/ActivityFeed.tsx",
+    "team": "team-product",
+    "type": "tsx"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/components/NoteGraph.tsx",
+    "team": "team-product",
+    "type": "tsx"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/components/InjectionPanel.tsx",
+    "team": "team-product",
+    "type": "tsx"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/components/ReplayTimeline.tsx",
+    "team": "team-product",
+    "type": "tsx"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/lib/convex.ts",
+    "team": "team-product",
+    "type": "ts"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/lib/format.ts",
+    "team": "team-product",
+    "type": "ts"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/package.json",
+    "team": "team-product",
+    "type": "json"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/README.md",
+    "team": "team-product",
+    "type": "md"
+  },
+  {
+    "repo": "control-plane",
+    "path": "control-plane/catalog-info.yaml",
+    "team": "team-product",
+    "type": "yaml"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/src/context/extract.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/src/context/guardian.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/src/context/gc.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/src/context/briefs.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/src/context/graph.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/src/context/nia_index.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/tests/test_briefs.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/tests/test_guardian.py",
+    "team": "team-memory",
+    "type": "py"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/README.md",
+    "team": "team-memory",
+    "type": "md"
+  },
+  {
+    "repo": "memory-graph",
+    "path": "memory-graph/catalog-info.yaml",
+    "team": "team-memory",
+    "type": "yaml"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/src/github/webhooks.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/src/slack/hyperspell.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/src/linear/issues.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/src/vercel/deployments.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/src/convex/sync.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/src/nia/search.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/tests/github-webhooks.test.ts",
+    "team": "team-integrations",
+    "type": "ts"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/package.json",
+    "team": "team-integrations",
+    "type": "json"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/README.md",
+    "team": "team-integrations",
+    "type": "md"
+  },
+  {
+    "repo": "connectors",
+    "path": "connectors/catalog-info.yaml",
+    "team": "team-integrations",
+    "type": "yaml"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/api/mcp.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/api/sessions.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/api/injections.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/api/auth.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/api/rateLimit.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/db/schema.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/src/lib/redaction.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/tests/mcp.test.ts",
+    "team": "team-api",
+    "type": "ts"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/package.json",
+    "team": "team-api",
+    "type": "json"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/README.md",
+    "team": "team-api",
+    "type": "md"
+  },
+  {
+    "repo": "agent-gateway",
+    "path": "agent-gateway/catalog-info.yaml",
+    "team": "team-api",
+    "type": "yaml"
+  }
+]

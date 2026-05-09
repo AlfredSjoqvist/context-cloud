@@ -1,0 +1,8 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: connectors
+spec:
+  type: service
+  owner: team-integrations
+  lifecycle: experimental

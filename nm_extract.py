@@ -43,9 +43,13 @@ EXTRACT_MODEL = os.environ.get("NM_EXTRACT_MODEL", "gpt-4o-mini")
 EXTRACT_BASE_URL = os.environ.get("NM_EXTRACT_BASE_URL") or None
 
 # Window-expansion knobs.
-SIGNAL_CLUSTER_GAP = 6        # events of "quiet" before a window closes
-RESOLUTION_LOOKAHEAD = 12     # events to scan after cluster end for a "successful" tail
-PRECONTEXT_EVENTS = 4         # events before first signal we include for context
+# Tuned 2026-05-09 against the mock_traces sessions. Bumped from (6,12,4) →
+# (12,16,8) so action_bigram_loop windows still capture the user's eventual
+# correction (D), and so a Bash-failure cluster pulls in the upstream Read
+# that loaded the relevant file (E).
+SIGNAL_CLUSTER_GAP = 12       # events of "quiet" before a window closes
+RESOLUTION_LOOKAHEAD = 16     # events to scan after cluster end for a "successful" tail
+PRECONTEXT_EVENTS = 10        # events before first signal we include for context
 
 
 # --- window expansion -------------------------------------------------------
@@ -156,14 +160,18 @@ EXTRACT_SYSTEM = """You are NM's Note Manager. You distill a *moment where a cod
 
 You will receive an event window from one chat session, plus the detected hurdle signals. Inside the window, the agent went down a wrong path and (usually) recovered. Your job is to compare the failed approach to the working one and write a 4-field note.
 
-Rules:
-- The note must be specific to *this codebase / project*. Generic best-practice advice is worthless.
-- "symptom" = one sentence describing what the agent did wrong. Concrete, file-anchored.
-- "root_cause" = the project-specific reason it was wrong. The hidden constraint or convention.
-- "correction" = what to do instead, derived from what worked at the END of the window. Imperative.
-- "files" = up to 5 file paths most central to the hurdle (a subset of the candidate paths).
+# Rules
+
+- The note must be specific to *this codebase / project*. Generic best-practice advice is worthless. If your `root_cause` could appear verbatim in a textbook ("400 is for client errors, 500 for server errors"), you are doing it wrong.
+- **Preserve the user's specific reasons verbatim.** When a user message includes the actual *why* — e.g. "Tensorlake retries on 5xx → infinite retry storms", "CI gate added in #520", "expiry check was removed in #482", "default is 16384 which pages oncall" — that exact reason MUST appear in `root_cause`. Do not paraphrase it into a generic principle. The whole point of a note is to carry the project-specific *why* forward.
+- "symptom" = one sentence describing what the agent did wrong. Concrete, file-anchored, references the specific call / value / status code.
+- "root_cause" = the project-specific reason it was wrong. The hidden constraint or convention. Quote the user's reason if they gave one.
+- "correction" = what to do instead, derived from what worked at the END of the window. Imperative ("Use X", "Return 400, not 500"). Mention the specific helper/module/value when relevant.
+- "files" = up to 5 file paths most central to the hurdle (a subset of the candidate paths). Include both the file the agent edited AND any file that defines the convention (e.g. include `src/lib/auth-helpers.ts` when the rule is "use verifyJWT()").
 - Do NOT hallucinate file paths. Only use ones that appear in the candidates list.
 - If the window contains no clear hurdle (judged best-effort), return {"skip": true, "reason": "..."}.
+
+# Output
 
 Output ONLY a JSON object — no prose, no markdown fences.
 
@@ -175,6 +183,17 @@ Schema:
   "correction": "...",
   "files": ["path/one", "path/two"]
 }
+
+# Examples of good vs bad
+
+BAD root_cause:  "400 should be used for client errors, 5xx for server errors."
+GOOD root_cause: "Tensorlake retries on every 5xx response. Returning 500 for a malformed body triggers infinite retry storms; reserve 5xx for transient infra failures only."
+
+BAD correction:  "Use the appropriate helper function instead of the lower-level API."
+GOOD correction: "Use verifyJWT() from src/lib/auth-helpers.ts — never call jwt.decode directly. verifyJWT enforces signature + expiry."
+
+BAD symptom:    "The agent made an authentication mistake."
+GOOD symptom:   "Used jwt.decode in src/api/email.ts to read the email claim, skipping signature and expiry verification."
 """
 
 
@@ -225,13 +244,22 @@ def _heuristic_extract(events: list[Event], window: HurdleWindow) -> dict[str, A
         (e.tool_name for e in sub if e.kind == "tool_result" and e.is_error),
         "",
     ) or next((e.tool_name for e in sub if e.kind == "tool_call"), "?")
-    user_corrections = [e.text[:200] for e in sub if e.kind == "user_msg"][:2]
+    correction_markers = (
+        "no", "wrong", "stop", "never", "instead", "actually",
+        "don't", "do not", "that's wrong", "not "
+    )
+    user_msgs = [e.text[:200] for e in sub if e.kind == "user_msg"]
+    correction_msgs = [
+        t for t in user_msgs
+        if any(marker in t.lower() for marker in correction_markers)
+    ]
+    best_correction = (correction_msgs[-1] if correction_msgs else (user_msgs[-1] if user_msgs else "see window events"))
     sig_names = sorted({s.kind for s in window.signals})
     return {
         "skip": False,
         "symptom": f"[STUB] hurdle around {failing_tool} (signals: {', '.join(sig_names)})",
         "root_cause": "[STUB extraction — no LLM call made. Run without --no-llm to get real notes.]",
-        "correction": "[STUB] " + (user_corrections[0] if user_corrections else "see window events"),
+        "correction": "[STUB] " + best_correction,
         "files": window.files[:5],
     }
 
@@ -293,12 +321,35 @@ def _seed_importance(score: float, resolved: bool) -> float:
     return round(base, 3)
 
 
-def _convex_sync_safe(fn, *args) -> None:
-    """Best-effort sync — never raises, never blocks long. See SPEC.md > Convex."""
+def _drop_nones(x: Any) -> Any:
+    """Recursively strip None-valued keys from dicts.
+
+    Convex `v.optional(v.string())` validators accept string-or-omitted, NOT
+    string-or-null. JSON `null` fails them. Drop the keys instead so optional
+    fields are simply absent on the wire.
+    """
+    if isinstance(x, dict):
+        return {k: _drop_nones(v) for k, v in x.items() if v is not None}
+    if isinstance(x, list):
+        return [_drop_nones(v) for v in x]
+    return x
+
+
+def _convex_sync_safe(method: str, *args) -> None:
+    """Best-effort sync — never raises, never blocks long. See SPEC.md > Convex.
+
+    Takes the method name as a string so the import lives inside the wrapper:
+    if `nm_convex` is missing or import-time errors, the call is a true no-op
+    instead of crashing _persist_*. Strips None-valued keys from every dict
+    arg before sending so Convex's `v.optional(...)` validators don't reject
+    them.
+    """
     try:
         import nm_convex
-        if nm_convex.is_enabled():
-            fn(*args)
+        if not nm_convex.is_enabled():
+            return
+        cleaned = tuple(_drop_nones(a) for a in args)
+        getattr(nm_convex, method)(*cleaned)
     except Exception:
         pass
 
@@ -350,10 +401,9 @@ def _persist_hurdle(conn: sqlite3.Connection, session_id: str, win: HurdleWindow
             rows,
         )
 
-    # Convex mirror.
-    import nm_convex
+    # Convex mirror — fail-open via _convex_sync_safe (no exception path).
     _convex_sync_safe(
-        nm_convex.sync_hurdle,
+        "sync_hurdle",
         {
             "hurdleId": hurdle_id,
             "sessionId": session_id,
@@ -424,9 +474,8 @@ def _persist_note(conn: sqlite3.Connection, session_id: str, hurdle_id: int,
         edges_for_sync.append({"path": path, "weight": w})
 
     # Convex mirror — note + its edges in one round-trip via /sync/note.
-    import nm_convex
     _convex_sync_safe(
-        nm_convex.sync_note,
+        "sync_note",
         {
             "noteId": note_id,
             "symptom": extracted.get("symptom", "")[:600],
@@ -511,16 +560,33 @@ def extract_session(session_id: str, *, dry_run: bool = False, use_llm: bool = T
 
 
 def list_sessions() -> list[str]:
+    """Return distinct session ids in recency order.
+
+    Reads from v2 `sessions` first (the table nm_capture writes for live
+    captures and mock_traces seeds), then appends any session ids that exist
+    only in v1 `transcript_entries`. Without the v2 read, --all silently
+    skips sessions seeded straight into messages/content_blocks.
+    """
     init_db()
     conn = connect()
     cur = conn.cursor()
+    seen: list[str] = []
+
+    cur.execute("SELECT session_id FROM sessions ORDER BY last_seen_at DESC")
+    for (sid,) in cur.fetchall():
+        if sid and sid not in seen:
+            seen.append(sid)
+
     cur.execute(
         "SELECT DISTINCT session_id FROM transcript_entries "
         "WHERE session_id IS NOT NULL ORDER BY id DESC"
     )
-    rows = [r[0] for r in cur.fetchall() if r[0]]
+    for (sid,) in cur.fetchall():
+        if sid and sid not in seen:
+            seen.append(sid)
+
     conn.close()
-    return rows
+    return seen
 
 
 def main() -> None:

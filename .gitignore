@@ -1,0 +1,38 @@
+# secrets / env
+.env
+.env.local
+.env.*.local
+*.pem
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# node
+node_modules/
+package-lock.json.bak
+
+# convex
+convex/_generated/
+
+# vercel
+.vercel/
+
+# os / editors
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# local dev artifacts (re-derive with `npm run seed` or fresh runs)
+nm.db
+nm.db-journal
+*.sqlite-journal
+
+# scratch
+*.tmp
+*.log

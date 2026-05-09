@@ -31,6 +31,7 @@ from nm_db import DB_PATH, connect, init_db
 
 ROOT = Path(__file__).parent
 MOCK_DIR = ROOT / "mock"
+SEED_DIR = MOCK_DIR / "seed"
 
 
 # --- helpers ---------------------------------------------------------------
@@ -79,8 +80,19 @@ def fetch_graph() -> dict:
         cur = conn.cursor()
 
         # Files registry — the union of paths NM has seen attached to notes.
-        cur.execute("SELECT path, type FROM files ORDER BY path")
-        files = [{"path": r[0], "type": r[1] or "?"} for r in cur.fetchall()]
+        org = None
+        org_path = SEED_DIR / "org.json"
+        if org_path.exists():
+            try:
+                org = json.loads(org_path.read_text(encoding="utf-8"))
+            except Exception:
+                org = None
+
+        if org:
+            files = []
+        else:
+            cur.execute("SELECT path, type FROM files ORDER BY path")
+            files = [{"path": r[0], "type": r[1] or "?"} for r in cur.fetchall()]
 
         # Active notes with their edges.
         cur.execute(
@@ -90,7 +102,7 @@ def fetch_graph() -> dict:
             FROM notes
             WHERE t_invalid IS NULL
             ORDER BY importance DESC, created_at DESC
-            """
+            """,
         )
         rows = cur.fetchall()
 
@@ -124,7 +136,21 @@ def fetch_graph() -> dict:
                 "edges": edges,
             })
 
-        return {"files": files, "notes": notes, "source": "nm.db", "db_path": str(DB_PATH)}
+        org = None
+        org_path = SEED_DIR / "org.json"
+        if org_path.exists():
+            try:
+                org = json.loads(org_path.read_text(encoding="utf-8"))
+            except Exception:
+                org = None
+
+        return {
+            "files": files,
+            "notes": notes,
+            "org": org,
+            "source": "nm.db",
+            "db_path": str(DB_PATH),
+        }
     finally:
         conn.close()
 
