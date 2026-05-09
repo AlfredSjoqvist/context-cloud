@@ -32,6 +32,12 @@ export interface NiaClientConfig {
   readonly mcpUrl: string;
   readonly apiKey: string;
   readonly filesystemRoot: string;
+  /**
+   * GitHub repo identifier (e.g., "NewCoder3294/demo-target") that the agent
+   * targets. Required when `skipNia=false` because Nia tools (`nia_read`,
+   * `search`) operate against indexed repositories by `owner/repo` slug.
+   */
+  readonly repository?: string;
   readonly mcpClientFactory?: (cfg: NiaClientConfig) => Promise<McpClientLike>;
 }
 
@@ -100,55 +106,71 @@ class MCPNiaClient implements NiaClient {
   }
 
   async searchCode(query: string, opts?: { topK?: number }): Promise<NiaSearchHit[]> {
-    return this.searchTool("search_code", query, opts);
+    return this.semanticSearch(query, opts);
   }
 
   async searchContext(query: string, opts?: { topK?: number }): Promise<NiaSearchHit[]> {
-    return this.searchTool("search_context", query, opts);
+    return this.semanticSearch(query, opts);
   }
 
-  private async searchTool(
-    tool: "search_code" | "search_context",
+  private async semanticSearch(
     query: string,
     opts?: { topK?: number },
   ): Promise<NiaSearchHit[]> {
+    if (!this.cfg.repository) return [];
     try {
       const client = await this.getClient();
       const res = await client.callTool({
-        name: tool,
-        arguments: { query, top_k: opts?.topK ?? 8 },
+        name: "search",
+        arguments: {
+          query,
+          repositories: [this.cfg.repository],
+        },
       });
-      const text = res.content[0]?.text ?? "[]";
-      const parsed = JSON.parse(text) as NiaSearchHit[];
-      return Array.isArray(parsed) ? parsed : [];
+      // Nia returns a markdown-formatted answer in `content[0].text`. We can't
+      // reliably parse it into NiaSearchHit[] without re-LLM-ing it. Instead,
+      // return a single synthetic hit whose `excerpt` carries the full Nia
+      // answer; the analyzer feeds this into the GPT-5 prompt as one chunk.
+      const text = res.content[0]?.text ?? "";
+      if (text.length === 0) return [];
+      const limited = text.slice(0, 8000);
+      return [
+        {
+          path: `nia://search?q=${encodeURIComponent(query).slice(0, 50)}`,
+          line: 1,
+          excerpt: limited,
+        },
+      ].slice(0, opts?.topK ?? 8);
     } catch {
       return [];
     }
   }
 
   async readFile(path: string): Promise<string> {
+    if (!this.cfg.repository) {
+      return this.fallback.readFile(path);
+    }
     try {
       const client = await this.getClient();
-      const res = await client.callTool({ name: "read_file", arguments: { path } });
+      const res = await client.callTool({
+        name: "nia_read",
+        arguments: {
+          source_type: "repository",
+          source_identifier: `${this.cfg.repository}:${path}`,
+        },
+      });
       const text = res.content[0]?.text;
-      if (typeof text === "string") return text;
-      throw new Error("nia read_file returned no text");
+      if (typeof text === "string" && text.length > 0) return text;
+      throw new Error("nia_read returned no text");
     } catch {
       return this.fallback.readFile(path);
     }
   }
 
-  async recentDiff(path: string, n?: number): Promise<string> {
-    try {
-      const client = await this.getClient();
-      const res = await client.callTool({
-        name: "recent_diff",
-        arguments: { path, n: n ?? 5 },
-      });
-      return res.content[0]?.text ?? "";
-    } catch {
-      return "";
-    }
+  async recentDiff(_path: string, _n?: number): Promise<string> {
+    // Nia's MCP surface does not expose a recent-diff tool. Return empty;
+    // analyzer falls back to scanning without diff context.
+    return "";
   }
 
   async verifyConstraintCite(

@@ -85,21 +85,18 @@ describe("niaClient (filesystem fallback)", () => {
     await expect(nia.readFile("../etc/passwd")).rejects.toThrow(/escapes filesystemRoot/);
   });
 
-  it("calls the MCP client when skipNia=false", async () => {
+  it("calls Nia MCP tools (nia_read, search) when skipNia=false", async () => {
     const calls: Array<{ tool: string; args: unknown }> = [];
     const mockMcp = {
       async callTool(args: { name: string; arguments: unknown }) {
         calls.push({ tool: args.name, args: args.arguments });
-        if (args.name === "read_file") {
+        if (args.name === "nia_read") {
           return { content: [{ type: "text", text: "mocked code" }] };
         }
-        if (args.name === "search_context") {
+        if (args.name === "search") {
           return {
             content: [
-              {
-                type: "text",
-                text: JSON.stringify([{ path: "x.md", line: 1, excerpt: "ok" }]),
-              },
+              { type: "text", text: "Nia answer about auth constraints." },
             ],
           };
         }
@@ -112,14 +109,20 @@ describe("niaClient (filesystem fallback)", () => {
       mcpUrl: "https://invalid",
       apiKey: "k",
       filesystemRoot: workdir,
+      repository: "owner/demo",
       mcpClientFactory: async () => mockMcp,
     });
 
     const body = await nia.readFile("src/login.ts");
     expect(body).toBe("mocked code");
-    expect(calls[0]!.tool).toBe("read_file");
+    expect(calls[0]).toEqual({
+      tool: "nia_read",
+      args: { source_type: "repository", source_identifier: "owner/demo:src/login.ts" },
+    });
 
     const hits = await nia.searchContext("auth");
-    expect(hits).toEqual([{ path: "x.md", line: 1, excerpt: "ok" }]);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.excerpt).toContain("Nia answer");
+    expect(calls[1]!.tool).toBe("search");
   });
 });

@@ -52,6 +52,7 @@ async function main(): Promise<void> {
   const nia = createNiaClient({
     skipNia: config.skipNia,
     mcpUrl: config.niaMcpUrl ?? "",
+    repository: `${config.githubOwner}/${config.githubRepo}`,
     apiKey: config.niaApiKey ?? "",
     filesystemRoot: demoRoot,
   });
