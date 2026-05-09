@@ -20,3 +20,10 @@ out/
 coverage/
 ui/tsconfig.tsbuildinfo
 .vercel
+
+# python (NM layer)
+__pycache__/
+*.pyc
+.venv/
+nm.db
+nm.db-journal

@@ -1,6 +1,6 @@
 {
-  "name": "guardian-agent",
-  "version": "0.0.1",
+  "name": "context-cloud",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -20,7 +20,7 @@
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@octokit/rest": "^21.1.1",
     "@openai/agents": "^0.0.5",
-    "convex": "^1.16.0",
+    "convex": "^1.38.0",
     "dotenv": "^17.4.2",
     "openai": "^4.104.0",
     "zod": "^3.23.8"
