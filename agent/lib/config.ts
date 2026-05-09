@@ -4,17 +4,39 @@ const boolFromEnv = z
   .union([z.literal("0"), z.literal("1"), z.literal("true"), z.literal("false")])
   .transform((v) => v === "1" || v === "true");
 
-const Schema = z.object({
-  niaApiKey: z.string().min(1),
-  niaMcpUrl: z.string().url(),
-  convexUrl: z.string().url(),
-  cycleIntervalSeconds: z.coerce.number().int().positive(),
-  priorityBudget: z.coerce.number().int().nonnegative(),
-  judgmentBudget: z.coerce.number().int().nonnegative(),
-  useMockLlm: boolFromEnv,
-  useMockDevin: boolFromEnv,
-  skipNia: boolFromEnv,
-});
+const Schema = z
+  .object({
+    niaApiKey: z.string().optional(),
+    niaMcpUrl: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.string().url().optional(),
+    ),
+    convexUrl: z.string().url(),
+    cycleIntervalSeconds: z.coerce.number().int().positive(),
+    priorityBudget: z.coerce.number().int().nonnegative(),
+    judgmentBudget: z.coerce.number().int().nonnegative(),
+    useMockLlm: boolFromEnv,
+    useMockDevin: boolFromEnv,
+    skipNia: boolFromEnv,
+  })
+  .superRefine((cfg, ctx) => {
+    if (!cfg.skipNia) {
+      if (!cfg.niaApiKey || cfg.niaApiKey.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["niaApiKey"],
+          message: "NIA_API_KEY is required when SKIP_NIA=0",
+        });
+      }
+      if (!cfg.niaMcpUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["niaMcpUrl"],
+          message: "NIA_MCP_URL is required when SKIP_NIA=0",
+        });
+      }
+    }
+  });
 
 export type GuardianConfig = z.infer<typeof Schema>;
 

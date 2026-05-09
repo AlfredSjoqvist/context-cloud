@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 
 export interface NiaSearchHit {
   readonly path: string;
@@ -32,16 +32,23 @@ export interface NiaClientConfig {
 }
 
 export function createNiaClient(cfg: NiaClientConfig): NiaClient {
-  if (cfg.skipNia) {
-    return new FilesystemFallbackClient(cfg.filesystemRoot);
-  }
-  // Real Nia MCP transport lands in Plan 2 once we know the wire format
-  // their server exposes. Plan 1 ships the fallback so the cycle runs end-to-end.
+  // Plan 1 ships filesystem fallback only. When cfg.skipNia is false, the real
+  // Nia MCP transport will be wired in Plan 2 once the wire format is known.
+  // Until then, fall back to the local filesystem reader.
   return new FilesystemFallbackClient(cfg.filesystemRoot);
 }
 
 class FilesystemFallbackClient implements NiaClient {
   constructor(private readonly root: string) {}
+
+  private safeJoin(relativePath: string): string {
+    const root = resolve(this.root);
+    const target = resolve(root, relativePath);
+    if (target !== root && !target.startsWith(root + sep)) {
+      throw new Error(`path escapes filesystemRoot: ${relativePath}`);
+    }
+    return target;
+  }
 
   async searchCode(): Promise<NiaSearchHit[]> {
     return [];
@@ -52,7 +59,7 @@ class FilesystemFallbackClient implements NiaClient {
   }
 
   async readFile(path: string): Promise<string> {
-    return readFileSync(join(this.root, path), "utf8");
+    return readFileSync(this.safeJoin(path), "utf8");
   }
 
   async recentDiff(): Promise<string> {
@@ -64,7 +71,7 @@ class FilesystemFallbackClient implements NiaClient {
     line: number,
     text: string,
   ): Promise<boolean> {
-    const full = join(this.root, mdFile);
+    const full = this.safeJoin(mdFile);
     if (!existsSync(full)) return false;
     const lines = readFileSync(full, "utf8").split("\n");
     const actual = lines[line - 1];

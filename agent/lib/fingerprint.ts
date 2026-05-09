@@ -8,11 +8,11 @@ export interface FingerprintInput {
 }
 
 export function findingFingerprint(input: FingerprintInput): string {
-  const payload = [
+  const payload = JSON.stringify([
     input.path,
     input.constraintMdFile,
-    String(input.constraintLine),
-    String(input.codeLine),
-  ].join("|");
+    input.constraintLine,
+    input.codeLine,
+  ]);
   return createHash("sha256").update(payload).digest("hex");
 }

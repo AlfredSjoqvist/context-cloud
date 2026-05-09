@@ -31,4 +31,24 @@ describe("loadConfig", () => {
     const cfg = loadConfig({ ...baseEnv, SKIP_NIA: "1" });
     expect(cfg.skipNia).toBe(true);
   });
+
+  it("permits empty NIA fields when SKIP_NIA=1", () => {
+    const cfg = loadConfig({
+      ...baseEnv,
+      SKIP_NIA: "1",
+      NIA_API_KEY: "",
+      NIA_MCP_URL: "",
+    });
+    expect(cfg.skipNia).toBe(true);
+  });
+
+  it("requires NIA_API_KEY when SKIP_NIA=0", () => {
+    expect(() =>
+      loadConfig({
+        ...baseEnv,
+        SKIP_NIA: "0",
+        NIA_API_KEY: "",
+      }),
+    ).toThrow();
+  });
 });

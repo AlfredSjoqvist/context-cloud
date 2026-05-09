@@ -43,8 +43,8 @@ async function main(): Promise<void> {
   const sinkFor = (_cycleNumber: number) => makeConvexEventSink(config);
   const nia = createNiaClient({
     skipNia: config.skipNia,
-    mcpUrl: config.niaMcpUrl,
-    apiKey: config.niaApiKey,
+    mcpUrl: config.niaMcpUrl ?? "",
+    apiKey: config.niaApiKey ?? "",
     filesystemRoot: demoRoot,
   });
 

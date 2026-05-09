@@ -74,4 +74,14 @@ describe("niaClient (filesystem fallback)", () => {
     );
     expect(ok).toBe(false);
   });
+
+  it("readFile rejects paths that escape the filesystem root", async () => {
+    const nia = createNiaClient({
+      skipNia: true,
+      mcpUrl: "https://invalid",
+      apiKey: "k",
+      filesystemRoot: workdir,
+    });
+    await expect(nia.readFile("../etc/passwd")).rejects.toThrow(/escapes filesystemRoot/);
+  });
 });

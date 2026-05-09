@@ -72,13 +72,21 @@ export const incrementSharpen = mutation({
 });
 
 export const byStatus = query({
-  args: { status: v.string() },
+  args: {
+    status: v.union(
+      v.literal("detected"),
+      v.literal("devin_running"),
+      v.literal("pr_open"),
+      v.literal("verifying"),
+      v.literal("resolved"),
+      v.literal("reopened_sharpened"),
+      v.literal("escalated"),
+    ),
+  },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("findings")
-      .withIndex("by_status", (q) =>
-        q.eq("status", args.status as never),
-      )
+      .withIndex("by_status", (q) => q.eq("status", args.status))
       .collect();
   },
 });
