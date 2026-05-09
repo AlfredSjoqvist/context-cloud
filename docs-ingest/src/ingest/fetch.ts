@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { DocSource, RawDoc } from "../types.js";
 
 const SKIP_DIRS = new Set([
@@ -34,7 +35,52 @@ export interface FetchResult {
   errors: Array<{ stage: string; message: string; path?: string }>;
 }
 
+function resolveLocalUri(uri: string): string {
+  if (uri.startsWith("file://")) return fileURLToPath(uri);
+  return uri;
+}
+
+async function fetchOpenApiSpec(source: DocSource): Promise<FetchResult> {
+  const errors: FetchResult["errors"] = [];
+  const raw: RawDoc[] = [];
+  const filePath = resolveLocalUri(source.uri);
+
+  try {
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile()) {
+      errors.push({
+        stage: "fetch",
+        message: `OpenAPI source URI is not a readable file.`,
+        path: filePath,
+      });
+      return { raw, errors };
+    }
+    const text = await fs.readFile(filePath, "utf8");
+    const basename = path.basename(filePath);
+    raw.push({
+      id: `${source.id}:${basename}`,
+      sourceId: source.id,
+      path: basename,
+      title: path.basename(basename, path.extname(basename)),
+      format: "openapi",
+      text,
+    });
+  } catch (err) {
+    errors.push({
+      stage: "fetch",
+      message: err instanceof Error ? err.message : String(err),
+      path: filePath,
+    });
+  }
+
+  return { raw, errors };
+}
+
 export async function fetchSource(source: DocSource): Promise<FetchResult> {
+  if (source.kind === "openapi_spec") {
+    return fetchOpenApiSpec(source);
+  }
+
   const errors: FetchResult["errors"] = [];
   const raw: RawDoc[] = [];
 
