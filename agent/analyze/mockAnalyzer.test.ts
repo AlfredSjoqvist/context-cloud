@@ -11,8 +11,8 @@ describe("mockAnalyzeFile", () => {
     expect(f.constraintCite.text.toLowerCase()).toContain("csrf");
   });
 
-  it("returns the sliding-TTL drift finding for sessions", async () => {
-    const findings = await mockAnalyzeFile("src/routes/sessions.ts");
+  it("returns the sliding-TTL drift finding for db.ts", async () => {
+    const findings = await mockAnalyzeFile("src/lib/db.ts");
     expect(findings).toHaveLength(1);
     expect(findings[0]!.constraintCite.text.toLowerCase()).toContain(
       "inactivity"
@@ -20,7 +20,7 @@ describe("mockAnalyzeFile", () => {
   });
 
   it("returns no findings for files without a planted issue", async () => {
-    const findings = await mockAnalyzeFile("src/lib/db.ts");
+    const findings = await mockAnalyzeFile("src/middleware/auth.ts");
     expect(findings).toEqual([]);
   });
 });
