@@ -5,6 +5,8 @@ import { loadConfig } from "./lib/config.js";
 import { getConvex, makeConvexEventSink } from "./tools/convexClient.js";
 import { createNiaClient } from "./tools/niaClient.js";
 import { runCycle } from "./cycle.js";
+import { mockAnalyzeFile } from "./analyze/mockAnalyzer.js";
+import { PatAuth } from "./handoff/githubAuth.js";
 
 const DEMO_REPO_ENV = "DEMO_REPO_LOCAL_PATH";
 
@@ -12,7 +14,7 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function listSrcFiles(root: string): string[] {
+function listCandidateFiles(root: string): string[] {
   const out: string[] = [];
   function walk(rel: string): void {
     const entries = readdirSync(join(root, rel));
@@ -22,7 +24,10 @@ function listSrcFiles(root: string): string[] {
       const full = join(root, r);
       if (statSync(full).isDirectory()) {
         walk(r);
-      } else if (r.startsWith("src/") && (r.endsWith(".ts") || r.endsWith(".js"))) {
+      } else if (
+        (r.startsWith("src/") && (r.endsWith(".ts") || r.endsWith(".js"))) ||
+        r === "package.json"
+      ) {
         out.push(r);
       }
     }
@@ -47,8 +52,16 @@ async function main(): Promise<void> {
     apiKey: config.niaApiKey ?? "",
     filesystemRoot: demoRoot,
   });
+  const candidatesProvider = async () => listCandidateFiles(demoRoot);
 
-  const candidatesProvider = async () => listSrcFiles(demoRoot);
+  if (!config.useMockLlm) {
+    throw new Error(
+      "USE_MOCK_LLM=0 requires the real analyzer (wired in Plan 2 Task 16). Re-run with USE_MOCK_LLM=1.",
+    );
+  }
+  const analyzeFile = async (path: string) => mockAnalyzeFile(path);
+
+  const githubAuth = new PatAuth(config.githubToken!);
 
   let stopped = false;
   const shutdown = (signal: string): void => {
@@ -61,7 +74,7 @@ async function main(): Promise<void> {
 
   // eslint-disable-next-line no-console
   console.log(
-    `[main] guardian online · demo=${demoRoot} · interval=${config.cycleIntervalSeconds}s`,
+    `[main] guardian online · demo=${demoRoot} · interval=${config.cycleIntervalSeconds}s · mock_llm=${config.useMockLlm}`,
   );
 
   while (!stopped) {
@@ -71,10 +84,15 @@ async function main(): Promise<void> {
       sinkFor,
       candidatesProvider,
       priorityBudget: config.priorityBudget,
+      analyzeFile,
+      githubAuth,
+      githubOwner: config.githubOwner!,
+      githubRepo: config.githubRepo!,
+      demoRepoRoot: demoRoot,
     });
     // eslint-disable-next-line no-console
     console.log(
-      `[main] cycle ${result.cycleNumber} ${result.status} · ${result.plannedFiles.length} picks`,
+      `[main] cycle ${result.cycleNumber} ${result.status} · ${result.plannedFiles.length} picks · ${result.findingsFiled} filed`,
     );
     if (onceFlag) break;
     if (stopped) break;

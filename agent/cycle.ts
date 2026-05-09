@@ -6,7 +6,15 @@ import type { EventSink } from "./lib/logger.js";
 import type { NiaClient } from "./tools/niaClient.js";
 import { priorityPicks } from "./plan/priority.js";
 import type { FileScanState } from "./plan/priority.js";
+import { findingFingerprint } from "./lib/fingerprint.js";
+import { auditPackageJson } from "./analyze/npmAudit.js";
+import { verifyCitation } from "./analyze/citation.js";
+import { createIssueForFinding } from "./handoff/github.js";
+import type { GithubAuth } from "./handoff/githubAuth.js";
+import type { Finding } from "./analyze/types.js";
 import { createHash } from "node:crypto";
+
+export type AnalyzeFile = (path: string, nia: NiaClient) => Promise<Finding[]>;
 
 export interface CycleDeps {
   convex: ConvexHttpClient;
@@ -14,12 +22,18 @@ export interface CycleDeps {
   sinkFor: (cycleNumber: number) => EventSink;
   candidatesProvider: () => Promise<readonly string[]>;
   priorityBudget: number;
+  analyzeFile: AnalyzeFile;
+  githubAuth: GithubAuth;
+  githubOwner: string;
+  githubRepo: string;
+  demoRepoRoot: string;
 }
 
 export interface CycleResult {
   cycleNumber: number;
   status: "done" | "failed";
   plannedFiles: Array<{ path: string; reason: string }>;
+  findingsFiled: number;
 }
 
 function hashContent(s: string): string {
@@ -28,16 +42,15 @@ function hashContent(s: string): string {
 
 export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
   const cycleNumber = await deps.convex.query(api.cycles.nextCycleNumber, {});
-  const cycleId: Id<"cycles"> = await deps.convex.mutation(
-    api.cycles.openCycle,
-    { cycleNumber },
-  );
+  const cycleId: Id<"cycles"> = await deps.convex.mutation(api.cycles.openCycle, {
+    cycleNumber,
+  });
   const log = new Logger({ sink: deps.sinkFor(cycleNumber), cycleNumber });
-
   await log.info("wake");
 
+  let findingsFiled = 0;
+
   try {
-    // PLAN
     const candidates = await deps.candidatesProvider();
     const historyRows = await deps.convex.query(api.fileScanHistory.getAll, {});
     const history: FileScanState[] = historyRows.map((row) => ({
@@ -45,40 +58,98 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
       lastScannedCycle: row.lastScannedCycle,
       cleanScanStreak: row.cleanScanStreak,
     }));
-
     const plannedFiles = priorityPicks({
       cycleNumber,
       candidates,
       history,
       budget: deps.priorityBudget,
     });
-
     await deps.convex.mutation(api.cycles.setPlan, { cycleId, plannedFiles });
     await log.info(`plan: ${plannedFiles.length} files`, { plannedFiles });
 
-    // SCAN — Plan 1 only reads the file + logs context size; analysis is Plan 2.
     for (const pick of plannedFiles) {
       await log.info(`scan ${pick.path}`, { reason: pick.reason });
-      const body = await deps.nia.readFile(pick.path);
-      await log.info(
-        `read ${pick.path}: ${body.split("\n").length} lines`,
-        { bytes: body.length },
-      );
+
+      let body = "";
+      try {
+        body = await deps.nia.readFile(pick.path);
+      } catch (err) {
+        await log.warn(`read failed for ${pick.path}: ${(err as Error).message}`);
+      }
+
+      let rawFindings: Finding[] = [];
+      if (pick.path === "package.json") {
+        rawFindings = await auditPackageJson({ cwd: deps.demoRepoRoot });
+      } else {
+        rawFindings = await deps.analyzeFile(pick.path, deps.nia);
+      }
+      await log.info(`analyze ${pick.path}: ${rawFindings.length} raw findings`);
+
+      let cleanScan = true;
+      for (const f of rawFindings) {
+        if (f.category !== "security") {
+          const cite = await verifyCitation({ finding: f, nia: deps.nia });
+          if (!cite.ok) {
+            await log.warn(`drop finding (citation): ${cite.reason}`);
+            continue;
+          }
+        }
+
+        const fingerprint = findingFingerprint({
+          path: f.path,
+          constraintMdFile: f.constraintCite.mdFile,
+          constraintLine: f.constraintCite.line,
+          codeLine: f.codeCite.line,
+        });
+        const result = await deps.convex.mutation(api.findings.createIfAbsent, {
+          fingerprint,
+          cycleDetected: cycleNumber,
+          severity: f.severity,
+          category: f.category,
+          path: f.path,
+          codeCite: f.codeCite,
+          constraintCite: f.constraintCite,
+          reasoning: f.reasoning,
+          suggestedFixDirection: f.suggestedFixDirection,
+        });
+        if (!result.created) {
+          await log.info(`finding deduped: ${fingerprint.slice(0, 12)}`);
+          continue;
+        }
+        cleanScan = false;
+        const { issueNumber } = await createIssueForFinding({
+          auth: deps.githubAuth,
+          owner: deps.githubOwner,
+          repo: deps.githubRepo,
+          finding: f,
+          cycleNumber,
+        });
+        await deps.convex.mutation(api.findings.setStatus, {
+          findingId: result.id,
+          status: "detected",
+          githubIssueNumber: issueNumber,
+        });
+        findingsFiled++;
+        await log.finding(`filed issue #${issueNumber}: ${f.category} @ ${f.path}`, {
+          fingerprint: fingerprint.slice(0, 12),
+        });
+      }
+
       await deps.convex.mutation(api.fileScanHistory.upsertScan, {
         path: pick.path,
         cycleNumber,
         fileHash: hashContent(body),
-        cleanScan: true,
+        cleanScan,
       });
     }
 
     await deps.convex.mutation(api.cycles.closeCycle, {
       cycleId,
       status: "done",
-      summary: `${plannedFiles.length} picks scanned`,
+      summary: `${plannedFiles.length} picks · ${findingsFiled} findings filed`,
     });
     await log.info("sleep");
-    return { cycleNumber, status: "done", plannedFiles };
+    return { cycleNumber, status: "done", plannedFiles, findingsFiled };
   } catch (err) {
     await log.warn(`cycle failed: ${(err as Error).message}`);
     await deps.convex.mutation(api.cycles.closeCycle, {
@@ -86,6 +157,6 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
       status: "failed",
       summary: (err as Error).message,
     });
-    return { cycleNumber, status: "failed", plannedFiles: [] };
+    return { cycleNumber, status: "failed", plannedFiles: [], findingsFiled };
   }
 }
