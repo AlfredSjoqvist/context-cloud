@@ -1,6 +1,18 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+export const wipeAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    let n = 0;
+    for await (const r of ctx.db.query("devinRuns")) {
+      await ctx.db.delete(r._id);
+      n++;
+    }
+    return n;
+  },
+});
+
 export const recordRun = mutation({
   args: {
     findingId: v.id("findings"),

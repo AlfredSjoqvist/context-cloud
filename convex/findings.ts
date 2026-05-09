@@ -1,6 +1,18 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+export const wipeAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    let n = 0;
+    for await (const f of ctx.db.query("findings")) {
+      await ctx.db.delete(f._id);
+      n++;
+    }
+    return n;
+  },
+});
+
 export const createIfAbsent = mutation({
   args: {
     fingerprint: v.string(),
