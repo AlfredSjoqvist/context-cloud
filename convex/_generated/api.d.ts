@@ -9,6 +9,7 @@
  */
 
 import type * as cycles from "../cycles.js";
+import type * as devinRuns from "../devinRuns.js";
 import type * as events from "../events.js";
 import type * as fileScanHistory from "../fileScanHistory.js";
 import type * as findings from "../findings.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   cycles: typeof cycles;
+  devinRuns: typeof devinRuns;
   events: typeof events;
   fileScanHistory: typeof fileScanHistory;
   findings: typeof findings;
