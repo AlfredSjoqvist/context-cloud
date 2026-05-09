@@ -279,12 +279,64 @@ async function clearTable(ctx: any, table: string) {
     for (const r of rows) await ctx.db.delete(r._id);
 }
 
+// ─── DOCS-INGEST LEAVES (mock) ────────────────────
+const DEMO_DOCS_LEAVES = [
+    { runId: "run_001", lib: "express",     topic: "auth",     sourceUri: "https://expressjs.com/en/advanced/best-practice-security.html", sourceUrl: "https://expressjs.com/en/advanced/best-practice-security.html", ruleCount: 3, appliesTo: ["src/api/auth.ts", "src/api/client.ts"], leafPath: ".context-map/library/express/auth.md", extractor: "html" },
+    { runId: "run_001", lib: "express",     topic: "errors",   sourceUri: "https://expressjs.com/en/guide/error-handling.html",            sourceUrl: "https://expressjs.com/en/guide/error-handling.html",            ruleCount: 2, appliesTo: ["src/api/webhooks.ts"],                       leafPath: ".context-map/library/express/errors.md", extractor: "html" },
+    { runId: "run_002", lib: "convex",      topic: "schema",   sourceUri: "https://docs.convex.dev/database/schemas",                       sourceUrl: "https://docs.convex.dev/database/schemas",                       ruleCount: 4, appliesTo: ["src/lib/convex.ts", "tsconfig.json"],         leafPath: ".context-map/library/convex/schema.md", extractor: "markdown" },
+    { runId: "run_002", lib: "convex",      topic: "queries",  sourceUri: "https://docs.convex.dev/functions/query-functions",              sourceUrl: "https://docs.convex.dev/functions/query-functions",              ruleCount: 3, appliesTo: ["src/components/Dashboard.tsx", "src/hooks/useNotes.ts"], leafPath: ".context-map/library/convex/queries.md", extractor: "markdown" },
+    { runId: "run_003", lib: "tensorlake", topic: "sandbox",  sourceUri: "https://docs.tensorlake.ai/runtime",                              sourceUrl: "https://docs.tensorlake.ai/runtime",                              ruleCount: 2, appliesTo: ["src/lib/tensorlake.ts", "src/agents/gc.ts", "src/agents/guardian.ts"], leafPath: ".context-map/library/tensorlake/sandbox.md", extractor: "html" },
+    { runId: "run_004", lib: "bcryptjs",   topic: "hashing",  sourceUri: "https://github.com/dcodeIO/bcrypt.js",                            ruleCount: 3, appliesTo: ["src/api/auth.ts"],                                                                                                                                                                                                            leafPath: ".context-map/library/bcryptjs/hashing.md", extractor: "markdown" },
+    { runId: "run_005", lib: "ghsa",       topic: "lodash-cve", sourceUri: "https://github.com/advisories/GHSA-29mw-wpgm-hmr9",              sourceUrl: "https://github.com/advisories/GHSA-29mw-wpgm-hmr9",              ruleCount: 1, appliesTo: ["package.json"],                              leafPath: ".context-map/library/lodash/cve.md", extractor: "ghsa" },
+    { runId: "run_006", lib: "openapi",    topic: "payments", sourceUri: "https://api.example.com/payments-openapi.yaml",                   ruleCount: 5, appliesTo: ["src/api/client.ts", "src/api/types.ts"],                                                                                                                                                                                       leafPath: ".context-map/library/openapi/payments.md", extractor: "openapi" },
+];
+
+// ─── GUARDIAN CYCLES + FINDINGS (mock) ─────────────
+const DEMO_CYCLES = [
+    { cycleNumber: 47, offsetMin: 8 * 60,  status: "done"    as const, plannedFiles: [{ path: "src/api/client.ts", reason: "stale" }, { path: "src/api/auth.ts", reason: "never scanned" }], summary: "2 findings detected, 1 critical" },
+    { cycleNumber: 48, offsetMin: 6 * 60,  status: "done"    as const, plannedFiles: [{ path: "src/api/webhooks.ts", reason: "recent diff" }],                                              summary: "1 finding detected" },
+    { cycleNumber: 49, offsetMin: 4 * 60,  status: "done"    as const, plannedFiles: [{ path: "src/lib/tensorlake.ts", reason: "low clean-streak" }, { path: "package.json", reason: "ghsa hit" }], summary: "2 findings · npm audit caught lodash CVE" },
+    { cycleNumber: 50, offsetMin: 2 * 60,  status: "done"    as const, plannedFiles: [{ path: "src/components/Dashboard.tsx", reason: "useQuery drift" }],                                  summary: "1 finding detected" },
+    { cycleNumber: 51, offsetMin: 30,      status: "running" as const, plannedFiles: [{ path: "src/api/types.ts", reason: "shared module" }],                                              summary: undefined },
+];
+
+const DEMO_FINDINGS = [
+    { fingerprint: "f_a01", cycleDetected: 47, status: "resolved"     as const, severity: "critical", category: "security",     path: "src/api/client.ts",      codeCite: { line: 42, excerpt: 'const API = "https://staging.acme.eng";' }, constraintCite: { mdFile: ".context-map/library/openapi/payments.md", line: 18, text: "All backend URLs MUST be read from process.env.INTERNAL_API_BASE." }, reasoning: "Hardcoded URL bypasses the env-based gate; same pattern NM note n_92ac documents.",                              suggestedFixDirection: "Replace literal with process.env.INTERNAL_API_BASE",                       githubIssueNumber: 142, sharpenIterations: 0, usedContext: { noteIds: ["n_92ac", "n_91d5"], docsLeafIds: [".context-map/library/openapi/payments.md"] } },
+    { fingerprint: "f_b02", cycleDetected: 47, status: "pr_open"      as const, severity: "high",     category: "security",     path: "src/api/auth.ts",        codeCite: { line: 88, excerpt: "const decoded = jwt.decode(token);" },     constraintCite: { mdFile: ".context-map/library/express/auth.md",  line: 24, text: "JWT tokens MUST be validated with verify(), not decode()." },              reasoning: "decode() skips signature + expiry check. NM note n_4f1d documents the v2 regression.",                       suggestedFixDirection: "Use verifyJWT() helper from lib/auth",                                       githubIssueNumber: 143, sharpenIterations: 0, usedContext: { noteIds: ["n_4f1d"], docsLeafIds: [".context-map/library/express/auth.md", ".context-map/library/bcryptjs/hashing.md"] } },
+    { fingerprint: "f_c03", cycleDetected: 48, status: "devin_running" as const, severity: "high",     category: "intent_drift", path: "src/api/webhooks.ts",    codeCite: { line: 31, excerpt: "return new Response(\"bad payload\", { status: 500 });" }, constraintCite: { mdFile: ".context-map/library/express/errors.md", line: 12, text: "5xx is reserved for transient infra faults; client errors return 4xx." }, reasoning: "Returning 500 for validation failures triggers Tensorlake retry storms (NM note n_b73e).",                  suggestedFixDirection: "Return 400 on validation failures",                                          githubIssueNumber: 144, sharpenIterations: 0, usedContext: { noteIds: ["n_b73e"], docsLeafIds: [".context-map/library/express/errors.md"] } },
+    { fingerprint: "f_d04", cycleDetected: 49, status: "detected"     as const, severity: "high",     category: "security",     path: "package.json",           codeCite: { line: 14, excerpt: '"lodash": "^4.17.20"' },                       constraintCite: { mdFile: ".context-map/library/lodash/cve.md",       line: 4, text: "lodash <4.17.21 has CVE-2021-23337 (command injection via template)." }, reasoning: "npm audit flagged this; pinned below patched version.",                                                            suggestedFixDirection: "Bump lodash to ^4.17.21",                                                    sharpenIterations: 0, usedContext: { noteIds: [], docsLeafIds: [".context-map/library/lodash/cve.md"] } },
+    { fingerprint: "f_e05", cycleDetected: 49, status: "verifying"    as const, severity: "medium",   category: "bug",          path: "src/lib/tensorlake.ts",  codeCite: { line: 17, excerpt: "spawnSandbox({ memory_mb: 16384 });" },        constraintCite: { mdFile: ".context-map/library/tensorlake/sandbox.md", line: 9, text: "Default org budget is 4GB; explicit memory_mb required for higher." }, reasoning: "16GB exceeds budget; NM note n_e6c4 caught this earlier.",                                                       suggestedFixDirection: "Set memory_mb: 4096 unless oncall-approved",                                  githubIssueNumber: 145, sharpenIterations: 1, usedContext: { noteIds: ["n_e6c4", "n_eph_07"], docsLeafIds: [".context-map/library/tensorlake/sandbox.md"] } },
+    { fingerprint: "f_f06", cycleDetected: 50, status: "pr_open"      as const, severity: "medium",   category: "intent_drift", path: "src/components/Dashboard.tsx", codeCite: { line: 22, excerpt: "const notes = useQuery(api.notes.listActive);" }, constraintCite: { mdFile: ".context-map/library/convex/queries.md", line: 7, text: "useQuery without a selector subscribes to the whole table." },                  reasoning: "Causes full re-render churn on any write; NM note n_2c08 documents this exact symptom.",                       suggestedFixDirection: "Pass a selector to scope reactivity",                                        githubIssueNumber: 146, sharpenIterations: 0, usedContext: { noteIds: ["n_2c08", "n_eph_10"], docsLeafIds: [".context-map/library/convex/queries.md"] } },
+];
+
+const DEMO_DEVIN_RUNS = [
+    { findingFp: "f_a01", devinRunId: "devin_a1b2c3", iteration: 1, offsetMin: 7 * 60,  prNumber: 211, prUrl: "https://github.com/acme-eng/nm-platform/pull/211", prMergedOffsetMin: 6 * 60, outcome: "merged" },
+    { findingFp: "f_b02", devinRunId: "devin_d4e5f6", iteration: 1, offsetMin: 6 * 60,  prNumber: 212, prUrl: "https://github.com/acme-eng/nm-platform/pull/212", prMergedOffsetMin: undefined, outcome: "pr_open" },
+    { findingFp: "f_c03", devinRunId: "devin_g7h8i9", iteration: 1, offsetMin: 4 * 60,  prNumber: undefined, prUrl: undefined, prMergedOffsetMin: undefined, outcome: "running" },
+    { findingFp: "f_e05", devinRunId: "devin_j0k1l2", iteration: 2, offsetMin: 3 * 60,  prNumber: 213, prUrl: "https://github.com/acme-eng/nm-platform/pull/213", prMergedOffsetMin: undefined, outcome: "verifying" },
+    { findingFp: "f_f06", devinRunId: "devin_m3n4o5", iteration: 1, offsetMin: 90,      prNumber: 214, prUrl: "https://github.com/acme-eng/nm-platform/pull/214", prMergedOffsetMin: undefined, outcome: "pr_open" },
+];
+
+const DEMO_GUARDIAN_EVENTS = [
+    // a few representative events; the dashboard mostly reads cycles/findings/devinRuns
+    { offsetMin: 8 * 60 + 5,  level: "info"    as const, message: "cycle 47 started · planning 2 files",                       cycleNumber: 47 },
+    { offsetMin: 8 * 60 - 5,  level: "finding" as const, message: "finding f_a01 · src/api/client.ts:42 · critical",            cycleNumber: 47 },
+    { offsetMin: 8 * 60 - 8,  level: "action"  as const, message: "spawned devin_a1b2c3 for f_a01",                            cycleNumber: 47 },
+    { offsetMin: 6 * 60 + 2,  level: "info"    as const, message: "cycle 48 started",                                          cycleNumber: 48 },
+    { offsetMin: 4 * 60 + 1,  level: "info"    as const, message: "cycle 49 started · npm audit ran",                          cycleNumber: 49 },
+    { offsetMin: 4 * 60 - 3,  level: "finding" as const, message: "finding f_d04 · package.json:14 · lodash CVE",              cycleNumber: 49 },
+    { offsetMin: 30,          level: "info"    as const, message: "cycle 51 in progress · scanning src/api/types.ts",          cycleNumber: 51 },
+];
+
 // ─── seedAll mutation ────────────────────────────
 export const seedAll = mutation({
     args: {},
     handler: async (ctx) => {
         // wipe volatile + identity tables for idempotent re-seed
-        for (const t of ["users","agents","files","notes","noteFiles","prunedEdges","injections","gcRuns","gcActions"]) {
+        for (const t of [
+            "users","agents","files","notes","noteFiles","prunedEdges","injections","gcRuns","gcActions",
+            "cycles","findings","devinRuns","events","docsIngestRuns","fileScanHistory",
+        ]) {
             await clearTable(ctx, t);
         }
 
@@ -494,6 +546,64 @@ export const seedAll = mutation({
             }
         }
 
+        // ─── Guardian + docs-ingest seed ─────────────────────────
+        for (const l of DEMO_DOCS_LEAVES) {
+            await ctx.db.insert("docsIngestRuns", l);
+        }
+        for (const c of DEMO_CYCLES) {
+            await ctx.db.insert("cycles", {
+                cycleNumber: c.cycleNumber,
+                startedAt: NOW() - c.offsetMin * 60_000,
+                finishedAt: c.status === "running" ? undefined : NOW() - (c.offsetMin - 5) * 60_000,
+                status: c.status,
+                plannedFiles: c.plannedFiles,
+                summary: c.summary,
+            });
+        }
+        // findings: insert and capture _id for devin run linkage
+        const findingIdByFp: Record<string, any> = {};
+        for (const f of DEMO_FINDINGS) {
+            const id = await ctx.db.insert("findings", {
+                fingerprint: f.fingerprint,
+                cycleDetected: f.cycleDetected,
+                status: f.status,
+                severity: f.severity,
+                category: f.category,
+                path: f.path,
+                codeCite: f.codeCite,
+                constraintCite: f.constraintCite,
+                reasoning: f.reasoning,
+                suggestedFixDirection: f.suggestedFixDirection,
+                githubIssueNumber: (f as any).githubIssueNumber,
+                sharpenIterations: f.sharpenIterations,
+                usedContext: f.usedContext,
+            });
+            findingIdByFp[f.fingerprint] = id;
+        }
+        for (const d of DEMO_DEVIN_RUNS) {
+            const findingId = findingIdByFp[d.findingFp];
+            if (!findingId) continue;
+            await ctx.db.insert("devinRuns", {
+                findingId,
+                devinRunId: d.devinRunId,
+                promptUsed: "(demo seed)",
+                spawnedAt: NOW() - d.offsetMin * 60_000,
+                iteration: d.iteration,
+                prNumber: d.prNumber,
+                prUrl: d.prUrl,
+                prMergedAt: d.prMergedOffsetMin !== undefined ? NOW() - d.prMergedOffsetMin * 60_000 : undefined,
+                outcome: d.outcome,
+            });
+        }
+        for (const e of DEMO_GUARDIAN_EVENTS) {
+            await ctx.db.insert("events", {
+                cycleNumber: e.cycleNumber,
+                timestamp: NOW() - e.offsetMin * 60_000,
+                level: e.level,
+                message: e.message,
+            });
+        }
+
         return {
             users: USERS.length, agents: AGENTS.length, files: FILES.length,
             activeNotes: ACTIVE_NOTES.length,
@@ -502,6 +612,12 @@ export const seedAll = mutation({
             injections: injCount,
             gcRuns: runs.length,
             gcActions: runs.reduce((s, r) => s + Math.max(1, r.actions.length), 0),
+            // Guardian + docs-ingest
+            cycles: DEMO_CYCLES.length,
+            findings: DEMO_FINDINGS.length,
+            devinRuns: DEMO_DEVIN_RUNS.length,
+            guardianEvents: DEMO_GUARDIAN_EVENTS.length,
+            docsLeaves: DEMO_DOCS_LEAVES.length,
         };
     },
 });

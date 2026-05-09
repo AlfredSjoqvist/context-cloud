@@ -39,3 +39,23 @@ export const listRecent = query({
     return rows.reverse();
   },
 });
+
+// Leaves whose `appliesTo` array contains the given file path. Used by the
+// Guardian analyzer to pull constraint context from docs-ingest output.
+// Full-scan-then-filter is fine at our scale (tens of leaves).
+export const leavesForPath = query({
+  args: { path: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("docsIngestRuns").collect();
+    const matching = all.filter((l) => l.appliesTo.includes(args.path));
+    return matching.slice(0, args.limit ?? 8);
+  },
+});
+
+export const listAllLeaves = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 500;
+    return await ctx.db.query("docsIngestRuns").take(limit);
+  },
+});

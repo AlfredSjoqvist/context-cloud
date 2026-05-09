@@ -2518,6 +2518,289 @@
   .replay-state-pill .m { color: var(--note); font-weight: 600; }
   .replay-state-pill .e { color: var(--file); font-weight: 600; }
   .replay-state-pill .p { color: var(--purple); font-weight: 600; }
+
+  /* ─── Guardian view ────────────────────────────────────── */
+  .view-guardian { grid-template-columns: 1fr; }
+  .g-stage {
+    overflow: auto;
+    min-height: 0;
+    padding: 20px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(110,231,183,.04), transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(255,184,107,.03), transparent 50%),
+      var(--bg);
+  }
+  .g-top-row, .g-mid-row {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+  }
+  .g-status-card, .g-cycles-card, .g-findings-card, .g-detail-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .g-status-card { padding: 18px 20px 16px; }
+  .g-status-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .g-status-title { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
+  .g-status-sub { color: var(--text-3); font-size: 11px; margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+  .g-status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .g-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 11px 13px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .g-stat-num { font-size: 20px; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .g-stat-lbl { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .g-stat.resolved .g-stat-num { color: var(--green); }
+  .g-status-foot { font-size: 11px; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
+
+  .g-cycles-list { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 14px; max-height: 280px; overflow-y: auto; min-height: 0; }
+  .g-cycle-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .g-cycle-row:hover { background: var(--surface-2); border-color: var(--border-bright); }
+  .g-cycle-row.running { border-color: rgba(110,231,183,.5); background: rgba(110,231,183,.04); }
+  .g-cycle-row.selected { border-color: var(--file); background: var(--surface-2); }
+  .g-cycle-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11.5px; margin-bottom: 4px;
+  }
+  .g-cycle-num { color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .g-cycle-status {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+    padding: 1px 6px; border-radius: 4px;
+  }
+  .g-cycle-status.running { background: rgba(110,231,183,.15); color: var(--green); }
+  .g-cycle-status.done    { background: var(--surface-2); color: var(--text-2); }
+  .g-cycle-status.failed  { background: rgba(255,122,138,.15); color: var(--red); }
+  .g-cycle-time { color: var(--text-3); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; margin-left: auto; }
+  .g-cycle-summary { color: var(--text-2); font-size: 10.5px; }
+  .g-cycle-files { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .g-cycle-file {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    color: var(--text-3); background: var(--surface-2);
+    padding: 1px 6px; border-radius: 3px;
+  }
+
+  .g-findings-list { padding: 8px 10px 14px; flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+  .g-finding-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 110px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    border-left: 3px solid var(--text-4);
+  }
+  .g-finding-row.critical { border-left-color: var(--red); }
+  .g-finding-row.high     { border-left-color: var(--note); }
+  .g-finding-row.medium   { border-left-color: var(--file); }
+  .g-finding-row.low      { border-left-color: var(--text-3); }
+  .g-finding-row:hover { background: var(--surface-2); border-color: var(--border-bright); }
+  .g-finding-row.selected { background: var(--surface-2); border-color: var(--file); }
+  .g-finding-sev {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; text-align: center;
+  }
+  .g-finding-sev.critical { background: rgba(255,110,95,.18); color: rgb(255,140,120); }
+  .g-finding-sev.high     { background: rgba(255,184,107,.18); color: var(--note); }
+  .g-finding-sev.medium   { background: rgba(124,158,255,.15); color: var(--file); }
+  .g-finding-sev.low      { background: var(--surface-2); color: var(--text-3); }
+  .g-finding-mid { display: flex; flex-direction: column; min-width: 0; }
+  .g-finding-path { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g-finding-reason { color: var(--text-2); font-size: 11px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g-finding-status {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+    text-align: right; color: var(--text-3);
+  }
+  .g-finding-status.resolved      { color: var(--green); }
+  .g-finding-status.pr_open       { color: var(--note); }
+  .g-finding-status.devin_running { color: var(--purple); }
+  .g-finding-status.verifying     { color: var(--file); }
+  .g-finding-status.detected      { color: var(--text-2); }
+  .g-finding-status.escalated     { color: var(--red); }
+
+  .g-detail-body { padding: 14px 18px 24px; flex: 1; overflow-y: auto; min-height: 0; }
+  .g-detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .g-detail-fp { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 12px; }
+  .g-detail-section { margin-bottom: 14px; }
+  .g-detail-section .lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 6px; }
+  .g-cite {
+    background: #0A0C12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text);
+    overflow-x: auto;
+  }
+  .g-cite .cite-loc { color: var(--text-3); font-size: 10px; }
+  .g-cite .cite-text { color: var(--green); }
+  .g-cite.constraint .cite-text { color: var(--note); }
+  .g-context-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .g-ctx-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    padding: 2px 8px; border-radius: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .g-ctx-chip.note  { color: var(--note); border-color: rgba(255,184,107,.3); background: var(--note-soft); }
+  .g-ctx-chip.leaf  { color: var(--purple); border-color: rgba(196,155,255,.3); background: rgba(196,155,255,0.1); }
+  .g-devin-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--purple);
+    border-radius: 9px;
+    padding: 11px 13px;
+  }
+  .g-devin-head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; margin-bottom: 6px; }
+  .g-devin-id { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+  .g-devin-iter { color: var(--text-3); font-size: 10.5px; }
+  .g-devin-meta { display: flex; gap: 14px; font-size: 10.5px; color: var(--text-3); flex-wrap: wrap; }
+  .g-devin-meta .v { color: var(--text); font-weight: 600; }
+  .g-pr-link { color: var(--file); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+  .g-pr-link:hover { text-decoration: underline; }
+  .g-status-pills { display: flex; gap: 4px; }
+  .g-status-pills .pill { padding: 3px 9px; font-size: 11px; }
+
+  /* ─── Sources view (convergence) ────────────────────── */
+  .view-sources { grid-template-columns: 1fr; }
+  .src-stage {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background:
+      radial-gradient(ellipse at 30% 30%, rgba(124,158,255,.04), transparent 50%),
+      radial-gradient(ellipse at 70% 70%, rgba(110,231,183,.03), transparent 50%),
+      var(--bg);
+  }
+  .src-intro { padding: 18px 28px 12px; max-width: 920px; }
+  .src-intro .title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; letter-spacing: -0.005em; }
+  .src-intro .sub { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+  .src-intro .sub b { color: var(--text-2); font-weight: 500; }
+
+  .src-graph {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0 24px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg-elev);
+  }
+  #src-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .src-cols {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    height: 100%;
+    z-index: 1;
+  }
+  .src-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border-right: 1px solid var(--border);
+  }
+  .src-col:last-child { border-right: none; }
+  .src-col-head {
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elev);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .src-col-head span { color: var(--text-2); font-variant-numeric: tabular-nums; font-size: 11px; }
+  .src-col-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+  }
+  .src-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 11.5px;
+  }
+  .src-item:hover { background: var(--surface-2); border-color: var(--border-bright); }
+  .src-item.dim { opacity: 0.25; }
+  .src-item.connected { border-color: rgba(110,231,183,.5); background: rgba(110,231,183,.06); }
+  .src-item.active { border-color: var(--file); background: var(--surface-2); box-shadow: 0 0 0 1px var(--file); }
+  .src-item .src-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .src-item .src-dot.file { background: var(--file); }
+  .src-item .src-dot.note { background: var(--note); }
+  .src-item .src-dot.leaf { background: var(--purple); }
+  .src-item .src-dot.finding { background: var(--green); }
+  .src-item .src-dot.finding.critical { background: var(--red); }
+  .src-item .src-dot.finding.high     { background: var(--note); }
+  .src-item .src-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+  .src-item .src-name.label { font-family: inherit; font-size: 11.5px; }
+  .src-item .src-meta { color: var(--text-3); font-size: 10px; flex-shrink: 0; }
+
+  /* edges between columns */
+  .src-edge {
+    fill: none;
+    stroke: var(--border-bright);
+    stroke-width: 1;
+    stroke-opacity: 0.25;
+    transition: stroke-opacity .15s, stroke-width .15s, stroke .15s;
+  }
+  .src-edge.file-ctx { stroke: var(--file); }
+  .src-edge.ctx-finding { stroke: var(--note); stroke-dasharray: 3 3; }
+  .src-edge.lit { stroke-opacity: 0.95; stroke-width: 1.8; filter: drop-shadow(0 0 4px currentColor); }
+  .src-edge.dim { stroke-opacity: 0.05; }
+
+  .src-legend {
+    display: flex; flex-wrap: wrap; gap: 18px;
+    padding: 12px 28px 18px;
+    font-size: 10.5px;
+    color: var(--text-3);
+  }
+  .src-legend .leg { display: flex; align-items: center; gap: 5px; }
+  .src-legend .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .src-legend .dot.file { background: var(--file); }
+  .src-legend .dot.note { background: var(--note); }
+  .src-legend .dot.leaf { background: var(--purple); }
+  .src-legend .dot.finding { background: var(--green); }
+  .src-legend .line { width: 18px; height: 0; border-top: 1.6px solid; }
+  .src-legend .line.file-ctx    { border-top-color: var(--file); }
+  .src-legend .line.ctx-finding { border-top-color: var(--note); border-top-style: dashed; }
 </style>
 </head>
 <body>
@@ -2575,6 +2858,27 @@
         <path d="M10 8.5v7l6-3.5z" fill="currentColor"/>
       </svg>
       Replay
+    </button>
+    <button class="tab" data-tab="guardian">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+      Guardian
+    </button>
+    <button class="tab" data-tab="sources">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/>
+        <circle cx="12" cy="9" r="2"/><circle cx="12" cy="15" r="2"/>
+        <circle cx="19" cy="12" r="2"/>
+        <line x1="6.7" y1="6.5" x2="10.3" y2="8.5"/>
+        <line x1="6.7" y1="11.7" x2="10.3" y2="9.3"/>
+        <line x1="6.7" y1="12.3" x2="10.3" y2="14.7"/>
+        <line x1="6.7" y1="17.5" x2="10.3" y2="15.5"/>
+        <line x1="13.7" y1="9.5" x2="17.3" y2="11.5"/>
+        <line x1="13.7" y1="14.5" x2="17.3" y2="12.5"/>
+      </svg>
+      Sources
     </button>
   </nav>
   <div class="stats">
@@ -3044,6 +3348,103 @@
           <div class="replay-cum-group"><span class="num" id="rcum-gc">0</span><span class="lbl">gc sweeps</span></div>
           <div class="replay-cum-progress"><div class="fill" id="rcum-progress" style="width:100%"></div></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guardian view ────────────────────────────────────── -->
+  <div class="view view-guardian" data-view="guardian">
+    <div class="g-stage">
+      <div class="g-top-row">
+        <div class="g-status-card">
+          <div class="g-status-head">
+            <span class="pulse-dot"></span>
+            <span class="g-status-title">Guardian</span>
+            <span class="g-status-sub" id="g-current-cycle">cycle —</span>
+          </div>
+          <div class="g-status-grid">
+            <div class="g-stat"><span class="g-stat-num" id="g-cycle-count">0</span><span class="g-stat-lbl">cycles</span></div>
+            <div class="g-stat"><span class="g-stat-num" id="g-finding-count">0</span><span class="g-stat-lbl">findings</span></div>
+            <div class="g-stat"><span class="g-stat-num" id="g-pr-count">0</span><span class="g-stat-lbl">PRs open</span></div>
+            <div class="g-stat resolved"><span class="g-stat-num" id="g-resolved-count">0</span><span class="g-stat-lbl">resolved</span></div>
+          </div>
+          <div class="g-status-foot" id="g-status-foot">— next sweep on Tensorlake cron</div>
+        </div>
+
+        <div class="g-cycles-card">
+          <div class="panel-head"><span>Recent cycles</span><span class="count" id="g-cycles-count">0</span></div>
+          <div class="g-cycles-list" id="g-cycles-list"></div>
+        </div>
+      </div>
+
+      <div class="g-mid-row">
+        <div class="g-findings-card">
+          <div class="panel-head">
+            <span>Findings</span>
+            <div class="g-status-pills">
+              <button class="pill on" data-g-filter="all">All</button>
+              <button class="pill" data-g-filter="open">Open</button>
+              <button class="pill" data-g-filter="resolved">Resolved</button>
+            </div>
+          </div>
+          <div class="g-findings-list" id="g-findings-list"></div>
+        </div>
+
+        <div class="g-detail-card">
+          <div class="panel-head"><span id="g-detail-title">Finding detail</span></div>
+          <div class="g-detail-body" id="g-detail-body">
+            <div class="pd-empty" style="padding:48px 24px">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 12px;">
+                <path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+              <div>Pick a finding to inspect — code citation, constraint, used context (NM notes + docs leaves), and the linked Devin run.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sources view (convergence: files ↔ context ↔ findings) ── -->
+  <div class="view view-sources" data-view="sources">
+    <div class="src-stage">
+      <div class="src-intro">
+        <div class="title">How Guardian sees your codebase</div>
+        <div class="sub">
+          Three columns, one story. <b>Files</b> on the left.
+          Each file's <b>NM notes</b> (institutional memory from prior agent sessions) and
+          <b>docs leaves</b> (constraints from heterogeneous-doc ingestion) in the middle.
+          Guardian's <b>findings</b> on the right — every finding is wired back to the
+          notes + leaves that informed it.
+        </div>
+      </div>
+
+      <div class="src-graph" id="src-graph">
+        <svg id="src-svg"></svg>
+        <div class="src-cols">
+          <div class="src-col src-col-files">
+            <div class="src-col-head">Files <span id="src-files-count">0</span></div>
+            <div class="src-col-body" id="src-files-list"></div>
+          </div>
+          <div class="src-col src-col-ctx">
+            <div class="src-col-head">Context <span id="src-ctx-count">0</span></div>
+            <div class="src-col-body" id="src-ctx-list"></div>
+          </div>
+          <div class="src-col src-col-findings">
+            <div class="src-col-head">Findings <span id="src-findings-count">0</span></div>
+            <div class="src-col-body" id="src-findings-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="src-legend">
+        <span class="leg"><span class="dot file"></span>file</span>
+        <span class="leg"><span class="dot note"></span>NM note</span>
+        <span class="leg"><span class="dot leaf"></span>docs leaf</span>
+        <span class="leg"><span class="dot finding"></span>Guardian finding</span>
+        <span class="leg"><span class="line file-ctx"></span>file ↔ context</span>
+        <span class="leg"><span class="line ctx-finding"></span>context → finding (provenance)</span>
       </div>
     </div>
   </div>
@@ -3615,6 +4016,15 @@ EPHEMERAL_HISTORY_DATA.forEach((n, i) => {
 
 const ALL_NOTES   = NOTES.concat(HISTORY_NOTES);
 const NOTE_BY_ID  = Object.fromEntries(ALL_NOTES.map(n => [n.id, n]));
+
+/* ─── Guardian + docs-ingest globals ────────────────
+   Empty until applyConvexData populates them from the live Convex bundle.
+   The Guardian and Sources tabs read from these. */
+const CYCLES = [];           // { cycleNumber, ts, status, plannedFiles, summary }
+const FINDINGS = [];         // { fingerprint, cycleDetected, status, severity, category, path, codeCite, constraintCite, reasoning, suggestedFixDirection, githubIssueNumber, sharpenIterations, usedContext }
+const DEVIN_RUNS = [];       // { findingId, devinRunId, ts, iteration, prNumber, prUrl, prMergedAt, outcome }
+const GUARDIAN_EVENTS = [];  // { ts, level, message, cycleNumber }
+const DOCS_LEAVES = [];      // { leafPath, lib, topic, ruleCount, appliesTo, sourceUri, sourceUrl }
 
 /* generate injection event log */
 const REJECT_REASONS = ['budget exceeded', 'stale (recently injected)', 'conflict with n_71b2', 'off-topic for current session'];
@@ -6282,6 +6692,389 @@ document.getElementById('export-download').addEventListener('click', () => {
   showExportToast(`Downloaded nm-graph-${ts}.${ext}`);
 });
 
+/* ─── Guardian view ─────────────────────────── */
+let guardianInited = false;
+let selectedFindingFp = null;
+let guardianFilter = 'all';
+
+function fmtFindingTs(ts) { return fmtRelTime(ts); }
+function findingsForFilter() {
+  if (guardianFilter === 'open')      return FINDINGS.filter(f => !['resolved'].includes(f.status));
+  if (guardianFilter === 'resolved')  return FINDINGS.filter(f => f.status === 'resolved');
+  return FINDINGS;
+}
+
+function renderGuardian() {
+  const cycleCount = CYCLES.length;
+  const findingCount = FINDINGS.length;
+  const prCount = FINDINGS.filter(f => ['pr_open','verifying'].includes(f.status)).length;
+  const resolvedCount = FINDINGS.filter(f => f.status === 'resolved').length;
+  const runningCycle = CYCLES.find(c => c.status === 'running');
+  document.getElementById('g-cycle-count').textContent = cycleCount;
+  document.getElementById('g-finding-count').textContent = findingCount;
+  document.getElementById('g-pr-count').textContent = prCount;
+  document.getElementById('g-resolved-count').textContent = resolvedCount;
+  document.getElementById('g-current-cycle').textContent = runningCycle
+    ? `cycle ${runningCycle.cycleNumber} · running`
+    : `idle · last cycle ${CYCLES[0] ? CYCLES[0].cycleNumber : '—'}`;
+  document.getElementById('g-status-foot').textContent =
+    runningCycle ? `scanning ${runningCycle.plannedFiles.map(p => p.path.split('/').pop()).join(', ')}`
+                 : `next sweep on Tensorlake cron`;
+
+  // cycles
+  document.getElementById('g-cycles-count').textContent = cycleCount;
+  const cyclesEl = document.getElementById('g-cycles-list');
+  cyclesEl.innerHTML = CYCLES.map(c => {
+    const filesHtml = c.plannedFiles.slice(0, 3).map(f => `<span class="g-cycle-file">${f.path.split('/').pop()}</span>`).join('') +
+                      (c.plannedFiles.length > 3 ? `<span class="g-cycle-file">+${c.plannedFiles.length - 3}</span>` : '');
+    return `<div class="g-cycle-row ${c.status}" data-cycle="${c.cycleNumber}">
+      <div class="g-cycle-head">
+        <span class="g-cycle-num">#${c.cycleNumber}</span>
+        <span class="g-cycle-status ${c.status}">${c.status}</span>
+        <span class="g-cycle-time">${c.ts ? fmtRelTime(c.ts) : '—'}</span>
+      </div>
+      <div class="g-cycle-summary">${escapeHtml(c.summary || '(in progress…)')}</div>
+      <div class="g-cycle-files">${filesHtml}</div>
+    </div>`;
+  }).join('');
+
+  renderGuardianFindings();
+
+  // pre-select highest-severity unresolved finding so the detail panel isn't empty
+  if (!selectedFindingFp && FINDINGS.length > 0) {
+    const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const sorted = [...FINDINGS].sort((a,b) => (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9));
+    selectedFindingFp = sorted[0].fingerprint;
+  }
+  if (selectedFindingFp) renderFindingDetail(selectedFindingFp);
+}
+
+function renderGuardianFindings() {
+  const list = findingsForFilter();
+  const el = document.getElementById('g-findings-list');
+  if (list.length === 0) {
+    el.innerHTML = `<div class="ms-empty" style="padding:24px 16px">No findings match this filter.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(f => `
+    <div class="g-finding-row ${f.severity} ${f.fingerprint === selectedFindingFp ? 'selected' : ''}" data-fp="${f.fingerprint}">
+      <span class="g-finding-sev ${f.severity}">${f.severity}</span>
+      <div class="g-finding-mid">
+        <span class="g-finding-path">${f.path}:${f.codeCite.line}</span>
+        <span class="g-finding-reason">${escapeHtml(f.reasoning).slice(0, 80)}</span>
+      </div>
+      <span class="g-finding-status ${f.status}">${f.status.replace('_', ' ')}</span>
+    </div>
+  `).join('');
+  document.querySelectorAll('.g-finding-row').forEach(r => {
+    r.addEventListener('click', () => {
+      selectedFindingFp = r.dataset.fp;
+      document.querySelectorAll('.g-finding-row').forEach(x => x.classList.toggle('selected', x.dataset.fp === selectedFindingFp));
+      renderFindingDetail(selectedFindingFp);
+    });
+  });
+}
+
+function renderFindingDetail(fp) {
+  const f = FINDINGS.find(x => x.fingerprint === fp);
+  if (!f) return;
+  const devin = DEVIN_RUNS.find(d => d.findingId === f.id);
+  const noteIds = (f.usedContext && f.usedContext.noteIds) || [];
+  const docIds  = (f.usedContext && f.usedContext.docsLeafIds) || [];
+  const noteChips = noteIds.map(nid => `<span class="g-ctx-chip note" title="${escapeHtml((NOTE_BY_ID[nid] && NOTE_BY_ID[nid].symptom) || '')}">${nid}</span>`).join('');
+  const leafChips = docIds.map(lp => `<span class="g-ctx-chip leaf" title="${escapeHtml(lp)}">${lp.split('/').pop().replace(/\.md$/, '')}</span>`).join('');
+
+  document.getElementById('g-detail-title').textContent = `Finding · ${f.path.split('/').pop()}`;
+  let html = `
+    <div class="g-detail-head">
+      <span class="g-detail-fp">${f.fingerprint}</span>
+      <span class="g-finding-sev ${f.severity}">${f.severity}</span>
+      <span class="g-finding-status ${f.status}" style="margin-left:auto">${f.status.replace('_',' ')}</span>
+    </div>
+    <div class="g-detail-section">
+      <div class="lbl">Reasoning</div>
+      <div style="color:var(--text); font-size:12px; line-height:1.5">${escapeHtml(f.reasoning)}</div>
+    </div>
+    <div class="g-detail-section">
+      <div class="lbl">Code citation</div>
+      <div class="g-cite">
+        <div class="cite-loc">${f.path}:${f.codeCite.line}</div>
+        <span class="cite-text">${escapeHtml(f.codeCite.excerpt)}</span>
+      </div>
+    </div>
+    <div class="g-detail-section">
+      <div class="lbl">Constraint citation</div>
+      <div class="g-cite constraint">
+        <div class="cite-loc">${f.constraintCite.mdFile}:${f.constraintCite.line}</div>
+        <span class="cite-text">${escapeHtml(f.constraintCite.text)}</span>
+      </div>
+    </div>
+    <div class="g-detail-section">
+      <div class="lbl">Used context · provenance</div>
+      <div class="g-context-chips">
+        ${noteChips || '<span style="color:var(--text-3); font-size:11px">no NM notes attached</span>'}
+        ${leafChips}
+      </div>
+    </div>
+    <div class="g-detail-section">
+      <div class="lbl">Suggested fix</div>
+      <div style="color:var(--text-2); font-size:11.5px; line-height:1.5">${escapeHtml(f.suggestedFixDirection)}</div>
+    </div>`;
+  if (devin) {
+    html += `<div class="g-detail-section">
+      <div class="lbl">Devin run</div>
+      <div class="g-devin-card">
+        <div class="g-devin-head">
+          <span class="g-devin-id">${devin.devinRunId}</span>
+          <span class="g-devin-iter">iter ${devin.iteration}</span>
+          <span style="margin-left:auto; font-size:10.5px; color:var(--text-3)">${devin.outcome || 'running'}</span>
+        </div>
+        <div class="g-devin-meta">
+          <span><span class="v">${fmtRelTime(devin.ts)}</span> spawned</span>
+          ${devin.prNumber ? `<a class="g-pr-link" href="${devin.prUrl || '#'}" target="_blank">PR #${devin.prNumber}</a>` : ''}
+          ${devin.prMergedAt ? `<span><span class="v">${fmtRelTime(devin.prMergedAt)}</span> merged</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+  if (f.githubIssueNumber) {
+    html += `<div class="g-detail-section">
+      <div class="lbl">GitHub</div>
+      <a class="g-pr-link" href="https://github.com/acme-eng/nm-platform/issues/${f.githubIssueNumber}" target="_blank">issue #${f.githubIssueNumber}</a>
+    </div>`;
+  }
+  document.getElementById('g-detail-body').innerHTML = html;
+}
+
+function setupGuardian() {
+  document.querySelectorAll('[data-g-filter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-g-filter]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      guardianFilter = b.dataset.gFilter;
+      renderGuardianFindings();
+    });
+  });
+}
+
+/* ─── Sources view (convergence) ────────────── */
+let sourcesInited = false;
+let srcLayout = null;
+
+function buildSourcesData() {
+  // pull only files that have at least one note edge or docs leaf or finding
+  const fileSet = new Set();
+  NOTES.forEach(n => n.edges.forEach(e => fileSet.add(e.path)));
+  DOCS_LEAVES.forEach(l => l.appliesTo.forEach(p => fileSet.add(p)));
+  FINDINGS.forEach(f => fileSet.add(f.path));
+  const files = [...fileSet].sort();
+
+  // ctx items: notes + leaves keyed by stable id
+  const ctx = [];
+  NOTES.forEach(n => {
+    ctx.push({
+      kind: 'note', id: n.id, label: n.id,
+      meta: n.symptom.slice(0, 32),
+      files: n.edges.map(e => e.path),
+    });
+  });
+  DOCS_LEAVES.forEach(l => {
+    ctx.push({
+      kind: 'leaf', id: l.leafPath, label: l.leafPath.split('/').pop().replace(/\.md$/, ''),
+      meta: l.lib + ' · ' + l.topic,
+      files: l.appliesTo,
+    });
+  });
+
+  return { files, ctx, findings: FINDINGS };
+}
+
+function renderSources() {
+  const data = buildSourcesData();
+  document.getElementById('src-files-count').textContent = data.files.length;
+  document.getElementById('src-ctx-count').textContent = data.ctx.length;
+  document.getElementById('src-findings-count').textContent = data.findings.length;
+
+  // files column
+  document.getElementById('src-files-list').innerHTML = data.files.map(p => {
+    const fname = p.split('/').pop();
+    return `<div class="src-item" data-kind="file" data-id="${p}" title="${p}">
+      <span class="src-dot file"></span>
+      <span class="src-name">${fname}</span>
+    </div>`;
+  }).join('');
+
+  // ctx column
+  document.getElementById('src-ctx-list').innerHTML = data.ctx.map(c => {
+    return `<div class="src-item" data-kind="${c.kind}" data-id="${c.id}" title="${escapeHtml(c.meta)}">
+      <span class="src-dot ${c.kind}"></span>
+      <span class="src-name ${c.kind === 'note' ? '' : 'label'}">${c.label}</span>
+      <span class="src-meta">${escapeHtml(c.meta).slice(0, 18)}</span>
+    </div>`;
+  }).join('');
+
+  // findings column
+  document.getElementById('src-findings-list').innerHTML = data.findings.map(f => {
+    return `<div class="src-item" data-kind="finding" data-id="${f.fingerprint}" title="${escapeHtml(f.reasoning)}">
+      <span class="src-dot finding ${f.severity}"></span>
+      <span class="src-name label">${f.path.split('/').pop()}</span>
+      <span class="src-meta">${f.severity}</span>
+    </div>`;
+  }).join('');
+
+  // wire hover/click
+  document.querySelectorAll('.src-item').forEach(el => {
+    el.addEventListener('mouseenter', () => highlightSources(el.dataset.kind, el.dataset.id));
+    el.addEventListener('mouseleave', () => highlightSources(null, null));
+  });
+
+  requestAnimationFrame(() => { drawSourceEdges(); });
+}
+
+function drawSourceEdges() {
+  const svg = document.getElementById('src-svg');
+  const graph = document.getElementById('src-graph');
+  const r = graph.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  svg.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+  svg.setAttribute('width', r.width);
+  svg.setAttribute('height', r.height);
+  svg.innerHTML = '';
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const data = buildSourcesData();
+  const ctxByFile = {};
+  data.ctx.forEach(c => c.files.forEach(p => { (ctxByFile[p] = ctxByFile[p] || []).push(c); }));
+
+  function getAnchor(el, side) {
+    const er = el.getBoundingClientRect();
+    return {
+      x: side === 'right' ? er.right - r.left : er.left - r.left,
+      y: er.top + er.height / 2 - r.top,
+    };
+  }
+  const fileEls = {};
+  document.querySelectorAll('[data-kind="file"]').forEach(el => fileEls[el.dataset.id] = el);
+  const ctxEls = {};
+  document.querySelectorAll('[data-kind="note"], [data-kind="leaf"]').forEach(el => ctxEls[el.dataset.id] = el);
+  const findEls = {};
+  document.querySelectorAll('[data-kind="finding"]').forEach(el => findEls[el.dataset.id] = el);
+
+  const edges = [];
+
+  // file → ctx
+  data.ctx.forEach(c => {
+    const cEl = ctxEls[c.id];
+    if (!cEl) return;
+    const cAnc = getAnchor(cEl, 'left');
+    c.files.forEach(p => {
+      const fEl = fileEls[p];
+      if (!fEl) return;
+      const fAnc = getAnchor(fEl, 'right');
+      const path = document.createElementNS(SVG_NS, 'path');
+      const dx = (cAnc.x - fAnc.x) * 0.5;
+      path.setAttribute('d', `M${fAnc.x},${fAnc.y} C${fAnc.x+dx},${fAnc.y} ${cAnc.x-dx},${cAnc.y} ${cAnc.x},${cAnc.y}`);
+      path.setAttribute('class', 'src-edge file-ctx');
+      path.dataset.kind = 'file-ctx';
+      path.dataset.file = p;
+      path.dataset.ctx = c.id;
+      svg.appendChild(path);
+      edges.push({ el: path, kind: 'file-ctx', file: p, ctx: c.id });
+    });
+  });
+
+  // ctx → finding (provenance from usedContext)
+  data.findings.forEach(f => {
+    const fEl = findEls[f.fingerprint];
+    if (!fEl) return;
+    const fAnc = getAnchor(fEl, 'left');
+    const ctxIds = [...(f.usedContext.noteIds || []), ...(f.usedContext.docsLeafIds || [])];
+    ctxIds.forEach(cid => {
+      const cEl = ctxEls[cid];
+      if (!cEl) return;
+      const cAnc = getAnchor(cEl, 'right');
+      const path = document.createElementNS(SVG_NS, 'path');
+      const dx = (fAnc.x - cAnc.x) * 0.5;
+      path.setAttribute('d', `M${cAnc.x},${cAnc.y} C${cAnc.x+dx},${cAnc.y} ${fAnc.x-dx},${fAnc.y} ${fAnc.x},${fAnc.y}`);
+      path.setAttribute('class', 'src-edge ctx-finding');
+      path.dataset.kind = 'ctx-finding';
+      path.dataset.ctx = cid;
+      path.dataset.finding = f.fingerprint;
+      svg.appendChild(path);
+      edges.push({ el: path, kind: 'ctx-finding', ctx: cid, finding: f.fingerprint });
+    });
+    // also direct file → finding for the file the finding is about
+    const ffEl = fileEls[f.path];
+    if (ffEl) {
+      // we draw it via the ctx column when usedContext has entries; if empty, skip — keeps it clean
+    }
+  });
+
+  srcLayout = { edges, ctxByFile, data };
+}
+
+function highlightSources(kind, id) {
+  if (!srcLayout) return;
+  const items = document.querySelectorAll('.src-item');
+  const edges = srcLayout.edges;
+
+  if (!kind) {
+    items.forEach(el => el.classList.remove('connected', 'active', 'dim'));
+    edges.forEach(e => { e.el.classList.remove('lit','dim'); });
+    return;
+  }
+
+  const litFiles = new Set();
+  const litCtx = new Set();
+  const litFindings = new Set();
+
+  if (kind === 'file') {
+    litFiles.add(id);
+    edges.forEach(e => { if (e.kind === 'file-ctx' && e.file === id) litCtx.add(e.ctx); });
+    // findings that used any of these ctx items
+    edges.forEach(e => { if (e.kind === 'ctx-finding' && litCtx.has(e.ctx)) litFindings.add(e.finding); });
+  } else if (kind === 'note' || kind === 'leaf') {
+    litCtx.add(id);
+    edges.forEach(e => { if (e.kind === 'file-ctx' && e.ctx === id) litFiles.add(e.file); });
+    edges.forEach(e => { if (e.kind === 'ctx-finding' && e.ctx === id) litFindings.add(e.finding); });
+  } else if (kind === 'finding') {
+    litFindings.add(id);
+    edges.forEach(e => { if (e.kind === 'ctx-finding' && e.finding === id) litCtx.add(e.ctx); });
+    // and file is the finding's path
+    const f = FINDINGS.find(x => x.fingerprint === id);
+    if (f) litFiles.add(f.path);
+    // file→ctx that fed those ctx
+    edges.forEach(e => { if (e.kind === 'file-ctx' && litCtx.has(e.ctx)) litFiles.add(e.file); });
+  }
+
+  items.forEach(el => {
+    const k = el.dataset.kind, eid = el.dataset.id;
+    let isLit = false;
+    if (k === 'file' && litFiles.has(eid))                       isLit = true;
+    if ((k === 'note' || k === 'leaf') && litCtx.has(eid))       isLit = true;
+    if (k === 'finding' && litFindings.has(eid))                 isLit = true;
+    el.classList.toggle('connected', isLit && !(k === kind && eid === id));
+    el.classList.toggle('active', k === kind && eid === id);
+    el.classList.toggle('dim', !isLit);
+  });
+  edges.forEach(e => {
+    let lit = false;
+    if (e.kind === 'file-ctx') {
+      lit = (litFiles.has(e.file) && litCtx.has(e.ctx));
+    } else if (e.kind === 'ctx-finding') {
+      lit = (litCtx.has(e.ctx) && litFindings.has(e.finding));
+    }
+    e.el.classList.toggle('lit', lit);
+    e.el.classList.toggle('dim', !lit);
+  });
+}
+
+window.addEventListener('resize', () => {
+  if (sourcesInited && document.querySelector('[data-view="sources"]').classList.contains('on')) {
+    drawSourceEdges();
+  }
+});
+
 /* ─── Tab switching ──────────────────────────── */
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
@@ -6298,6 +7091,14 @@ function switchTab(name) {
     requestAnimationFrame(() => {
       if (!replayInited) { setupReplay(); replayInited = true; }
       else { layoutReplayGraph(); drawReplayGraph(); }
+    });
+  } else if (name === 'guardian') {
+    if (!guardianInited) { setupGuardian(); guardianInited = true; }
+    renderGuardian();
+  } else if (name === 'sources') {
+    requestAnimationFrame(() => {
+      if (!sourcesInited) { renderSources(); sourcesInited = true; }
+      else { renderSources(); }
     });
   }
 }
@@ -6460,6 +7261,67 @@ function applyConvexData(d) {
   repop(GC_RUNS, newRuns);
   if (newRuns.length > 0) { newRuns.forEach(r => r.fresh = false); newRuns[newRuns.length - 1].fresh = true; }
 
+  // Guardian + docs-ingest
+  const newCycles = (d.cycles || []).map(c => ({
+    cycleNumber: c.cycleNumber,
+    ts: c.startedAt || 0,
+    status: c.status,
+    plannedFiles: c.plannedFiles || [],
+    summary: c.summary,
+    finishedAt: c.finishedAt,
+  })).sort((a,b) => b.cycleNumber - a.cycleNumber);
+  repop(CYCLES, newCycles);
+
+  const newFindings = (d.findings || []).map(f => ({
+    id: f._id,
+    fingerprint: f.fingerprint,
+    cycleDetected: f.cycleDetected,
+    status: f.status,
+    severity: f.severity,
+    category: f.category,
+    path: f.path,
+    codeCite: f.codeCite,
+    constraintCite: f.constraintCite,
+    reasoning: f.reasoning,
+    suggestedFixDirection: f.suggestedFixDirection,
+    githubIssueNumber: f.githubIssueNumber,
+    sharpenIterations: f.sharpenIterations || 0,
+    usedContext: f.usedContext || { noteIds: [], docsLeafIds: [] },
+  })).sort((a,b) => b.cycleDetected - a.cycleDetected);
+  repop(FINDINGS, newFindings);
+
+  const newDevinRuns = (d.devinRuns || []).map(r => ({
+    findingId: r.findingId,
+    devinRunId: r.devinRunId,
+    ts: r.spawnedAt,
+    iteration: r.iteration,
+    prNumber: r.prNumber,
+    prUrl: r.prUrl,
+    prMergedAt: r.prMergedAt,
+    outcome: r.outcome,
+  }));
+  repop(DEVIN_RUNS, newDevinRuns);
+
+  const newGuardianEvents = (d.guardianEvents || []).map(e => ({
+    ts: e.timestamp,
+    level: e.level,
+    message: e.message,
+    cycleNumber: e.cycleNumber,
+  })).sort((a,b) => a.ts - b.ts);
+  repop(GUARDIAN_EVENTS, newGuardianEvents);
+
+  const newDocsLeaves = (d.docsLeaves || []).map(l => ({
+    leafPath: l.leafPath,
+    lib: l.lib,
+    topic: l.topic,
+    ruleCount: l.ruleCount,
+    appliesTo: l.appliesTo || [],
+    sourceUri: l.sourceUri,
+    sourceUrl: l.sourceUrl,
+    extractor: l.extractor,
+  }));
+  repop(DOCS_LEAVES, newDocsLeaves);
+
   // recompute matrix similarity
   NOTE_TOKENS.length = 0;
   NOTE_FILES.length = 0;
@@ -6499,6 +7361,7 @@ function applyConvexData(d) {
 
   // reset lazy view init flags so they re-render with new data
   injInited = false; agInited = false; gcInited = false; replayInited = false;
+  guardianInited = false; sourcesInited = false;
 
   const liveSpan = document.querySelector('.live span:last-child');
   if (liveSpan) liveSpan.textContent = 'live · convex';

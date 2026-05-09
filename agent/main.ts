@@ -62,6 +62,15 @@ async function main(): Promise<void> {
   let critiqueLLM: import("./analyze/critique.js").CritiqueLLMCall | undefined;
   let judgmentLLM: import("./plan/judgment.js").JudgmentLLMCall | undefined;
 
+  // Context streams from the other halves of the unified app:
+  //   NM notes  ← capture/extract pipeline (institutional memory)
+  //   docs leaves ← docs-ingest pipeline (constraint surfaces)
+  // Both are fail-soft inside the analyzer.
+  const { makeNmClient } = await import("./tools/nmClient.js");
+  const { makeDocsLeafClient } = await import("./tools/docsLeafClient.js");
+  const nmCtx = makeNmClient(convex);
+  const docsCtx = makeDocsLeafClient(convex);
+
   if (config.useMockLlm) {
     analyzeFile = async (path) => mockAnalyzeFile(path);
     critiqueLLM = undefined;
@@ -80,7 +89,7 @@ async function main(): Promise<void> {
     });
     const { makeJudgmentLLMCall } = await import("./plan/judgment.js");
     judgmentLLM = makeJudgmentLLMCall(openai, config.openaiCritiqueModel);
-    analyzeFile = (path, n) => realAnalyzeFile(path, n, analyzerLLM);
+    analyzeFile = (path, n) => realAnalyzeFile(path, n, analyzerLLM, { nm: nmCtx, docs: docsCtx });
   }
 
   const githubAuth = new PatAuth(config.githubToken!);

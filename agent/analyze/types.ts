@@ -12,6 +12,11 @@ export interface ConstraintCitation {
   readonly text: string;
 }
 
+export interface UsedContext {
+  readonly noteIds: ReadonlyArray<string>;       // matches notes.noteId in NM
+  readonly docsLeafIds: ReadonlyArray<string>;   // matches docsIngestRuns.leafPath
+}
+
 export interface Finding {
   readonly path: string;
   readonly severity: Severity;
@@ -20,4 +25,5 @@ export interface Finding {
   readonly constraintCite: ConstraintCitation;
   readonly reasoning: string;
   readonly suggestedFixDirection: string;
+  readonly usedContext?: UsedContext;
 }

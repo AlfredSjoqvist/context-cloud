@@ -50,15 +50,52 @@ export const CritiqueOutputSchema = z.object({
 
 export type CritiqueOutput = z.infer<typeof CritiqueOutputSchema>;
 
+export interface AnalyzerNmNote {
+  readonly noteId: string;
+  readonly symptom: string;
+  readonly rootCause: string;
+  readonly correction?: string;
+  readonly importance: number;
+  readonly weight: number;
+}
+
+export interface AnalyzerDocsLeaf {
+  readonly leafPath: string;
+  readonly lib: string;
+  readonly topic: string;
+  readonly ruleCount: number;
+  readonly sourceUrl?: string;
+}
+
 export function buildAnalyzerUserPrompt(args: {
   readonly path: string;
   readonly code: string;
   readonly contextChunks: ReadonlyArray<{ readonly path: string; readonly content: string }>;
   readonly recentDiff: string;
+  readonly nmNotes?: ReadonlyArray<AnalyzerNmNote>;
+  readonly docsLeaves?: ReadonlyArray<AnalyzerDocsLeaf>;
 }): string {
   const ctx = args.contextChunks
     .map((c) => `=== ${c.path} ===\n${c.content}`)
     .join("\n\n");
+
+  const nmBlock = (args.nmNotes ?? []).length === 0
+    ? "(no NM notes attached to this file)"
+    : (args.nmNotes ?? [])
+        .map((n) => [
+          `* ${n.noteId} · imp ${n.importance.toFixed(2)} · edge ${n.weight.toFixed(2)}`,
+          `    symptom:    ${n.symptom}`,
+          `    root_cause: ${n.rootCause}`,
+          n.correction ? `    correction: ${n.correction}` : null,
+        ].filter(Boolean).join("\n"))
+        .join("\n");
+
+  const docsBlock = (args.docsLeaves ?? []).length === 0
+    ? "(no docs-ingest leaves match this file's path)"
+    : (args.docsLeaves ?? [])
+        .map((l) => `* ${l.leafPath}  [${l.lib} / ${l.topic}, ${l.ruleCount} rule${l.ruleCount === 1 ? '' : 's'}]${l.sourceUrl ? `  ← ${l.sourceUrl}` : ''}`)
+        .join("\n");
+
   return [
     `File: ${args.path}`,
     "",
@@ -69,6 +106,12 @@ export function buildAnalyzerUserPrompt(args: {
     "",
     "Context (.md chunks):",
     ctx || "(none)",
+    "",
+    "NM notes (institutional memory — prior agent mistakes on this file):",
+    nmBlock,
+    "",
+    "Docs-ingest leaves (constraint surfaces this file is governed by):",
+    docsBlock,
     "",
     "Recent diff:",
     args.recentDiff || "(none)",

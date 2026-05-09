@@ -154,6 +154,9 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
           constraintCite: f.constraintCite,
           reasoning: f.reasoning,
           suggestedFixDirection: f.suggestedFixDirection,
+          usedContext: f.usedContext
+            ? { noteIds: [...f.usedContext.noteIds], docsLeafIds: [...f.usedContext.docsLeafIds] }
+            : undefined,
         });
         if (!result.created) {
           await log.info(`finding deduped: ${fingerprint.slice(0, 12)}`);

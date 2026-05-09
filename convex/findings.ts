@@ -19,6 +19,13 @@ export const createIfAbsent = mutation({
     }),
     reasoning: v.string(),
     suggestedFixDirection: v.string(),
+    // Provenance: which NM notes + docs leaves informed this finding.
+    // Optional — Guardian only attaches it when the analyzer had extras
+    // wired in (post-merge of NM + docs-ingest).
+    usedContext: v.optional(v.object({
+      noteIds: v.array(v.string()),
+      docsLeafIds: v.array(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db

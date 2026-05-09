@@ -18,6 +18,7 @@ Stubbed (logs + 200 OK):
   - push
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -107,6 +108,69 @@ def _installation_token(installation_id: int) -> str:
     resp = requests.post(url, headers=headers, timeout=15)
     resp.raise_for_status()
     return resp.json()["token"]
+
+
+# ---------------------------------------------------------------------------
+# .mcp.json auto-commit on install
+# ---------------------------------------------------------------------------
+
+def _gh_headers(token: str) -> dict:
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
+def _file_exists(token: str, owner: str, repo: str, path: str) -> bool:
+    r = requests.get(
+        f"{GITHUB_API}/repos/{owner}/{repo}/contents/{path}",
+        headers=_gh_headers(token),
+        timeout=15,
+    )
+    return r.status_code == 200
+
+
+def _ensure_mcp_config(token: str, owner: str, repo: str, installation_id: int) -> dict:
+    """Commit `.mcp.json` to the repo's default branch if missing."""
+    if _file_exists(token, owner, repo, ".mcp.json"):
+        return {"repo": f"{owner}/{repo}", "status": "already_present"}
+
+    content = json.dumps(
+        {
+            "mcpServers": {
+                "hindsight": {
+                    "type": "http",
+                    "url": f"https://hindsight-nm.vercel.app/api/mcp/{installation_id}",
+                }
+            }
+        },
+        indent=2,
+    ) + "\n"
+
+    body = {
+        "message": "Wire up Hindsight MCP server\n\nAdded automatically when the Hindsight GitHub App was installed.",
+        "content": base64.b64encode(content.encode()).decode(),
+    }
+
+    r = requests.put(
+        f"{GITHUB_API}/repos/{owner}/{repo}/contents/.mcp.json",
+        headers=_gh_headers(token),
+        json=body,
+        timeout=15,
+    )
+    if r.status_code in (200, 201):
+        return {
+            "repo": f"{owner}/{repo}",
+            "status": "committed",
+            "commit": (r.json().get("commit") or {}).get("sha", "")[:7],
+        }
+    return {
+        "repo": f"{owner}/{repo}",
+        "status": "error",
+        "code": r.status_code,
+        "msg": r.text[:200],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -210,20 +274,51 @@ def _handle_pull_request(body: dict) -> dict:
     }
 
 
+def _wire_repos(installation_id: int, repos: list[dict]) -> list[dict]:
+    """For each repo, commit `.mcp.json` if missing. Best-effort, never raises."""
+    if not (installation_id and repos):
+        return []
+    try:
+        token = _installation_token(installation_id)
+    except Exception as e:
+        return [{"status": "error", "msg": f"token: {e}"}]
+
+    results: list[dict] = []
+    for r in repos:
+        full = r.get("full_name") or ""
+        if "/" not in full:
+            continue
+        owner, name = full.split("/", 1)
+        try:
+            results.append(_ensure_mcp_config(token, owner, name, installation_id))
+        except Exception as e:
+            results.append({"repo": full, "status": "error", "msg": str(e)[:200]})
+    return results
+
+
 def _handle(event: str, action: str, body: dict, delivery: str) -> dict:
     if event == "pull_request":
         return _handle_pull_request(body)
 
     if event == "installation":
-        # TODO: action=created -> create org row, mint token, commit .mcp.json
-        return {
+        installation_id = (body.get("installation") or {}).get("id")
+        result = {
             "routed": "installation",
             "action": action,
-            "installation_id": (body.get("installation") or {}).get("id"),
+            "installation_id": installation_id,
         }
+        if action == "created":
+            result["wired"] = _wire_repos(installation_id, body.get("repositories") or [])
+        return result
 
     if event == "installation_repositories":
-        return {"routed": "installation_repositories", "action": action}
+        installation_id = (body.get("installation") or {}).get("id")
+        result = {"routed": "installation_repositories", "action": action}
+        if action == "added":
+            result["wired"] = _wire_repos(
+                installation_id, body.get("repositories_added") or []
+            )
+        return result
 
     if event in ("pull_request_review", "pull_request_review_comment"):
         # TODO: capture reviewer text as note signal.

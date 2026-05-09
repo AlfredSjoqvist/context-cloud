@@ -114,24 +114,11 @@ export default defineSchema({
   }).index("by_timestamp", ["timestamp"]),
 
   // -------- DOCS INGEST --------
+  // One row per emitted leaf (hari's pattern). `runId` groups leaves
+  // emitted by the same ingestion run.
   docsIngestRuns: defineTable({
     runId: v.string(),
-    startedAt: v.number(),
-    finishedAt: v.optional(v.number()),
-    library: v.string(),
-    sourceUri: v.string(),
-    status: v.union(
-      v.literal("running"),
-      v.literal("done"),
-      v.literal("failed"),
-    ),
-    leafCount: v.optional(v.number()),
-    summary: v.optional(v.string()),
-  }).index("by_run_id", ["runId"]).index("by_started", ["startedAt"]),
-
-  docsIngestLeaves: defineTable({
-    runId: v.string(),
-    library: v.string(),
+    lib: v.string(),
     topic: v.string(),
     sourceUri: v.string(),
     sourceUrl: v.optional(v.string()),
@@ -139,7 +126,7 @@ export default defineSchema({
     appliesTo: v.array(v.string()),
     leafPath: v.string(),
     extractor: v.optional(v.string()),
-  }).index("by_run", ["runId"]).index("by_leaf_path", ["leafPath"]),
+  }).index("by_run_id", ["runId"]).index("by_leaf_path", ["leafPath"]),
 
   // -------- ORG / IDENTITY (dashboard) --------
   users: defineTable({

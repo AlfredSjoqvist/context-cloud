@@ -14,6 +14,7 @@ export const everything = query({
         const [
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
+            cycles, findings, devinRuns, guardianEvents, docsLeaves,
         ] = await Promise.all([
             ctx.db.query("users").collect(),
             ctx.db.query("agents").collect(),
@@ -24,10 +25,17 @@ export const everything = query({
             ctx.db.query("injections").order("desc").take(500),
             ctx.db.query("gcRuns").order("desc").take(50),
             ctx.db.query("gcActions").order("desc").take(200),
+            // Guardian + docs-ingest halves
+            ctx.db.query("cycles").order("desc").take(50),
+            ctx.db.query("findings").collect(),
+            ctx.db.query("devinRuns").order("desc").take(100),
+            ctx.db.query("events").order("desc").take(200),
+            ctx.db.query("docsIngestRuns").collect(),
         ]);
         return {
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
+            cycles, findings, devinRuns, guardianEvents, docsLeaves,
         };
     },
 });
