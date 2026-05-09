@@ -5,6 +5,12 @@ const baseEnv = {
   NIA_API_KEY: "k",
   NIA_MCP_URL: "https://nia.example/mcp",
   CONVEX_URL: "https://convex.example",
+  OPENAI_API_KEY: "sk-test",
+  OPENAI_MODEL: "gpt-5",
+  OPENAI_CRITIQUE_MODEL: "gpt-5-mini",
+  GITHUB_TOKEN: "ghp_test",
+  GITHUB_OWNER: "alice",
+  GITHUB_REPO: "demo",
   GUARDIAN_CYCLE_INTERVAL_S: "60",
   GUARDIAN_PRIORITY_BUDGET: "3",
   GUARDIAN_JUDGMENT_BUDGET: "1",
@@ -49,6 +55,21 @@ describe("loadConfig", () => {
         SKIP_NIA: "0",
         NIA_API_KEY: "",
       }),
+    ).toThrow();
+  });
+
+  it("requires OPENAI_API_KEY when USE_MOCK_LLM=0", () => {
+    expect(() => loadConfig({ ...baseEnv, OPENAI_API_KEY: "" })).toThrow();
+  });
+
+  it("permits empty OPENAI_API_KEY when USE_MOCK_LLM=1", () => {
+    const cfg = loadConfig({ ...baseEnv, USE_MOCK_LLM: "1", OPENAI_API_KEY: "" });
+    expect(cfg.useMockLlm).toBe(true);
+  });
+
+  it("requires GITHUB_TOKEN regardless of mock flags", () => {
+    expect(() =>
+      loadConfig({ ...baseEnv, USE_MOCK_LLM: "1", GITHUB_TOKEN: "" }),
     ).toThrow();
   });
 });
