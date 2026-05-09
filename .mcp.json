@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nm": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\Users\\Alfred\\Desktop\\nozomio\\nm_server.py"]
+    }
+  }
+}
