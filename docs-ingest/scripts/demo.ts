@@ -45,7 +45,7 @@ async function main(): Promise<void> {
   );
 
   const config = loadConfig();
-  const registry = new SourceRegistry(config.registryPath);
+  let registry = new SourceRegistry(config.registryPath);
 
   // Auto-seed if registry is empty.
   step(1, "Source registry");
@@ -53,6 +53,8 @@ async function main(): Promise<void> {
   if (sources.length === 0) {
     console.log(ANSI.yellow("(no sources registered — running seed)"));
     await run("npx", ["tsx", "scripts/seed-sources.ts"]);
+    // Fresh registry instance to bypass the in-memory cache populated by the empty load above.
+    registry = new SourceRegistry(config.registryPath);
     sources = await registry.list();
   }
   for (const s of sources) {
