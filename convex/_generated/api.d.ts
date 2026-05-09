@@ -10,6 +10,7 @@
 
 import type * as cycles from "../cycles.js";
 import type * as events from "../events.js";
+import type * as findings from "../findings.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   cycles: typeof cycles;
   events: typeof events;
+  findings: typeof findings;
 }>;
 
 /**
