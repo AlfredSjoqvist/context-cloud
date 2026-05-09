@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
+    "test": "vitest run",
     "ingest": "tsx src/cli/ingest.ts",
     "register": "tsx src/cli/register.ts",
     "seed": "tsx scripts/seed-sources.ts"
