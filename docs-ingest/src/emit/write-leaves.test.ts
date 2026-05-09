@@ -213,6 +213,52 @@ describe("writeLeaf", () => {
     expect(text).not.toMatch(/^- URL:/m);
   });
 
+  it("merges importMap globs with additionalAppliesTo and dedupes", async () => {
+    const ctxRoot = path.join(workdir, "ctx");
+    const importMap: LibraryImportMap = {
+      library: "lodash",
+      matches: [{ relativePath: "src/lib/db.ts", matchedLines: [1] }],
+      globs: ["src/lib/db.ts"],
+    };
+    const result = await writeLeaf({
+      contextMapRoot: ctxRoot,
+      source: makeSource(),
+      rules: [makeRule("Files importing lodash MUST upgrade to 4.17.21.")],
+      importMap,
+      additionalAppliesTo: [
+        "src/api/payments/**", // path-convention
+        "src/api/payments*",   // path-convention
+        "src/lib/db.ts",       // duplicate of import-grep result — must dedupe
+        "src/server.ts",       // reverse-ref
+      ],
+      extractedAt: "2024-01-01T00:00:00.000Z",
+    });
+    expect(result.appliesTo).toEqual([
+      "src/lib/db.ts",
+      "src/api/payments/**",
+      "src/api/payments*",
+      "src/server.ts",
+    ]);
+  });
+
+  it("uses additionalAppliesTo alone when importMap is null and additional is non-empty", async () => {
+    const ctxRoot = path.join(workdir, "ctx");
+    const result = await writeLeaf({
+      contextMapRoot: ctxRoot,
+      source: makeSource(),
+      rules: [makeRule("Routes MUST validate input.")],
+      importMap: null,
+      additionalAppliesTo: ["src/routes/payments/**", "src/routes/payments*"],
+      extractedAt: "2024-01-01T00:00:00.000Z",
+    });
+    expect(result.appliesTo).toEqual([
+      "src/routes/payments/**",
+      "src/routes/payments*",
+    ]);
+    // The default broad glob fallback must NOT fire when any signal is present.
+    expect(result.appliesTo).not.toContain("src/**/*.{ts,tsx,js,mjs,cjs}");
+  });
+
   it("uses srcid as title when defaultLibraryName is unset", async () => {
     const ctxRoot = path.join(workdir, "ctx");
     const noLibSource: DocSource = {

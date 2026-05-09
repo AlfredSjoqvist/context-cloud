@@ -7,6 +7,11 @@ import { ingestFromUrl } from "../ingest/fetch-url.js";
 import type { DocSource, RawDoc } from "../types.js";
 import { extractRules } from "../extract/rule-extractor.js";
 import { buildLibraryImportMap } from "../link/import-grep.js";
+import { derivePathGlobs } from "../link/path-conventions.js";
+import {
+  scanReverseReferences,
+  selectReferencingSourceFiles,
+} from "../link/reverse-refs.js";
 import { writeLeaf } from "../emit/write-leaves.js";
 import {
   createConvexRecorder,
@@ -246,6 +251,33 @@ async function main(): Promise<void> {
     );
   }
 
+  // Path-convention globs derived from each raw doc's path (e.g.,
+  // "docs/api/payments.md" → ["src/api/payments/**", "src/api/payments*"]).
+  const pathGlobs = result.rawDocs.flatMap((d) => derivePathGlobs(d.path));
+  if (pathGlobs.length > 0) {
+    console.log(
+      `[link] path-convention globs: ${pathGlobs.join(", ")}`,
+    );
+  }
+
+  // Reverse-reference scan: source files in the codebase that point
+  // back to one of this source's docs via @see / // see / // ref / etc.
+  const docBasenames = result.rawDocs.map((d) =>
+    path.posix.basename(d.path.split(path.sep).join("/")),
+  );
+  const reverseRefs = await scanReverseReferences(codebaseRoot);
+  const reverseRefFiles = selectReferencingSourceFiles(
+    reverseRefs,
+    docBasenames,
+  );
+  if (reverseRefFiles.length > 0) {
+    console.log(
+      `[link] reverse-refs: ${reverseRefFiles.length} source file(s) → ${reverseRefFiles.join(", ")}`,
+    );
+  }
+
+  const additionalAppliesTo: string[] = [...pathGlobs, ...reverseRefFiles];
+
   if (args.emit) {
     const primaryDocPath = result.rawDocs[0]?.path;
     const leaf = await writeLeaf({
@@ -254,6 +286,7 @@ async function main(): Promise<void> {
       rules: extractRes.rules,
       importMap,
       extractedAt: new Date().toISOString(),
+      additionalAppliesTo,
       ...(primaryDocPath ? { primaryDocPath } : {}),
     });
     console.log(

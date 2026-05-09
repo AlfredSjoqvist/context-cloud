@@ -70,6 +70,13 @@ export interface EmitOptions {
   importMap: LibraryImportMap | null;
   extractedAt: string;
   primaryDocPath?: string;
+  /**
+   * Extra `applies_to` candidates from non-import linkers (path-convention
+   * mapping, reverse-references, etc.). Merged with `importMap.globs`,
+   * de-duplicated. The default broad-glob fallback applies only when the
+   * union of all signals is empty.
+   */
+  additionalAppliesTo?: string[];
 }
 
 export interface EmittedLeaf {
@@ -86,9 +93,18 @@ export async function writeLeaf(opts: EmitOptions): Promise<EmittedLeaf> {
     opts.source,
     slug,
   );
-  const appliesTo = opts.importMap
-    ? opts.importMap.globs
-    : ["src/**/*.{ts,tsx,js,mjs,cjs}"];
+  const importGlobs = opts.importMap?.globs ?? [];
+  const extraGlobs = opts.additionalAppliesTo ?? [];
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const g of [...importGlobs, ...extraGlobs]) {
+    if (!seen.has(g)) {
+      seen.add(g);
+      merged.push(g);
+    }
+  }
+  const appliesTo =
+    merged.length > 0 ? merged : ["src/**/*.{ts,tsx,js,mjs,cjs}"];
 
   const fm: OutputLeafFrontmatter = {
     scope: opts.source.defaultScope,
