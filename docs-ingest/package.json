@@ -1,0 +1,31 @@
+{
+  "name": "docs-ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Heterogeneous documentation ingestion → .context-map/ leaves for the Guardian Agent (consumed via Nia).",
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc -p . --noEmit",
+    "ingest": "tsx src/cli/ingest.ts",
+    "register": "tsx src/cli/register.ts",
+    "seed": "tsx scripts/seed-sources.ts"
+  },
+  "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "cheerio": "^1.0.0",
+    "gray-matter": "^4.0.3",
+    "openai": "^4.73.0",
+    "remark": "^15.0.1",
+    "remark-parse": "^11.0.0",
+    "ts-morph": "^24.0.0",
+    "unified": "^11.0.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
+}
