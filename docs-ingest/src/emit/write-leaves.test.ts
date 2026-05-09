@@ -179,6 +179,40 @@ describe("writeLeaf", () => {
     expect(text).not.toMatch(/^1\. /m);
   });
 
+  it("emits source_url in frontmatter and a clickable URL line in ## Source when set", async () => {
+    const ctxRoot = path.join(workdir, "ctx");
+    const result = await writeLeaf({
+      contextMapRoot: ctxRoot,
+      source: makeSource({
+        sourceUrl: "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+      }),
+      rules: [makeRule("Files importing lodash MUST upgrade to 4.17.21.")],
+      importMap: null,
+      extractedAt: "2024-01-01T00:00:00.000Z",
+    });
+    const text = await fs.readFile(result.absolutePath, "utf8");
+    expect(text).toContain(
+      "source_url: https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+    );
+    expect(text).toContain(
+      "- URL: <https://github.com/advisories/GHSA-35jh-r3h4-6jhm>",
+    );
+  });
+
+  it("omits source_url and URL line when sourceUrl is unset (fixture-backed)", async () => {
+    const ctxRoot = path.join(workdir, "ctx");
+    const result = await writeLeaf({
+      contextMapRoot: ctxRoot,
+      source: makeSource(),
+      rules: [makeRule("Files importing lodash MUST upgrade to 4.17.21.")],
+      importMap: null,
+      extractedAt: "2024-01-01T00:00:00.000Z",
+    });
+    const text = await fs.readFile(result.absolutePath, "utf8");
+    expect(text).not.toContain("source_url:");
+    expect(text).not.toMatch(/^- URL:/m);
+  });
+
   it("uses srcid as title when defaultLibraryName is unset", async () => {
     const ctxRoot = path.join(workdir, "ctx");
     const noLibSource: DocSource = {

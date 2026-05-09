@@ -40,6 +40,12 @@ export const DocSourceSchema = z.object({
   codebaseRoot: z.string(),
   outputRoot: z.string(),
   ingestedAt: z.string().datetime().optional(),
+  /**
+   * Upstream public URL for the documentation, when known.
+   * Used for clickable provenance in emitted leaves. Optional —
+   * fixture-backed sources may have no public URL.
+   */
+  sourceUrl: z.string().url().optional(),
 });
 export type DocSource = z.infer<typeof DocSourceSchema>;
 
@@ -94,6 +100,8 @@ export interface OutputLeafFrontmatter {
   applies_to: string[];
   source_id: string;
   source_uri: string;
+  /** Upstream public URL of the doc; emitted only when the source carries one. */
+  source_url?: string;
   chunk_id: string;
   extracted_at: string;
   rules: Array<{
