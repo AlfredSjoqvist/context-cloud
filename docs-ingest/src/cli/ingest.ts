@@ -14,6 +14,8 @@ interface CliArgs {
   dumpRules: boolean;
   emit: boolean;
   list: boolean;
+  useLlm: boolean;
+  noLlm: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -26,6 +28,8 @@ function parseArgs(argv: string[]): CliArgs {
     dumpRules: flags.has("--dump-rules"),
     emit: flags.has("--emit"),
     list: flags.has("--list"),
+    useLlm: flags.has("--use-llm"),
+    noLlm: flags.has("--no-llm"),
   };
 }
 
@@ -65,7 +69,7 @@ async function main(): Promise<void> {
     }
     if (!args.sourceId) {
       console.log(
-        `\nUsage: npm run ingest -- <sourceId> [--dump-chunks] [--dump-rules] [--emit]`,
+        `\nUsage: npm run ingest -- <sourceId> [--dump-chunks] [--dump-rules] [--emit] [--use-llm | --no-llm]`,
       );
       process.exit(args.list ? 0 : 2);
     }
@@ -131,6 +135,8 @@ async function main(): Promise<void> {
     openaiApiKey: config.openai.apiKey,
     openaiModel: config.openai.model,
     defaultCategory: "correctness",
+    llmOnly: args.useLlm,
+    noLlm: args.noLlm,
   });
 
   console.log(

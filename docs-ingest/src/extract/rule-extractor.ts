@@ -40,21 +40,39 @@ export interface ExtractOptions {
   openaiApiKey: string | undefined;
   openaiModel: string;
   defaultCategory?: RuleCategory;
+  /** Force LLM only (no regex fallback even on LLM failure). */
+  llmOnly?: boolean;
+  /** Force regex only (skip LLM even when API key is present). */
+  noLlm?: boolean;
+  /** Per-call timeout in ms for the OpenAI request. */
+  llmTimeoutMs?: number;
 }
 
-const SYSTEM_PROMPT = `You are an extractor that converts a doc chunk into single-line, line-citable constraints for a code-review agent.
+const SYSTEM_PROMPT = `You convert a doc chunk into single-line, line-citable constraints for a code-review agent.
 
-Each output rule must:
+Each output rule MUST:
 - be ONE complete English sentence, no line breaks, ending with a period
-- start with "Files importing <library> ", or "Code that <does X> ", or a similarly self-contained subject — never a pronoun like "It" or "This"
-- contain enough context to be understandable WITHOUT the surrounding doc
+- start with "Files importing <library> ", "Webhook handlers ", "Code that <does X> ", or a similarly self-contained subject — never "It", "This", "Applications", or "Application"
+- include any concrete API names, version numbers, configuration keys, or thresholds the original chunk specifies
 - use MUST / MUST NOT / SHOULD / SHOULD NOT / NEVER / ALWAYS in CAPS to make modality explicit
-- mention any concrete API names, version numbers, or thresholds the original chunk specifies
-- omit hedges, citations, and prose framing
+- omit hedges ("possibly", "might"), citations, and prose framing
 
 Return STRICT JSON: { "rules": [ { "text": "...", "modality": "must"|"must_not"|"should"|"should_not"|"warning", "category": "security"|"correctness"|"performance"|"api_contract"|"style" } ] }
 
-If the chunk contains no extractable rule, return { "rules": [] }.`;
+If the chunk contains no extractable rule, return { "rules": [] }.
+
+Example input chunk (library context: stripe):
+"""
+You **must** verify the signature on every webhook event Stripe sends to your endpoint.
+You **must not** parse the request body before passing it to constructEvent(). The
+signature is computed over the exact raw bytes Stripe sent.
+"""
+
+Example output:
+{ "rules": [
+  { "text": "Files importing stripe MUST verify the signature on every webhook event Stripe sends to the endpoint.", "modality": "must", "category": "security" },
+  { "text": "Files importing stripe MUST NOT parse the request body before passing it to stripe.webhooks.constructEvent() because the signature is computed over the exact raw bytes Stripe sent.", "modality": "must_not", "category": "security" }
+] }`;
 
 function buildUserPrompt(
   chunk: DocChunk,
@@ -98,24 +116,54 @@ function ruleFromLlm(
   };
 }
 
+function isRetryable(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { status?: number; code?: string; message?: string };
+  if (e.status === 429) return true;
+  if (e.status !== undefined && e.status >= 500 && e.status < 600) return true;
+  if (e.code === "ECONNRESET" || e.code === "ETIMEDOUT") return true;
+  if (e.code === "ECONNREFUSED") return true;
+  if (typeof e.message === "string" && /timeout|reset|econn/i.test(e.message))
+    return true;
+  return false;
+}
+
+async function callLlmOnce(
+  client: OpenAI,
+  chunk: DocChunk,
+  options: ExtractOptions,
+): Promise<ExtractedRule[]> {
+  const response = await client.chat.completions.create(
+    {
+      model: options.openaiModel,
+      temperature: 0,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildUserPrompt(chunk, options.source) },
+      ],
+      response_format: { type: "json_object" },
+    },
+    { timeout: options.llmTimeoutMs ?? 30_000 },
+  );
+  const content = response.choices[0]?.message?.content;
+  if (!content) return [];
+  const parsed = LlmResponseSchema.parse(JSON.parse(content));
+  return parsed.rules.map((r) => ruleFromLlm(chunk, r));
+}
+
 async function extractWithLlm(
   chunk: DocChunk,
   options: ExtractOptions,
 ): Promise<ExtractedRule[]> {
   if (!options.openaiApiKey) throw new Error("no api key");
   const client = new OpenAI({ apiKey: options.openaiApiKey });
-  const response = await client.chat.completions.create({
-    model: options.openaiModel,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: buildUserPrompt(chunk, options.source) },
-    ],
-    response_format: { type: "json_object" },
-  });
-  const content = response.choices[0]?.message?.content;
-  if (!content) return [];
-  const parsed = LlmResponseSchema.parse(JSON.parse(content));
-  return parsed.rules.map((r) => ruleFromLlm(chunk, r));
+  try {
+    return await callLlmOnce(client, chunk, options);
+  } catch (err) {
+    if (!isRetryable(err)) throw err;
+    await new Promise((r) => setTimeout(r, 1500));
+    return await callLlmOnce(client, chunk, options);
+  }
 }
 
 function splitSentences(text: string): string[] {
@@ -233,8 +281,11 @@ export async function extractRules(
   const errors: ExtractResult["errors"] = [];
   let llmUsed = false;
 
+  const llmEligible =
+    !!options.openaiApiKey && options.noLlm !== true;
+
   for (const chunk of chunks) {
-    if (options.openaiApiKey) {
+    if (llmEligible) {
       try {
         const rules = await extractWithLlm(chunk, options);
         out.push(...rules);
@@ -245,7 +296,14 @@ export async function extractRules(
           chunkId: chunk.id,
           message: `llm: ${err instanceof Error ? err.message : String(err)}`,
         });
+        if (options.llmOnly === true) continue;
       }
+    } else if (options.llmOnly === true) {
+      errors.push({
+        chunkId: chunk.id,
+        message: `llm-only requested but no api key (or --no-llm set)`,
+      });
+      continue;
     }
     out.push(...extractWithRegex(chunk, options));
   }
