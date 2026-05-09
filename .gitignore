@@ -19,3 +19,4 @@ out/
 *.log
 coverage/
 ui/tsconfig.tsbuildinfo
+.vercel

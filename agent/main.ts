@@ -60,10 +60,12 @@ async function main(): Promise<void> {
 
   let analyzeFile: (path: string, n: typeof nia) => Promise<import("./analyze/types.js").Finding[]>;
   let critiqueLLM: import("./analyze/critique.js").CritiqueLLMCall | undefined;
+  let judgmentLLM: import("./plan/judgment.js").JudgmentLLMCall | undefined;
 
   if (config.useMockLlm) {
     analyzeFile = async (path) => mockAnalyzeFile(path);
     critiqueLLM = undefined;
+    judgmentLLM = undefined;
   } else {
     const openai = getOpenAI({ apiKey: config.openaiApiKey! });
     const analyzerLLM = makeAnalyzerLLMCall({
@@ -76,6 +78,8 @@ async function main(): Promise<void> {
       model: config.openaiModel,
       critiqueModel: config.openaiCritiqueModel,
     });
+    const { makeJudgmentLLMCall } = await import("./plan/judgment.js");
+    judgmentLLM = makeJudgmentLLMCall(openai, config.openaiCritiqueModel);
     analyzeFile = (path, n) => realAnalyzeFile(path, n, analyzerLLM);
   }
 
@@ -108,6 +112,8 @@ async function main(): Promise<void> {
       githubRepo: config.githubRepo!,
       demoRepoRoot: demoRoot,
       critiqueLLM,
+      judgmentLLM,
+      judgmentBudget: config.judgmentBudget,
       devinApiKey: config.devinApiKey,
     });
     // eslint-disable-next-line no-console

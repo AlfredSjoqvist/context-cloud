@@ -6,6 +6,8 @@ import type { EventSink } from "./lib/logger.js";
 import type { NiaClient } from "./tools/niaClient.js";
 import { priorityPicks } from "./plan/priority.js";
 import type { FileScanState } from "./plan/priority.js";
+import { judgmentPicks } from "./plan/judgment.js";
+import type { JudgmentLLMCall } from "./plan/judgment.js";
 import { findingFingerprint } from "./lib/fingerprint.js";
 import { auditPackageJson } from "./analyze/npmAudit.js";
 import { verifyCitation } from "./analyze/citation.js";
@@ -32,6 +34,8 @@ export interface CycleDeps {
   githubRepo: string;
   demoRepoRoot: string;
   critiqueLLM?: CritiqueLLMCall;
+  judgmentLLM?: JudgmentLLMCall;
+  judgmentBudget: number;
   devinApiKey?: string;
 }
 
@@ -64,14 +68,38 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
       lastScannedCycle: row.lastScannedCycle,
       cleanScanStreak: row.cleanScanStreak,
     }));
-    const plannedFiles = priorityPicks({
+    const priorityPlanned = priorityPicks({
       cycleNumber,
       candidates,
       history,
       budget: deps.priorityBudget,
     });
+
+    let judgmentPlanned: Array<{ path: string; reason: string }> = [];
+    if (deps.judgmentLLM && deps.judgmentBudget > 0) {
+      try {
+        const judgmentResult = await judgmentPicks({
+          cycleNumber,
+          candidates,
+          alreadyPicked: priorityPlanned.map((p) => p.path),
+          budget: deps.judgmentBudget,
+          callLLM: deps.judgmentLLM,
+        });
+        judgmentPlanned = judgmentResult.map((p) => ({
+          path: p.path,
+          reason: `judgment: ${p.reason}`,
+        }));
+      } catch (err) {
+        await log.warn(`judgment picks failed: ${(err as Error).message}`);
+      }
+    }
+
+    const plannedFiles = [...priorityPlanned, ...judgmentPlanned];
     await deps.convex.mutation(api.cycles.setPlan, { cycleId, plannedFiles });
-    await log.info(`plan: ${plannedFiles.length} files`, { plannedFiles });
+    await log.info(
+      `plan: ${plannedFiles.length} files (${priorityPlanned.length} priority + ${judgmentPlanned.length} judgment)`,
+      { plannedFiles },
+    );
 
     for (const pick of plannedFiles) {
       await log.info(`scan ${pick.path}`, { reason: pick.reason });
