@@ -423,11 +423,43 @@ const DEMO_DOCS_LEAVES = [
 
 // ─── GUARDIAN CYCLES + FINDINGS (mock) ─────────────
 const DEMO_CYCLES = [
-    { cycleNumber: 47, offsetMin: 8 * 60,  status: "done"    as const, plannedFiles: [{ path: "acme-agent-gateway/src/api/mcp.ts", reason: "stale" }, { path: "acme-agent-gateway/src/api/auth.ts", reason: "never scanned" }], summary: "2 findings detected, 1 critical" },
-    { cycleNumber: 48, offsetMin: 6 * 60,  status: "done"    as const, plannedFiles: [{ path: "acme-connectors/src/github/webhooks.ts", reason: "recent diff" }],                                              summary: "1 finding detected" },
-    { cycleNumber: 49, offsetMin: 4 * 60,  status: "done"    as const, plannedFiles: [{ path: "acme-runtime-orchestrator/src/runtime/sandbox.py", reason: "low clean-streak" }, { path: "acme-agent-gateway/package.json", reason: "ghsa hit" }], summary: "2 findings · npm audit caught lodash CVE" },
-    { cycleNumber: 50, offsetMin: 2 * 60,  status: "done"    as const, plannedFiles: [{ path: "acme-control-plane/app/page.tsx", reason: "useQuery drift" }],                                  summary: "1 finding detected" },
-    { cycleNumber: 51, offsetMin: 30,      status: "running" as const, plannedFiles: [{ path: "acme-agent-gateway/src/db/schema.ts", reason: "shared module" }],                                              summary: undefined },
+    {
+        cycleNumber: 47, offsetMin: 8 * 60, status: "done" as const, currentPhase: undefined,
+        plannedFiles: [
+            { path: "acme-agent-gateway/src/api/mcp.ts", kind: "priority", reason: "highest churn-30d · security-tagged" },
+            { path: "acme-agent-gateway/src/api/auth.ts", kind: "judgment", reason: "JWT expiry constraint changed in #482 — watch for regressions" },
+        ],
+        summary: "2 findings detected · 1 dropped (hallucinated cite)",
+    },
+    {
+        cycleNumber: 48, offsetMin: 6 * 60, status: "done" as const, currentPhase: undefined,
+        plannedFiles: [
+            { path: "acme-connectors/src/github/webhooks.ts", kind: "priority", reason: "recent diff in #487 (webhook handler reorg)" },
+        ],
+        summary: "1 finding detected · 1 dropped (low confidence 0.62)",
+    },
+    {
+        cycleNumber: 49, offsetMin: 4 * 60, status: "done" as const, currentPhase: undefined,
+        plannedFiles: [
+            { path: "acme-runtime-orchestrator/src/runtime/sandbox.py", kind: "priority", reason: "clean-streak reset by recent diff" },
+            { path: "acme-agent-gateway/package.json", kind: "judgment", reason: "GHSA-29mw lodash advisory landed — preempt with audit" },
+        ],
+        summary: "2 findings · npm audit caught lodash CVE",
+    },
+    {
+        cycleNumber: 50, offsetMin: 2 * 60, status: "done" as const, currentPhase: undefined,
+        plannedFiles: [
+            { path: "acme-control-plane/app/page.tsx", kind: "priority", reason: "useQuery selector constraint never scanned" },
+        ],
+        summary: "1 finding detected",
+    },
+    {
+        cycleNumber: 51, offsetMin: 30, status: "running" as const, currentPhase: "SCAN",
+        plannedFiles: [
+            { path: "acme-agent-gateway/src/db/schema.ts", kind: "priority", reason: "shared module · deep scan due" },
+        ],
+        summary: undefined,
+    },
 ];
 
 const DEMO_FINDINGS = [
@@ -448,14 +480,39 @@ const DEMO_DEVIN_RUNS = [
 ];
 
 const DEMO_GUARDIAN_EVENTS = [
-    // a few representative events; the dashboard mostly reads cycles/findings/devinRuns
-    { offsetMin: 8 * 60 + 5,  level: "info"    as const, message: "cycle 47 started · planning 2 files",                       cycleNumber: 47 },
-    { offsetMin: 8 * 60 - 5,  level: "finding" as const, message: "finding f_a01 · acme-agent-gateway/src/api/mcp.ts:42 · critical",            cycleNumber: 47 },
-    { offsetMin: 8 * 60 - 8,  level: "action"  as const, message: "spawned devin_a1b2c3 for f_a01",                            cycleNumber: 47 },
-    { offsetMin: 6 * 60 + 2,  level: "info"    as const, message: "cycle 48 started",                                          cycleNumber: 48 },
-    { offsetMin: 4 * 60 + 1,  level: "info"    as const, message: "cycle 49 started · npm audit ran",                          cycleNumber: 49 },
-    { offsetMin: 4 * 60 - 3,  level: "finding" as const, message: "finding f_d04 · package.json:14 · lodash CVE",              cycleNumber: 49 },
-    { offsetMin: 30,          level: "info"    as const, message: "cycle 51 in progress · scanning acme-agent-gateway/src/db/schema.ts",          cycleNumber: 51 },
+    // ── cycle 47 ───────────────────────────────────────────────
+    { offsetMin: 8 * 60 + 5,  level: "info"    as const, cycleNumber: 47, message: "cycle 47 started · phase=PLAN" },
+    { offsetMin: 8 * 60 + 4,  level: "info"    as const, cycleNumber: 47, message: "PLAN: priority queue picked acme-agent-gateway/src/api/mcp.ts (highest churn-30d, security-tagged)" },
+    { offsetMin: 8 * 60 + 3,  level: "info"    as const, cycleNumber: 47, message: "PLAN: judgment-pick added acme-agent-gateway/src/api/auth.ts — JWT expiry constraint changed in #482, watch for regressions" },
+    { offsetMin: 8 * 60 + 2,  level: "info"    as const, cycleNumber: 47, message: "SCAN: mcp.ts read 1.2KB, 8 .md context chunks fetched via Nia" },
+    { offsetMin: 8 * 60,      level: "info"    as const, cycleNumber: 47, message: "ANALYZE: gpt-5 returned 3 raw findings on mcp.ts" },
+    { offsetMin: 8 * 60 - 1,  level: "warn"    as const, cycleNumber: 47, message: "DROPPED: hallucinated citation · mcp.ts:62 doesn't exist (analyzer cited line 62, file has 47 lines)" },
+    { offsetMin: 8 * 60 - 5,  level: "finding" as const, cycleNumber: 47, message: "finding f_a01 · acme-agent-gateway/src/api/mcp.ts:42 · critical" },
+    { offsetMin: 8 * 60 - 6,  level: "finding" as const, cycleNumber: 47, message: "finding f_b02 · acme-agent-gateway/src/api/auth.ts:88 · high" },
+    { offsetMin: 8 * 60 - 7,  level: "action"  as const, cycleNumber: 47, message: "HANDOFF: filed GitHub issue #142 for f_a01" },
+    { offsetMin: 8 * 60 - 8,  level: "action"  as const, cycleNumber: 47, message: "HANDOFF: spawned devin_a1b2c3 for f_a01" },
+    { offsetMin: 8 * 60 - 9,  level: "action"  as const, cycleNumber: 47, message: "HANDOFF: spawned devin_d4e5f6 for f_b02" },
+    // ── cycle 48 ───────────────────────────────────────────────
+    { offsetMin: 6 * 60 + 2,  level: "info"    as const, cycleNumber: 48, message: "cycle 48 started · phase=PLAN" },
+    { offsetMin: 6 * 60 + 1,  level: "info"    as const, cycleNumber: 48, message: "PLAN: priority queue picked acme-connectors/src/github/webhooks.ts (recent diff in #487)" },
+    { offsetMin: 6 * 60 - 1,  level: "warn"    as const, cycleNumber: 48, message: "DROPPED: low confidence · critique returned 0.62 < 0.80 for proposed finding on webhooks.ts:115" },
+    { offsetMin: 6 * 60 - 3,  level: "finding" as const, cycleNumber: 48, message: "finding f_c03 · acme-connectors/src/github/webhooks.ts:31 · high" },
+    { offsetMin: 6 * 60 - 5,  level: "action"  as const, cycleNumber: 48, message: "HANDOFF: spawned devin_g7h8i9 for f_c03" },
+    // ── cycle 49 ───────────────────────────────────────────────
+    { offsetMin: 4 * 60 + 1,  level: "info"    as const, cycleNumber: 49, message: "cycle 49 started · npm audit ran in sandbox" },
+    { offsetMin: 4 * 60,      level: "finding" as const, cycleNumber: 49, message: "finding f_d04 · acme-agent-gateway/package.json:14 · lodash CVE-2021-23337 (npm audit floor)" },
+    { offsetMin: 4 * 60 - 1,  level: "finding" as const, cycleNumber: 49, message: "finding f_e05 · acme-runtime-orchestrator/src/runtime/sandbox.py:17 · medium" },
+    // ── cycle 50 ───────────────────────────────────────────────
+    { offsetMin: 2 * 60 + 1,  level: "info"    as const, cycleNumber: 50, message: "cycle 50 started · phase=PLAN" },
+    { offsetMin: 2 * 60,      level: "action"  as const, cycleNumber: 50, message: "RECONCILE: PR #211 merged for f_a01 → status=verifying" },
+    { offsetMin: 2 * 60 - 1,  level: "info"    as const, cycleNumber: 50, message: "VERIFY: f_a01 constraint satisfied · status=resolved" },
+    { offsetMin: 2 * 60 - 2,  level: "info"    as const, cycleNumber: 50, message: "RECONCILE: PR #213 still open for f_e05 (sharpen iter 1) · re-check next cycle" },
+    { offsetMin: 2 * 60 - 4,  level: "finding" as const, cycleNumber: 50, message: "finding f_f06 · acme-control-plane/app/page.tsx:22 · medium" },
+    { offsetMin: 2 * 60 - 5,  level: "action"  as const, cycleNumber: 50, message: "HANDOFF: spawned devin_m3n4o5 for f_f06" },
+    // ── cycle 51 (in progress) ─────────────────────────────────
+    { offsetMin: 30,          level: "info"    as const, cycleNumber: 51, message: "cycle 51 started · phase=PLAN" },
+    { offsetMin: 28,          level: "info"    as const, cycleNumber: 51, message: "PLAN: priority queue picked acme-agent-gateway/src/db/schema.ts (shared module · deep scan due)" },
+    { offsetMin: 26,          level: "info"    as const, cycleNumber: 51, message: "SCAN: schema.ts in progress · phase=SCAN" },
 ];
 
 // ─── seedAll mutation ────────────────────────────
@@ -686,6 +743,7 @@ export const seedAll = mutation({
                 startedAt: NOW() - c.offsetMin * 60_000,
                 finishedAt: c.status === "running" ? undefined : NOW() - (c.offsetMin - 5) * 60_000,
                 status: c.status,
+                currentPhase: c.currentPhase,
                 plannedFiles: c.plannedFiles,
                 summary: c.summary,
             });

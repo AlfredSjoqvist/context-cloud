@@ -2596,6 +2596,96 @@
     color: var(--text-3); background: var(--surface-2);
     padding: 1px 6px; border-radius: 3px;
   }
+  /* phase chip + animated dot for the running cycle */
+  .g-cycle-phase {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .g-cycle-phase.PLAN      { background: rgba(124,158,255,.18); color: var(--file); }
+  .g-cycle-phase.SCAN      { background: rgba(110,231,183,.18); color: var(--green); }
+  .g-cycle-phase.ANALYZE   { background: rgba(255,184,107,.18); color: var(--note); }
+  .g-cycle-phase.CRITIQUE  { background: rgba(196,155,255,.18); color: var(--purple); }
+  .g-cycle-phase.HANDOFF   { background: rgba(255,184,107,.22); color: var(--note); }
+  .g-cycle-phase.RECONCILE { background: rgba(124,158,255,.18); color: var(--file); }
+  .g-cycle-phase .pulse-dot { width: 5px; height: 5px; }
+  /* plan picks (priority vs judgment) */
+  .g-plan-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .g-plan-pick {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    border-left: 2px solid var(--text-4);
+    font-size: 10.5px;
+    line-height: 1.4;
+  }
+  .g-plan-pick.priority { border-left-color: var(--file); }
+  .g-plan-pick.judgment { border-left-color: var(--note); }
+  .g-plan-pick-kind {
+    font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+    color: var(--text-3); align-self: center;
+  }
+  .g-plan-pick.priority .g-plan-pick-kind { color: var(--file); }
+  .g-plan-pick.judgment .g-plan-pick-kind { color: var(--note); }
+  .g-plan-pick-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .g-plan-pick-path { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g-plan-pick-reason { color: var(--text-3); font-size: 10px; line-height: 1.4; }
+  /* finding state-machine pipeline */
+  .g-state-pipe {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 8px 0;
+    flex-wrap: wrap;
+  }
+  .g-state-step {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--surface);
+    color: var(--text-3);
+    border: 1px solid var(--border);
+  }
+  .g-state-step.passed   { background: rgba(110,231,183,.12); color: var(--green); border-color: rgba(110,231,183,.3); }
+  .g-state-step.current  { background: var(--surface-2); color: var(--text); border-color: var(--file); box-shadow: 0 0 0 2px rgba(124,158,255,.15); }
+  .g-state-step.future   { opacity: 0.4; }
+  .g-state-step.escalated { background: rgba(255,122,138,.18); color: var(--red); border-color: rgba(255,122,138,.4); }
+  .g-state-arrow { color: var(--text-4); font-size: 11px; padding: 0 4px; }
+  /* sharpen iteration callout */
+  .g-sharpen {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--note);
+    border-radius: 8px;
+    padding: 11px 13px;
+    margin-top: 6px;
+  }
+  .g-sharpen-head { font-size: 10.5px; color: var(--note); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .g-sharpen-body { color: var(--text-2); font-size: 11.5px; line-height: 1.5; }
+  .g-sharpen-counter {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-left: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-3);
+  }
+  .g-sharpen-counter .seg { width: 8px; height: 4px; border-radius: 2px; background: var(--surface-2); }
+  .g-sharpen-counter .seg.on { background: var(--note); }
 
   .g-findings-list { padding: 8px 10px 14px; flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
   .g-finding-row {
@@ -2971,6 +3061,122 @@
   .src2-cite-sev.high     { background: rgba(255,184,107,.18); color: var(--note); }
   .src2-cite-sev.medium   { background: rgba(124,158,255,.15); color: var(--file); }
   .src2-cite-path { color: var(--text-2); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ─── Activity view (live event stream) ──────────── */
+  .view-activity { grid-template-columns: 1fr; }
+  .act-stage {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(110,231,183,.04), transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(196,155,255,.03), transparent 50%),
+      var(--bg);
+  }
+  .act-header {
+    display: flex; align-items: flex-start; gap: 24px;
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .act-header-l { flex: 1; min-width: 0; }
+  .act-title { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; margin-bottom: 4px; }
+  .act-sub { font-size: 12px; color: var(--text-3); line-height: 1.5; max-width: 760px; }
+  .act-sub b { color: var(--text-2); font-weight: 500; }
+  .act-header-r { flex-shrink: 0; }
+  .act-stats { display: flex; gap: 16px; }
+  .act-stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .act-stat .num { font-size: 16px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .act-stat .lbl { font-size: 9.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .act-stat.info    .num { color: var(--text-2); }
+  .act-stat.action  .num { color: var(--purple); }
+  .act-stat.finding .num { color: var(--green); }
+  .act-stat.warn    .num { color: var(--red); }
+
+  .act-controls {
+    display: flex; align-items: center; gap: 24px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .act-filter-pills { display: flex; gap: 4px; }
+  .act-filter-pills .pill { padding: 4px 10px; font-size: 11px; }
+  .act-cycle-filter { display: flex; align-items: center; gap: 8px; }
+  .act-cycle-filter .inj-select { font-size: 11px; padding: 5px 9px; }
+
+  .act-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 24px 32px;
+    min-height: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  .act-log::-webkit-scrollbar { width: 8px; }
+  .act-log::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+
+  .act-row {
+    display: grid;
+    grid-template-columns: 96px 60px 64px 1fr;
+    gap: 14px;
+    align-items: baseline;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: background .12s;
+  }
+  .act-row:hover { background: var(--surface); }
+  .act-row.recent { background: rgba(110,231,183,.04); }
+  .act-row.recent.warn { background: rgba(255,122,138,.05); }
+  .act-row .ts {
+    color: var(--text-3);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .act-row .level {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .act-row.info    .level { background: var(--surface-2); color: var(--text-2); }
+  .act-row.action  .level { background: rgba(196,155,255,.18); color: var(--purple); }
+  .act-row.finding .level { background: rgba(110,231,183,.18); color: var(--green); }
+  .act-row.warn    .level { background: rgba(255,122,138,.18); color: var(--red); }
+  .act-row .cycle {
+    font-size: 10.5px; color: var(--text-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .act-row .msg { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.55; word-break: break-word; }
+  .act-row.warn .msg { color: rgb(255,140,120); }
+  .act-row.finding .msg { color: var(--green); }
+  .act-row.action .msg { color: var(--purple); }
+  .act-row .msg .hl { color: var(--note); font-weight: 600; }
+  .act-row.dim { opacity: 0.25; }
+
+  .act-day-divider {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 14px;
+    padding: 16px 12px 6px;
+    font-size: 9.5px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .act-day-divider::after {
+    content: '';
+    border-bottom: 1px solid var(--border);
+    margin-top: 8px;
+    grid-column: 2;
+    align-self: end;
+  }
+  .act-empty { padding: 48px 24px; text-align: center; color: var(--text-3); font-size: 12px; font-family: inherit; }
 </style>
 </head>
 <body>
@@ -3049,6 +3255,12 @@
         <line x1="13.7" y1="14.5" x2="17.3" y2="12.5"/>
       </svg>
       Sources
+    </button>
+    <button class="tab" data-tab="activity">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12h4l3-9 4 18 3-9h4"/>
+      </svg>
+      Activity
     </button>
   </nav>
   <div class="stats">
@@ -3624,6 +3836,48 @@
           </div>
         </main>
       </div>
+    </div>
+  </div>
+
+  <!-- Activity view (live event stream) ──────────────── -->
+  <div class="view view-activity" data-view="activity">
+    <div class="act-stage">
+      <div class="act-header">
+        <div class="act-header-l">
+          <div class="act-title">Activity stream</div>
+          <div class="act-sub">
+            Every meaningful state transition writes one row. Per the Guardian spec
+            (<b>events</b> table = source of truth), this is what the agent is doing
+            right now — plan picks with reasons, dropped findings, handoffs, reconciles.
+          </div>
+        </div>
+        <div class="act-header-r">
+          <div class="act-stats">
+            <span class="act-stat info"><span class="num" id="act-info-count">0</span><span class="lbl">info</span></span>
+            <span class="act-stat action"><span class="num" id="act-action-count">0</span><span class="lbl">action</span></span>
+            <span class="act-stat finding"><span class="num" id="act-finding-count">0</span><span class="lbl">finding</span></span>
+            <span class="act-stat warn"><span class="num" id="act-warn-count">0</span><span class="lbl">warn (dropped)</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-controls">
+        <div class="act-filter-pills">
+          <button class="pill on" data-act-filter="all">All</button>
+          <button class="pill" data-act-filter="info">info</button>
+          <button class="pill" data-act-filter="action">action</button>
+          <button class="pill" data-act-filter="finding">finding</button>
+          <button class="pill" data-act-filter="warn">warn (dropped)</button>
+        </div>
+        <div class="act-cycle-filter">
+          <span class="ctrl-lbl">Cycle</span>
+          <select id="act-cycle-select" class="inj-select">
+            <option value="">All cycles</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="act-log" id="act-log"></div>
     </div>
   </div>
 </main>
@@ -6904,16 +7158,30 @@ function renderGuardian() {
   document.getElementById('g-cycles-count').textContent = cycleCount;
   const cyclesEl = document.getElementById('g-cycles-list');
   cyclesEl.innerHTML = CYCLES.map(c => {
-    const filesHtml = c.plannedFiles.slice(0, 3).map(f => `<span class="g-cycle-file">${f.path.split('/').pop()}</span>`).join('') +
-                      (c.plannedFiles.length > 3 ? `<span class="g-cycle-file">+${c.plannedFiles.length - 3}</span>` : '');
+    const phaseChip = (c.status === 'running' && c.currentPhase)
+      ? `<span class="g-cycle-phase ${c.currentPhase}"><span class="pulse-dot"></span>${c.currentPhase}</span>`
+      : '';
+    const planList = (c.plannedFiles || []).map(p => {
+      const kind = p.kind || 'priority';
+      const kindLbl = kind === 'judgment' ? 'judgment' : 'priority';
+      const fname = p.path.split('/').pop();
+      return `<div class="g-plan-pick ${kind}">
+        <span class="g-plan-pick-kind">${kindLbl}</span>
+        <div class="g-plan-pick-body">
+          <span class="g-plan-pick-path" title="${escapeHtml(p.path)}">${escapeHtml(fname)}</span>
+          ${p.reason ? `<span class="g-plan-pick-reason">${escapeHtml(p.reason)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
     return `<div class="g-cycle-row ${c.status}" data-cycle="${c.cycleNumber}">
       <div class="g-cycle-head">
         <span class="g-cycle-num">#${c.cycleNumber}</span>
         <span class="g-cycle-status ${c.status}">${c.status}</span>
+        ${phaseChip}
         <span class="g-cycle-time">${c.ts ? fmtRelTime(c.ts) : '—'}</span>
       </div>
       <div class="g-cycle-summary">${escapeHtml(c.summary || '(in progress…)')}</div>
-      <div class="g-cycle-files">${filesHtml}</div>
+      ${planList ? `<div class="g-plan-list">${planList}</div>` : ''}
     </div>`;
   }).join('');
 
@@ -6964,11 +7232,49 @@ function renderFindingDetail(fp) {
   const leafChips = docIds.map(lp => `<span class="g-ctx-chip leaf" title="${escapeHtml(lp)}">${lp.split('/').pop().replace(/\.md$/, '')}</span>`).join('');
 
   document.getElementById('g-detail-title').textContent = `Finding · ${f.path.split('/').pop()}`;
+
+  // ── state-machine pipeline (per spec §10) ────────────────
+  // detected → devin_running → pr_open → verifying → resolved
+  // sharpen branch: verifying → reopened_sharpened → pr_open (loop, max 2)
+  // terminal: escalated (only after 2 failed sharpens)
+  const allStates = ['detected', 'devin_running', 'pr_open', 'verifying', 'resolved'];
+  const passedFor = {
+    detected:           [],
+    devin_running:      ['detected'],
+    pr_open:            ['detected', 'devin_running'],
+    verifying:          ['detected', 'devin_running', 'pr_open'],
+    resolved:           ['detected', 'devin_running', 'pr_open', 'verifying'],
+    reopened_sharpened: ['detected', 'devin_running', 'pr_open', 'verifying'],
+    escalated:          ['detected', 'devin_running', 'pr_open', 'verifying'],
+  }[f.status] || [];
+  const stepHtml = allStates.map((st, i) => {
+    let cls = 'future';
+    if (passedFor.includes(st)) cls = 'passed';
+    if (st === f.status) cls = 'current';
+    if (f.status === 'reopened_sharpened' && st === 'pr_open') cls = 'current';
+    if (f.status === 'escalated' && st === 'resolved') cls = 'escalated';
+    const label = st.replace('_', ' ');
+    const arrow = i < allStates.length - 1 ? '<span class="g-state-arrow">→</span>' : '';
+    return `<span class="g-state-step ${cls}">${label}</span>${arrow}`;
+  }).join('');
+
+  // sharpen counter (max 2 iterations per spec)
+  const iters = f.sharpenIterations || 0;
+  const sharpenSegs = [0, 1].map(i => `<span class="seg ${i < iters ? 'on' : ''}"></span>`).join('');
+
   let html = `
     <div class="g-detail-head">
       <span class="g-detail-fp">${f.fingerprint}</span>
       <span class="g-finding-sev ${f.severity}">${f.severity}</span>
       <span class="g-finding-status ${f.status}" style="margin-left:auto">${f.status.replace('_',' ')}</span>
+    </div>
+    <div class="g-detail-section">
+      <div class="lbl">Lifecycle <span class="g-sharpen-counter">sharpen ${iters}/2 ${sharpenSegs}</span></div>
+      <div class="g-state-pipe">${stepHtml}</div>
+      ${iters > 0 ? `<div class="g-sharpen">
+        <div class="g-sharpen-head">Sharpen iteration ${iters}${iters >= 2 ? ' · CAP REACHED' : ''}</div>
+        <div class="g-sharpen-body">First Devin attempt didn't satisfy the constraint. Re-prompt was constructed with the previous diff + verbatim constraint cite + the analyzer's reasoning on why the diff fell short. ${iters >= 2 ? '<b style="color:var(--red)">Hard cap hit — moves to <code>escalated</code> on next failure.</b>' : 'Capped at 2; escalates if iteration 2 also fails.'}</div>
+      </div>` : ''}
     </div>
     <div class="g-detail-section">
       <div class="lbl">Reasoning</div>
@@ -7485,6 +7791,93 @@ function highlightSources(kind, id) {
 
 } // close if(false) — legacy convergence Sources block ends
 
+/* ─── Activity view (live event stream) ───────────── */
+let activityInited = false;
+let actLevelFilter = 'all';
+let actCycleFilter = '';
+
+function actHighlight(msg) {
+  // bold spec keywords (phase names, fingerprints, file paths) for scannability
+  return escapeHtml(msg)
+    .replace(/\b(phase=)([A-Z_]+)\b/g, '$1<span class="hl">$2</span>')
+    .replace(/\b(PLAN|SCAN|ANALYZE|CRITIQUE|HANDOFF|RECONCILE|VERIFY|DROPPED)\b/g, '<span class="hl">$1</span>')
+    .replace(/\b(f_[a-z0-9]+)\b/g, '<span class="hl">$1</span>')
+    .replace(/\b(devin_[a-z0-9_]+)\b/g, '<span class="hl">$1</span>');
+}
+
+function setupActivity() {
+  document.querySelectorAll('[data-act-filter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-act-filter]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      actLevelFilter = b.dataset.actFilter;
+      renderActivity();
+    });
+  });
+  const sel = document.getElementById('act-cycle-select');
+  sel.addEventListener('change', e => {
+    actCycleFilter = e.target.value;
+    renderActivity();
+  });
+}
+
+function renderActivity() {
+  // populate cycle dropdown (only the cycles that actually have events)
+  const cycleNums = [...new Set(GUARDIAN_EVENTS.map(e => e.cycleNumber).filter(n => n != null))].sort((a, b) => b - a);
+  const sel = document.getElementById('act-cycle-select');
+  if (sel && sel.options.length - 1 !== cycleNums.length) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All cycles</option>' +
+      cycleNums.map(n => `<option value="${n}">cycle #${n}</option>`).join('');
+    sel.value = cur;
+  }
+
+  const events = GUARDIAN_EVENTS.slice().sort((a, b) => b.ts - a.ts);
+  const filtered = events.filter(e => {
+    if (actLevelFilter !== 'all' && e.level !== actLevelFilter) return false;
+    if (actCycleFilter && String(e.cycleNumber) !== actCycleFilter) return false;
+    return true;
+  });
+
+  // header counts (over ALL events, not filtered)
+  ['info', 'action', 'finding', 'warn'].forEach(level => {
+    const el = document.getElementById('act-' + level + '-count');
+    if (el) el.textContent = events.filter(e => e.level === level).length;
+  });
+
+  const log = document.getElementById('act-log');
+  if (filtered.length === 0) {
+    log.innerHTML = `<div class="act-empty">No events match this filter.</div>`;
+    return;
+  }
+
+  // build with day dividers (group by ISO date)
+  const now = Date.now();
+  const todayKey = new Date(now).toISOString().slice(0, 10);
+  let lastDayKey = null;
+  let html = '';
+  filtered.forEach(e => {
+    const dayKey = new Date(e.ts).toISOString().slice(0, 10);
+    if (dayKey !== lastDayKey) {
+      const isToday = dayKey === todayKey;
+      const lbl = isToday ? 'today' : new Date(e.ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      html += `<div class="act-day-divider">${lbl}</div>`;
+      lastDayKey = dayKey;
+    }
+    const sinceMs = now - e.ts;
+    const isRecent = sinceMs < 60 * 60 * 1000; // last hour
+    const ts = new Date(e.ts);
+    const tsStr = ts.toTimeString().slice(0, 8);
+    html += `<div class="act-row ${e.level} ${isRecent ? 'recent' : ''}">
+      <span class="ts">${tsStr}</span>
+      <span class="level">${e.level}</span>
+      <span class="cycle">${e.cycleNumber != null ? '#' + e.cycleNumber : '—'}</span>
+      <span class="msg">${actHighlight(e.message)}</span>
+    </div>`;
+  });
+  log.innerHTML = html;
+}
+
 /* ─── Tab switching ──────────────────────────── */
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
@@ -7510,6 +7903,9 @@ function switchTab(name) {
       if (!sourcesInited) { setupSources(); sourcesInited = true; }
       renderSources();
     });
+  } else if (name === 'activity') {
+    if (!activityInited) { setupActivity(); activityInited = true; }
+    renderActivity();
   }
 }
 document.querySelectorAll('.tab').forEach(t => {
@@ -7676,7 +8072,8 @@ function applyConvexData(d) {
     cycleNumber: c.cycleNumber,
     ts: c.startedAt || 0,
     status: c.status,
-    plannedFiles: c.plannedFiles || [],
+    currentPhase: c.currentPhase,
+    plannedFiles: (c.plannedFiles || []).map(p => ({ path: p.path, reason: p.reason, kind: p.kind })),
     summary: c.summary,
     finishedAt: c.finishedAt,
   })).sort((a,b) => b.cycleNumber - a.cycleNumber);
@@ -7786,7 +8183,7 @@ function applyConvexData(d) {
 
   // reset lazy view init flags so they re-render with new data
   injInited = false; agInited = false; gcInited = false; replayInited = false;
-  guardianInited = false; sourcesInited = false;
+  guardianInited = false; sourcesInited = false; activityInited = false;
 
   const liveSpan = document.querySelector('.live span:last-child');
   if (liveSpan) liveSpan.textContent = 'live · convex';

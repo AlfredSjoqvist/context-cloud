@@ -35,8 +35,16 @@ export default defineSchema({
       v.literal("done"),
       v.literal("failed"),
     ),
+    // current cycle phase per the spec state machine:
+    //   WAKE → PLAN → SCAN → ANALYZE → CRITIQUE → HANDOFF → RECONCILE → SLEEP
+    currentPhase: v.optional(v.string()),
     plannedFiles: v.array(
-      v.object({ path: v.string(), reason: v.string() }),
+      v.object({
+        path: v.string(),
+        reason: v.string(),
+        // 'priority' = rule-based queue · 'judgment' = LLM judgment-call pick
+        kind: v.optional(v.string()),
+      }),
     ),
     summary: v.optional(v.string()),
   }).index("by_cycle_number", ["cycleNumber"]),
