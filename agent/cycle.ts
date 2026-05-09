@@ -13,6 +13,8 @@ import { critiqueFinding } from "./analyze/critique.js";
 import type { CritiqueLLMCall } from "./analyze/critique.js";
 import { createIssueForFinding } from "./handoff/github.js";
 import type { GithubAuth } from "./handoff/githubAuth.js";
+import { spawnDevinRun } from "./handoff/devin.js";
+import { reconcileOpenFindings } from "./handoff/reconcile.js";
 import type { Finding } from "./analyze/types.js";
 import { createHash } from "node:crypto";
 
@@ -30,6 +32,7 @@ export interface CycleDeps {
   githubRepo: string;
   demoRepoRoot: string;
   critiqueLLM?: CritiqueLLMCall;
+  devinApiKey?: string;
 }
 
 export interface CycleResult {
@@ -142,6 +145,40 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
           githubIssueNumber: issueNumber,
         });
         findingsFiled++;
+
+        // Devin handoff — spawn run + transition to devin_running
+        if (deps.devinApiKey) {
+          try {
+            const spawn = await spawnDevinRun({
+              apiKey: deps.devinApiKey,
+              issueNumber,
+              githubOwner: deps.githubOwner,
+              githubRepo: deps.githubRepo,
+              finding: f,
+              iteration: 1,
+            });
+            await deps.convex.mutation(api.devinRuns.recordRun, {
+              findingId: result.id,
+              devinRunId: spawn.devinRunId,
+              promptUsed: spawn.promptUsed,
+              iteration: 1,
+            });
+            await deps.convex.mutation(api.findings.setStatus, {
+              findingId: result.id,
+              status: "devin_running",
+              githubIssueNumber: issueNumber,
+            });
+            await log.action(
+              `devin spawned ${spawn.devinRunId} for issue #${issueNumber}`,
+              { devinUrl: spawn.url },
+            );
+          } catch (err) {
+            await log.warn(
+              `devin spawn failed for issue #${issueNumber}: ${(err as Error).message}`,
+            );
+          }
+        }
+
         await log.finding(`filed issue #${issueNumber}: ${f.category} @ ${f.path}`, {
           fingerprint: fingerprint.slice(0, 12),
         });
@@ -152,6 +189,19 @@ export async function runCycle(deps: CycleDeps): Promise<CycleResult> {
         cycleNumber,
         fileHash: hashContent(body),
         cleanScan,
+      });
+    }
+
+    // RECONCILE — walk findings in Devin/PR/verifying states and advance them.
+    if (deps.devinApiKey) {
+      await reconcileOpenFindings({
+        convex: deps.convex,
+        nia: deps.nia,
+        log,
+        githubAuth: deps.githubAuth,
+        githubOwner: deps.githubOwner,
+        githubRepo: deps.githubRepo,
+        devinApiKey: deps.devinApiKey,
       });
     }
 

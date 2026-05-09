@@ -85,7 +85,7 @@ describe("niaClient (filesystem fallback)", () => {
     await expect(nia.readFile("../etc/passwd")).rejects.toThrow(/escapes filesystemRoot/);
   });
 
-  it("calls Nia MCP tools (nia_read, search) when skipNia=false", async () => {
+  it("calls Nia MCP tools (nia_read for files, nia_explore for context) when skipNia=false", async () => {
     const calls: Array<{ tool: string; args: unknown }> = [];
     const mockMcp = {
       async callTool(args: { name: string; arguments: unknown }) {
@@ -93,10 +93,13 @@ describe("niaClient (filesystem fallback)", () => {
         if (args.name === "nia_read") {
           return { content: [{ type: "text", text: "mocked code" }] };
         }
-        if (args.name === "search") {
+        if (args.name === "nia_explore") {
           return {
             content: [
-              { type: "text", text: "Nia answer about auth constraints." },
+              {
+                type: "text",
+                text: "📁 leaves\n  📄 login-constraints.md\n  📄 sessions-constraints.md\n",
+              },
             ],
           };
         }
@@ -113,16 +116,16 @@ describe("niaClient (filesystem fallback)", () => {
       mcpClientFactory: async () => mockMcp,
     });
 
-    const body = await nia.readFile("src/login.ts");
+    const body = await nia.readFile("src/routes/login.ts");
     expect(body).toBe("mocked code");
     expect(calls[0]).toEqual({
       tool: "nia_read",
-      args: { source_type: "repository", source_identifier: "owner/demo:src/login.ts" },
+      args: { source_type: "repository", source_identifier: "owner/demo:src/routes/login.ts" },
     });
 
-    const hits = await nia.searchContext("auth");
-    expect(hits).toHaveLength(1);
-    expect(hits[0]!.excerpt).toContain("Nia answer");
-    expect(calls[1]!.tool).toBe("search");
+    const hits = await nia.searchContext("src/routes/login.ts");
+    expect(hits.length).toBeGreaterThanOrEqual(1);
+    expect(hits[0]!.path).toContain("login-constraints.md");
+    expect(calls[1]!.tool).toBe("nia_explore");
   });
 });

@@ -108,6 +108,7 @@ async function main(): Promise<void> {
       githubRepo: config.githubRepo!,
       demoRepoRoot: demoRoot,
       critiqueLLM,
+      devinApiKey: config.devinApiKey,
     });
     // eslint-disable-next-line no-console
     console.log(
