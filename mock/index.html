@@ -7256,8 +7256,14 @@ function setupReplay() {
      creations of legacy notes that predate the window) so getStateAtTs is
      correct, but lanes & density only show events inside the window. */
   const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
-  replayState.minTs = NOW_TS - WINDOW_MS;
-  replayState.maxTs = NOW_TS;
+  // NOW_TS is captured at module load; Convex events stamped during hydration
+  // can land a few hundred ms ahead of it, which would otherwise fall outside
+  // the timeline and make every counter read 0. Stretch the upper bound to the
+  // newest event we actually have.
+  const newestEventTs = replayState.events[replayState.events.length - 1].ts;
+  const upper = Math.max(NOW_TS, newestEventTs, Date.now());
+  replayState.minTs = upper - WINDOW_MS;
+  replayState.maxTs = upper;
   replayState.currentTs = replayState.maxTs;
 
   ensureReplayDefs();
@@ -7266,34 +7272,41 @@ function setupReplay() {
   drawReplayLanes();
   updateReplayDisplay();
 
-  document.getElementById('replay-play').addEventListener('click', toggleReplayPlay);
-  document.getElementById('replay-step').addEventListener('click', () => stepReplay(1));
-  document.getElementById('replay-step-back').addEventListener('click', () => stepReplay(-1));
-  document.getElementById('replay-tour').addEventListener('click', toggleAutoTour);
+  // Listeners attach only the first time. setupReplay can be called again
+  // after Convex hydration to refresh events + window without doubling
+  // up handlers.
+  if (!setupReplay._listenersBound) {
+    document.getElementById('replay-play').addEventListener('click', toggleReplayPlay);
+    document.getElementById('replay-step').addEventListener('click', () => stepReplay(1));
+    document.getElementById('replay-step-back').addEventListener('click', () => stepReplay(-1));
+    document.getElementById('replay-tour').addEventListener('click', toggleAutoTour);
 
-  document.querySelectorAll('.replay-speed [data-speed]').forEach(b => {
-    b.addEventListener('click', () => {
-      document.querySelectorAll('.replay-speed [data-speed]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      replayState.speedHrPerSec = parseFloat(b.dataset.speed);
+    document.querySelectorAll('.replay-speed [data-speed]').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.replay-speed [data-speed]').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        replayState.speedHrPerSec = parseFloat(b.dataset.speed);
+      });
     });
-  });
 
-  const scrubber = document.getElementById('replay-scrubber');
-  scrubber.addEventListener('input', (e) => {
-    const t = parseFloat(e.target.value) / 1000;
-    replayState.currentTs = replayState.minTs + (replayState.maxTs - replayState.minTs) * t;
-    if (replayState.playing) toggleReplayPlay();
-    if (replayState.tourActive) toggleAutoTour();
-    updateReplayDisplay();
-  });
+    const scrubber = document.getElementById('replay-scrubber');
+    scrubber.addEventListener('input', (e) => {
+      const t = parseFloat(e.target.value) / 1000;
+      replayState.currentTs = replayState.minTs + (replayState.maxTs - replayState.minTs) * t;
+      if (replayState.playing) toggleReplayPlay();
+      if (replayState.tourActive) toggleAutoTour();
+      updateReplayDisplay();
+    });
 
-  window.addEventListener('resize', () => {
-    if (replayInited && document.querySelector('[data-view="replay"]').classList.contains('on')) {
-      layoutReplayGraph();
-      drawReplayGraph();
-    }
-  });
+    window.addEventListener('resize', () => {
+      if (replayInited && document.querySelector('[data-view="replay"]').classList.contains('on')) {
+        layoutReplayGraph();
+        drawReplayGraph();
+      }
+    });
+
+    setupReplay._listenersBound = true;
+  }
 }
 
 function ensureReplayDefs() {
@@ -9791,6 +9804,15 @@ function applyConvexData(d) {
   // reset lazy view init flags so they re-render with new data
   injInited = false; agInited = false; gcInited = false; replayInited = false;
   guardianInited = false; sourcesInited = false; activityInited = false; hyperspellInited = false;
+
+  // If the user is currently on the Replay tab when Convex hydrates, the
+  // switchTab path won't fire — rebuild events + re-init in place so the
+  // timeline reflects the new data instead of staying blank.
+  const replayView = document.querySelector('[data-view="replay"]');
+  if (replayView && replayView.classList.contains('on')) {
+    setupReplay();
+    replayInited = true;
+  }
 
   const liveSpan = document.querySelector('.live span:last-child');
   if (liveSpan) liveSpan.textContent = 'live · convex';
