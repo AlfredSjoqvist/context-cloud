@@ -3918,6 +3918,36 @@
     font-size: 11.5px; border: 1px dashed var(--border); border-radius: 8px;
   }
 
+
+  /* ── NM_MATRIX_PER_REPO_V1 — Matrix repo picker ── */
+  .matrix-repo-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0 14px; border-top: 1px solid var(--border);
+    margin-top: 12px; flex-wrap: wrap;
+  }
+  .matrix-repo-row .ctrl-lbl { color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; font-size: 10.5px; font-weight: 600; }
+  .matrix-repo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mx-repo-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; font-size: 11.5px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-2); cursor: pointer; user-select: none;
+    font-family: 'JetBrains Mono', monospace;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .mx-repo-chip:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-bright); }
+  .mx-repo-chip.on {
+    background: rgba(255,184,107,.12);
+    border-color: var(--note);
+    color: var(--note);
+  }
+  .mx-repo-chip .num {
+    font-size: 10px; padding: 1px 5px; border-radius: 4px;
+    background: var(--surface-2); color: var(--text-3);
+  }
+  .mx-repo-chip.on .num { background: rgba(255,184,107,.20); color: var(--note); }
+  .matrix-repo-stat { color: var(--text-3); font-size: 11px; margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+
 </style>
 </head>
 <body>
@@ -4103,6 +4133,12 @@
         </div>
       </div>
 
+      <!-- NM_MATRIX_PER_REPO_V1 -->
+      <div class="matrix-repo-row" id="mx-repo-row">
+        <span class="ctrl-lbl">Repo</span>
+        <div class="matrix-repo-chips" id="mx-repo-chips"></div>
+        <span class="matrix-repo-stat" id="mx-repo-stat"></span>
+      </div>
       <div class="matrix-canvas">
         <div class="matrix-grid" id="matrix-grid"></div>
       </div>
@@ -6201,18 +6237,81 @@ let matrixMode = 'combined';
 let matrixThreshold = 0;
 let selectedPair = null;
 
+// NM_MATRIX_PER_REPO_V1 — Matrix is scoped to a single repo at a time.
+// PAIR_SCORES stays a global N×N table (already precomputed at load —
+// fast). What changes is the rendered grid: only notes whose edges
+// touch the selected repo are drawn, so the grid is bounded at the
+// repo's note count (typically <30) instead of the org-wide ~100.
+const _MX_REPOS = ['acme-agent-gateway','acme-connectors','acme-control-plane','acme-memory-graph','acme-runtime-orchestrator'];
+let _mxRepo = null;       // selected repo prefix, e.g. 'acme-agent-gateway'
+let MX_VIS = [];          // global note indices visible at the moment
+
+function _mxNotesForRepo(repo) {
+  if (!repo) return NOTES.map((_, i) => i);
+  const prefix = repo + '/';
+  return NOTES.map((_, i) => i).filter(i =>
+    (NOTES[i].edges || []).some(e => (e.path || '').startsWith(prefix))
+  );
+}
+function _mxRenderRepoChips() {
+  const container = document.getElementById('mx-repo-chips');
+  if (!container) return;
+  // Per-repo note counts so the chips advertise scope size.
+  const counts = {};
+  _MX_REPOS.forEach(r => { counts[r] = _mxNotesForRepo(r).length; });
+  // Default to first repo with > 0 notes.
+  if (!_mxRepo) {
+    _mxRepo = _MX_REPOS.find(r => counts[r] > 0) || _MX_REPOS[0];
+  }
+  container.innerHTML = _MX_REPOS.map(r =>
+    `<button class="mx-repo-chip ${r === _mxRepo ? 'on' : ''}" data-repo="${r}">${r}<span class="num">${counts[r]}</span></button>`
+  ).join('');
+  container.querySelectorAll('.mx-repo-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      _mxRepo = chip.dataset.repo;
+      selectedPair = null;
+      renderMatrix();
+    });
+  });
+}
+
 function renderMatrix() {
-  const N = NOTES.length;
+  _mxRenderRepoChips();
+  MX_VIS = _mxNotesForRepo(_mxRepo);
+  const M = MX_VIS.length;
   const grid = document.getElementById('matrix-grid');
+
+  const stat = document.getElementById('mx-repo-stat');
+  if (stat) {
+    stat.textContent = M === 0
+      ? 'no notes for this repo yet'
+      : `${M} note${M === 1 ? '' : 's'} · ${(M*(M-1))/2} pair${(M*(M-1))/2 === 1 ? '' : 's'}`;
+  }
+
+  if (M === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1; padding:48px 24px; text-align:center; color:var(--text-3); font-size:12.5px;">
+      No notes touch <span class="mono" style="color:var(--text-2)">${_mxRepo}</span> yet — pick another repo above.
+    </div>`;
+    grid.style.gridTemplateColumns = '1fr';
+    grid.style.gridTemplateRows    = 'auto';
+    const mc = document.getElementById('merge-candidates');
+    if (mc) mc.innerHTML = `<div class="ms-empty">No pairs in scope.</div>`;
+    const mcCount = document.getElementById('mc-count'); if (mcCount) mcCount.textContent = '0';
+    return;
+  }
+
   let html = '<div class="mx-corner"></div>';
-  for (let j = 0; j < N; j++) {
+  for (let cj = 0; cj < M; cj++) {
+    const j = MX_VIS[cj];
     const impPct = Math.round(NOTES[j].importance * 100);
     html += `<div class="mx-col-label" data-i="${j}" title="${escapeHtml(NOTES[j].symptom)} · imp ${NOTES[j].importance.toFixed(2)}">${NOTES[j].id}<span class="mx-col-axis-bar"><span class="fill" style="height:${impPct}%"></span></span></div>`;
   }
-  for (let i = 0; i < N; i++) {
+  for (let ci = 0; ci < M; ci++) {
+    const i = MX_VIS[ci];
     const impPct = Math.round(NOTES[i].importance * 100);
     html += `<div class="mx-row-label" data-i="${i}" title="${escapeHtml(NOTES[i].symptom)} · imp ${NOTES[i].importance.toFixed(2)}"><span>${NOTES[i].id}</span><span class="mx-axis-bar"><span class="fill" style="width:${impPct}%"></span></span></div>`;
-    for (let j = 0; j < N; j++) {
+    for (let cj = 0; cj < M; cj++) {
+      const j = MX_VIS[cj];
       if (i === j) {
         html += `<div class="mx-cell diagonal"></div>`;
       } else {
@@ -6224,18 +6323,21 @@ function renderMatrix() {
     }
   }
   grid.innerHTML = html;
-  grid.style.gridTemplateColumns = `90px repeat(${N}, 28px)`;
-  grid.style.gridTemplateRows    = `82px repeat(${N}, 28px)`;
+  grid.style.gridTemplateColumns = `90px repeat(${M}, 28px)`;
+  grid.style.gridTemplateRows    = `82px repeat(${M}, 28px)`;
   bindMatrixCells();
   renderMergeCandidates();
   if (selectedPair) selectPair(selectedPair[0], selectedPair[1], false);
 }
 
 function renderMergeCandidates() {
-  const N = NOTES.length;
+  // NM_MATRIX_PER_REPO_V1 — only consider pairs within the visible repo.
+  const M = MX_VIS.length;
   const pairs = [];
-  for (let i = 0; i < N; i++) {
-    for (let j = i+1; j < N; j++) {
+  for (let ci = 0; ci < M; ci++) {
+    const i = MX_VIS[ci];
+    for (let cj = ci+1; cj < M; cj++) {
+      const j = MX_VIS[cj];
       const s = PAIR_SCORES[i][j];
       pairs.push({ i, j, edge: s.edge, text: s.text, combined: s.combined });
     }
@@ -6305,6 +6407,7 @@ function bindMatrixCells() {
 }
 
 function selectPair(i, j, scrollList) {
+  if (!NOTES || NOTES.length < 2 || !PAIR_SCORES || !PAIR_SCORES[i] || !PAIR_SCORES[i][j]) return;
   if (i > j) [i, j] = [j, i];
   selectedPair = [i, j];
   document.querySelectorAll('.mx-cell.selected').forEach(c => c.classList.remove('selected'));
@@ -6320,6 +6423,7 @@ function selectPair(i, j, scrollList) {
 }
 
 function renderPairDetail(i, j) {
+  if (!NOTES || NOTES.length < 2 || !PAIR_SCORES || !PAIR_SCORES[i] || !PAIR_SCORES[i][j]) return;
   const a = NOTES[i], b = NOTES[j];
   const s = PAIR_SCORES[i][j];
   const sharedFiles = [...NOTE_FILES[i]].filter(f => NOTE_FILES[j].has(f));
