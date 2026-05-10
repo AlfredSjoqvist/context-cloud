@@ -4624,7 +4624,11 @@
             </svg>
             <div>Pick a library on the left to see its docs source, ingestion history, and refresh state.</div>
           </div>
-        
+        </main>
+      </div>
+    </div>
+  </div>
+
   <!-- Sessions view ─────────────────────────────────── NM_SESSIONS_TAB_V1 -->
   <div class="view view-sessions" data-view="sessions">
     <div class="sessions-wrap">
@@ -4654,10 +4658,6 @@
         <div class="session-card skeleton"><div class="session-row"><div class="skel skel-pill"></div><div class="skel skel-line w40"></div><div class="skel skel-line w20"></div></div></div>
         <div class="session-card skeleton"><div class="session-row"><div class="skel skel-pill"></div><div class="skel skel-line w60"></div></div></div>
         <div class="session-card skeleton"><div class="session-row"><div class="skel skel-pill"></div><div class="skel skel-line w50"></div></div></div>
-      </div>
-    </div>
-  </div>
-</main>
       </div>
     </div>
   </div>
@@ -9579,9 +9579,19 @@ function applyConvexData(d) {
   // Acme-only filter on Convex hydration — without this, files from other
   // sources (the dashboard repo itself, scratch paths, etc.) bleed into the
   // Note Graph alongside the GitHub-app-fetched ACME repos.
-  const newFiles = d.files
-    .map(f => ({ path: normalizeRepoPath(f.path), type: f.type || 'txt', noteCount: 0 }))
-    .filter(f => f.path);
+  // NM_DEDUPE_FILES_V1 — Convex `files` may carry duplicate rows per path
+  // (multiple upserts from different sync writers). Collapse them via a
+  // Map keyed by canonical path so the tree shows one row per file, not
+  // 2-3 ghost duplicates.
+  const newFiles = (() => {
+    const byPath = new Map();
+    for (const f of (d.files || [])) {
+      const path = normalizeRepoPath(f && f.path);
+      if (!path) continue;
+      if (!byPath.has(path)) byPath.set(path, { path, type: f.type || 'txt', noteCount: 0 });
+    }
+    return [...byPath.values()];
+  })();
   const acmeAllowed = new Set(newFiles.map(f => f.path));
   // Re-map note edges to the canonical acme-* prefix and drop edges to
   // anything outside the allowed set.
