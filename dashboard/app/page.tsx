@@ -19,10 +19,13 @@ import { cn } from "@/lib/utils";
 import {
     COUNTS,
     CYCLE_TIMINGS_MS,
+    CYCLE_PHASES as PHASES_DATA,
     SNAPSHOT_TAKEN,
     SNAPSHOT_CONVEX,
     SNAPSHOT_DEMO,
 } from "@/lib/landing-data";
+
+const TOTAL_TIMING = CYCLE_TIMINGS_MS.reduce((a, b) => a + b, 0);
 
 // ───────────────────────────────────────────────────────────
 // Page
@@ -675,64 +678,18 @@ function DashboardShowcase() {
 // ───────────────────────────────────────────────────────────
 // Cycle state machine
 // ───────────────────────────────────────────────────────────
-const CYCLE_PHASES = [
-    {
-        id: "wake",
-        name: "WAKE",
-        sub: "scheduler tick",
-        body: "Tensorlake fires the cycle every 60s. State loads from Convex. The agent process boots into a hot microVM.",
-        sample: "cron: */60 * * * * * → openCycle()",
-    },
-    {
-        id: "plan",
-        name: "PLAN",
-        sub: "priority pick",
-        body: "priorityPicks() ranks files by staleness × cleanScanStreak. Never-scanned files get ∞. Returns up to budget=3.",
-        sample: "→ login.ts · package.json · db.ts",
-    },
-    {
-        id: "scan",
-        name: "SCAN",
-        sub: "nia.read",
-        body: "Reads each picked file via Nia MCP (nia_read with source_identifier). Falls back to filesystem on transport error.",
-        sample: "nia_read(src/routes/login.ts)",
-    },
-    {
-        id: "analyze",
-        name: "ANALYZE",
-        sub: "gpt-5 + zod",
-        body: "Compares code against constraints in .context-map/. Structured output validated against a hand-written JSON schema.",
-        sample: "Finding[] {severity, codeCite, mdCite}",
-    },
-    {
-        id: "critique",
-        name: "CRITIQUE",
-        sub: "gpt-5-mini",
-        body: "Citation check: code line + .md text must literally exist. Then a cheaper LLM grades confidence. <80% → drop.",
-        sample: "drop f_d04 · 0.62 confidence",
-    },
-    {
-        id: "handoff",
-        name: "HANDOFF",
-        sub: "octokit",
-        body: "Fingerprints the finding. Skips if already filed. Otherwise creates a real GitHub issue, records issue#, sleeps.",
-        sample: "POST /repos/.../issues → #146",
-    },
-] as const;
-
-// Phase median timings (ms) — proportional to real cycle data.
-const PHASE_TIMINGS = [400, 200, 2100, 5800, 2300, 600];
-const TOTAL_TIMING = PHASE_TIMINGS.reduce((a, b) => a + b, 0);
-
 function CycleSection() {
+    const maxTiming = Math.max(...CYCLE_TIMINGS_MS);
+    const dominantIdx = (CYCLE_TIMINGS_MS as readonly number[]).indexOf(maxTiming);
+    const dominant = PHASES_DATA[dominantIdx];
+    const dominantPct = Math.round((CYCLE_TIMINGS_MS[dominantIdx] / TOTAL_TIMING) * 100);
     return (
         <section id="cycle" className="relative py-32">
             <div className="mx-auto max-w-6xl px-6">
                 <SectionEyebrow>Inside one cycle</SectionEyebrow>
                 <SectionHeadline>
-                    Six phases.{" "}
-                    <span className="text-ink-3">Sixty seconds.</span>{" "}
-                    On a loop.
+                    Seven phases. One loop.{" "}
+                    <span className="text-ink-3">Closed by Devin.</span>
                 </SectionHeadline>
                 <SectionLede>
                     No chat triggers any of this. The state machine fires on a
@@ -750,13 +707,13 @@ function CycleSection() {
                                 wall-clock breakdown · {(TOTAL_TIMING / 1000).toFixed(1)}s total
                             </span>
                             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
-                                ANALYZE dominates → {Math.round((PHASE_TIMINGS[3] / TOTAL_TIMING) * 100)}%
+                                {dominant.name} dominates → {dominantPct}%
                             </span>
                         </div>
                         <div className="overflow-hidden rounded-xl border border-border bg-bg">
                             <div className="flex h-10 w-full">
-                                {CYCLE_PHASES.map((p, i) => {
-                                    const pct = (PHASE_TIMINGS[i] / TOTAL_TIMING) * 100;
+                                {PHASES_DATA.map((p, i) => {
+                                    const pct = (CYCLE_TIMINGS_MS[i] / TOTAL_TIMING) * 100;
                                     const showLabel = pct >= 6;
                                     const grad = [
                                         "from-cyan/40 to-cyan/10",
@@ -765,12 +722,13 @@ function CycleSection() {
                                         "from-accent/50 to-accent/15",
                                         "from-yellow/40 to-yellow/10",
                                         "from-green/40 to-green/10",
+                                        "from-red/40 to-red/10",
                                     ][i];
                                     return (
                                         <div
                                             key={p.id}
                                             style={{ width: `${pct}%` }}
-                                            title={`${p.name} · ${(PHASE_TIMINGS[i] / 1000).toFixed(1)}s · ${pct.toFixed(0)}%`}
+                                            title={`${p.name} · ${(CYCLE_TIMINGS_MS[i] / 1000).toFixed(1)}s · ${pct.toFixed(0)}%`}
                                             className={cn(
                                                 "relative flex items-center justify-center overflow-hidden border-r border-border last:border-r-0 bg-gradient-to-b",
                                                 grad,
@@ -778,7 +736,7 @@ function CycleSection() {
                                         >
                                             {showLabel && (
                                                 <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink whitespace-nowrap">
-                                                    {p.name} · {(PHASE_TIMINGS[i] / 1000).toFixed(1)}s
+                                                    {p.name} · {(CYCLE_TIMINGS_MS[i] / 1000).toFixed(1)}s
                                                 </span>
                                             )}
                                         </div>
@@ -790,8 +748,8 @@ function CycleSection() {
                 </div>
 
                 {/* Phase detail cards */}
-                <div className="mt-6 grid gap-3 md:grid-cols-3">
-                    {CYCLE_PHASES.map((phase, i) => (
+                <div className="mt-6 grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+                    {PHASES_DATA.map((phase, i) => (
                         <CyclePhaseCardV2 key={phase.id} phase={phase} index={i} />
                     ))}
                 </div>
@@ -805,13 +763,13 @@ function CycleSection() {
                     />
                     <CycleStat
                         label="median wall-clock"
-                        value={`${(CYCLE_TIMINGS_MS.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}s`}
-                        foot="WAKE → HANDOFF"
+                        value={`${(TOTAL_TIMING / 1000).toFixed(1)}s`}
+                        foot="WAKE → SLEEP"
                     />
                     <CycleStat
-                        label="critique drop rate"
-                        value="22%"
-                        foot="of analyzed findings"
+                        label="sharpen iterations"
+                        value="0 → 2"
+                        foot="hard cap before escalation"
                     />
                 </div>
             </div>
@@ -819,17 +777,26 @@ function CycleSection() {
     );
 }
 
-const PHASE_DOT_COLORS = ["#66E0FF", "#7C9EFF", "#C49BFF", "#FFB86B", "#F9E27D", "#6EE7B7"];
+const PHASE_DOT_COLORS = [
+    "#66E0FF", // WAKE — cyan
+    "#7C9EFF", // PLAN — blue
+    "#C49BFF", // SCAN — purple
+    "#FFB86B", // ANALYZE — accent
+    "#F9E27D", // CRITIQUE — yellow
+    "#6EE7B7", // HANDOFF — green
+    "#FF7A8A", // RECONCILE — red (closed loop)
+];
 
 function CycleFlowSVG() {
-    // 6 phases laid out along a wave path. Canvas: 1000 x 240
+    // 7 phases laid out along a wave path. Canvas: 1000 x 320
     const positions = [
-        { x: 90, y: 130 },
-        { x: 240, y: 95 },
-        { x: 390, y: 130 },
-        { x: 540, y: 95 },
-        { x: 690, y: 130 },
-        { x: 840, y: 95 },
+        { x:  80, y: 130 },
+        { x: 210, y:  95 },
+        { x: 340, y: 130 },
+        { x: 470, y:  95 },
+        { x: 600, y: 130 },
+        { x: 730, y:  95 },
+        { x: 870, y: 130 },
     ];
 
     // Build flow path (smooth curve through all 6 nodes)
@@ -920,7 +887,7 @@ function CycleFlowSVG() {
 
                 {/* Phase nodes */}
                 {positions.map((p, i) => {
-                    const phase = CYCLE_PHASES[i];
+                    const phase = PHASES_DATA[i];
                     const color = PHASE_DOT_COLORS[i];
                     return (
                         <g key={phase.id}>
@@ -1006,7 +973,7 @@ function CycleFlowSVG() {
                                     fontFamily: "JetBrains Mono, monospace",
                                 }}
                             >
-                                {(PHASE_TIMINGS[i] / 1000).toFixed(1)}s median
+                                {(CYCLE_TIMINGS_MS[i] / 1000).toFixed(1)}s median
                             </text>
                         </g>
                     );
@@ -1020,7 +987,7 @@ function CyclePhaseCardV2({
     phase,
     index,
 }: {
-    phase: (typeof CYCLE_PHASES)[number];
+    phase: (typeof PHASES_DATA)[number];
     index: number;
 }) {
     const color = PHASE_DOT_COLORS[index];
@@ -1044,7 +1011,7 @@ function CyclePhaseCardV2({
                     Phase {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="ml-auto font-mono text-[10px] text-ink-3">
-                    {(PHASE_TIMINGS[index] / 1000).toFixed(1)}s
+                    {(CYCLE_TIMINGS_MS[index] / 1000).toFixed(1)}s
                 </span>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
