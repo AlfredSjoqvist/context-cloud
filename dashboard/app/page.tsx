@@ -401,19 +401,33 @@ function ArchitectureBand() {
             className="relative border-y border-border/60 bg-surface/30 py-32"
         >
             <div className="mx-auto max-w-6xl px-6">
-                <SectionEyebrow>How it flows</SectionEyebrow>
+                <SectionEyebrow>System map</SectionEyebrow>
                 <SectionHeadline>
-                    From your IDE to your repo.{" "}
-                    <span className="text-ink-3">In a loop.</span>
+                    Every node here is{" "}
+                    <span className="text-ink-3">load-bearing.</span>
                 </SectionHeadline>
                 <SectionLede>
-                    Every agent action triggers a memory injection. Every cycle scans a
-                    file, compares it to constraints, and decides whether to file an
-                    issue. The dashboard you saw at the top — that's the loop, live.
+                    Eight services, three always-on agents, one loop. Remove any node and the
+                    demo breaks — that&apos;s the rubric line.
                 </SectionLede>
 
                 <div className="mt-16 flex justify-center">
                     <BeamDiagram />
+                </div>
+
+                <div className="mt-10 grid gap-3 md:grid-cols-3">
+                    <FlowCard
+                        title="capture"
+                        body="Every tool call streams to SQLite (latency tier). The PostToolUse hook mirrors session messages to Convex so the dashboard sees them live."
+                    />
+                    <FlowCard
+                        title="loop"
+                        body="Tensorlake fires Guardian + GC on schedule; the Note Manager fires on session-end webhook. Three triggers, three rubric-friendly cadences."
+                    />
+                    <FlowCard
+                        title="handoff"
+                        body="Findings file as GitHub issues and spawn Devin. Reconcile re-scans on PR merge, sharpens up to 2 times before escalating."
+                    />
                 </div>
             </div>
         </section>
@@ -421,187 +435,232 @@ function ArchitectureBand() {
 }
 
 function BeamDiagram() {
+    const NODE_R = 36;
+    const ide = [
+        { id: "cursor",     label: "Cursor",      role: "agent", x: 180, y: 90, color: "#7C9EFF" },
+        { id: "claudecode", label: "Claude Code", role: "agent", x: 420, y: 60, color: "#7C9EFF" },
+        { id: "codex",      label: "Codex",       role: "agent", x: 660, y: 90, color: "#7C9EFF" },
+    ];
+    // Stack nodes — coordinates here override the storage label colors so the
+    // map renders with deliberate spatial groupings.
+    const stack = [
+        { id: "sqlite",     label: "SQLite",      role: "capture · trace SoT",         x: 180, y: 240, color: "#A0A8BD" },
+        { id: "nia",        label: "Nia",         role: "code + .md index",            x: 420, y: 220, color: "#C49BFF" },
+        { id: "convex",     label: "Convex",      role: "reactive state",              x: 600, y: 340, color: "#FFB86B" },
+        { id: "openai",     label: "OpenAI",      role: "gpt-5 + gpt-5-mini",          x: 840, y: 240, color: "#66E0FF" },
+        { id: "tensorlake", label: "Tensorlake",  role: "always-on sandbox",           x: 1020, y: 340, color: "#7C9EFF" },
+        { id: "docsingest", label: "docs-ingest", role: "external docs → .md leaves", x: 300, y: 500, color: "#FF7A8A" },
+        { id: "github",     label: "GitHub",      role: "issues · PRs · webhooks",     x: 600, y: 500, color: "#F9E27D" },
+        { id: "devin",      label: "Devin",       role: "spawn → PR → sharpen",        x: 900, y: 500, color: "#6EE7B7" },
+    ];
+
+    // Edges with a verb label that fits in ~22 chars.
+    type Edge = { from: string; to: string; label: string; pulse?: boolean };
+    const edges: Edge[] = [
+        // IDE → capture / index
+        { from: "cursor",     to: "sqlite", label: "PostToolUse", pulse: true },
+        { from: "claudecode", to: "sqlite", label: "PostToolUse" },
+        { from: "codex",      to: "nia",    label: "PreToolUse · file" },
+        { from: "claudecode", to: "nia",    label: "PreToolUse · file", pulse: true },
+        // Capture → state
+        { from: "sqlite",     to: "convex", label: "mirror" },
+        { from: "nia",        to: "convex", label: "indexed" },
+        // Reasoning loop
+        { from: "convex",     to: "openai", label: "prompt + .md context" },
+        { from: "openai",     to: "convex", label: "Finding[]" },
+        // Always-on substrate
+        { from: "tensorlake", to: "convex", label: "cron · webhook" },
+        // docs-ingest
+        { from: "docsingest", to: "nia",    label: ".md leaves" },
+        // Handoff
+        { from: "convex",     to: "github", label: "issue file", pulse: true },
+        { from: "github",     to: "convex", label: "PR webhook" },
+        { from: "convex",     to: "devin",  label: "spawn / sharpen" },
+        { from: "devin",      to: "github", label: "PR opened", pulse: true },
+    ];
+
+    const allNodes = [...ide, ...stack];
+    const byId = Object.fromEntries(allNodes.map((n) => [n.id, n]));
+
+    // Helper: curved cubic between two nodes, leaving a margin near the perimeter.
+    function pathFor(from: { x: number; y: number }, to: { x: number; y: number }) {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const mx = (from.x + to.x) / 2;
+        const my = (from.y + to.y) / 2;
+        // Perpendicular bow so edges fan rather than overlap.
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        const bow = Math.min(60, len * 0.18);
+        const cx = mx + nx * bow;
+        const cy = my + ny * bow;
+        return `M ${from.x} ${from.y} Q ${cx} ${cy}, ${to.x} ${to.y}`;
+    }
+
     return (
-        <div className="relative w-full max-w-4xl">
+        <div className="relative w-full">
             <svg
-                viewBox="0 0 800 360"
+                viewBox="0 0 1200 600"
                 className="w-full h-auto"
                 xmlns="http://www.w3.org/2000/svg"
             >
                 <defs>
-                    <linearGradient id="beam-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#7C9EFF" stopOpacity="0" />
-                        <stop offset="50%" stopColor="#7C9EFF" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#7C9EFF" stopOpacity="0" />
-                        <animate
-                            attributeName="x1"
-                            from="-50%"
-                            to="100%"
-                            dur="3s"
-                            repeatCount="indefinite"
-                        />
-                        <animate
-                            attributeName="x2"
-                            from="0%"
-                            to="150%"
-                            dur="3s"
-                            repeatCount="indefinite"
-                        />
-                    </linearGradient>
-                    <linearGradient id="beam-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#FFB86B" stopOpacity="0" />
-                        <stop offset="50%" stopColor="#FFB86B" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#FFB86B" stopOpacity="0" />
-                        <animate
-                            attributeName="x1"
-                            from="-50%"
-                            to="100%"
-                            dur="3.6s"
-                            begin="0.6s"
-                            repeatCount="indefinite"
-                        />
-                        <animate
-                            attributeName="x2"
-                            from="0%"
-                            to="150%"
-                            dur="3.6s"
-                            begin="0.6s"
-                            repeatCount="indefinite"
-                        />
-                    </linearGradient>
-                    <linearGradient id="beam-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#6EE7B7" stopOpacity="0" />
-                        <stop offset="50%" stopColor="#6EE7B7" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#6EE7B7" stopOpacity="0" />
-                        <animate
-                            attributeName="x1"
-                            from="-50%"
-                            to="100%"
-                            dur="4s"
-                            begin="1.2s"
-                            repeatCount="indefinite"
-                        />
-                        <animate
-                            attributeName="x2"
-                            from="0%"
-                            to="150%"
-                            dur="4s"
-                            begin="1.2s"
-                            repeatCount="indefinite"
-                        />
-                    </linearGradient>
+                    {edges.map((e, i) => {
+                        const from = byId[e.from];
+                        const to = byId[e.to];
+                        return (
+                            <path
+                                key={`def-${i}`}
+                                id={`arch-edge-${i}`}
+                                d={pathFor(from, to)}
+                            />
+                        );
+                    })}
+                    <filter id="arch-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" />
+                    </filter>
                 </defs>
 
-                {/* Connection lines (base) */}
-                <path
-                    d="M 200 90 C 280 90, 320 180, 400 180"
-                    stroke="#1F2330"
-                    strokeWidth="1.5"
-                    fill="none"
-                />
-                <path
-                    d="M 600 90 C 520 90, 480 180, 400 180"
-                    stroke="#1F2330"
-                    strokeWidth="1.5"
-                    fill="none"
-                />
-                <path
-                    d="M 400 180 L 400 270"
-                    stroke="#1F2330"
-                    strokeWidth="1.5"
-                    fill="none"
-                />
+                {/* Base edge layer */}
+                {edges.map((_, i) => (
+                    <use
+                        key={`base-${i}`}
+                        href={`#arch-edge-${i}`}
+                        stroke="#1F2330"
+                        strokeWidth="1.2"
+                        fill="none"
+                    />
+                ))}
 
-                {/* Animated beams */}
-                <path
-                    d="M 200 90 C 280 90, 320 180, 400 180"
-                    stroke="url(#beam-grad-1)"
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinecap="round"
-                />
-                <path
-                    d="M 600 90 C 520 90, 480 180, 400 180"
-                    stroke="url(#beam-grad-2)"
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinecap="round"
-                />
-                <path
-                    d="M 400 180 L 400 270"
-                    stroke="url(#beam-grad-3)"
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinecap="round"
-                />
+                {/* Highlight + pulse layer for select edges */}
+                {edges.map((e, i) => {
+                    if (!e.pulse) return null;
+                    return (
+                        <use
+                            key={`hi-${i}`}
+                            href={`#arch-edge-${i}`}
+                            stroke="#FFB86B"
+                            strokeOpacity="0.6"
+                            strokeWidth="1.5"
+                            fill="none"
+                            strokeLinecap="round"
+                        />
+                    );
+                })}
+
+                {/* Traveling dots on pulse edges */}
+                {edges.map((e, i) => {
+                    if (!e.pulse) return null;
+                    return (
+                        <circle key={`pulse-${i}`} r="3" fill="#FFB86B" filter="url(#arch-glow)">
+                            <animateMotion
+                                dur={`${3 + (i % 3) * 0.6}s`}
+                                begin={`${(i * 0.5) % 5}s`}
+                                repeatCount="indefinite"
+                            >
+                                <mpath href={`#arch-edge-${i}`} />
+                            </animateMotion>
+                        </circle>
+                    );
+                })}
+
+                {/* Edge labels at midpoint (tiny, monospace) */}
+                {edges.map((e, i) => {
+                    const from = byId[e.from];
+                    const to = byId[e.to];
+                    const mx = (from.x + to.x) / 2;
+                    const my = (from.y + to.y) / 2;
+                    return (
+                        <g key={`label-${i}`}>
+                            <rect
+                                x={mx - 50}
+                                y={my - 8}
+                                width="100"
+                                height="14"
+                                rx="3"
+                                fill="#0A0B0F"
+                                stroke="#1F2330"
+                                strokeWidth="0.8"
+                            />
+                            <text
+                                x={mx}
+                                y={my + 3}
+                                textAnchor="middle"
+                                fill="#A0A8BD"
+                                style={{
+                                    fontSize: 9,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {e.label}
+                            </text>
+                        </g>
+                    );
+                })}
 
                 {/* Nodes */}
-                <BeamNode x={200} y={90} label="Cursor" sublabel="agent" color="#7C9EFF" />
-                <BeamNode x={600} y={90} label="Claude Code" sublabel="agent" color="#7C9EFF" />
-                <BeamNode x={400} y={180} label="Convex" sublabel="state" color="#FFB86B" big />
-                <BeamNode x={400} y={270} label="GitHub" sublabel="issues" color="#6EE7B7" />
+                {allNodes.map((n) => (
+                    <g key={n.id}>
+                        <circle
+                            cx={n.x}
+                            cy={n.y}
+                            r={NODE_R + 6}
+                            fill={n.color}
+                            fillOpacity="0.04"
+                            filter="url(#arch-glow)"
+                        />
+                        <circle
+                            cx={n.x}
+                            cy={n.y}
+                            r={NODE_R}
+                            fill="#11131B"
+                            stroke={n.color}
+                            strokeWidth="1.4"
+                        />
+                        <text
+                            x={n.x}
+                            y={n.y - 2}
+                            textAnchor="middle"
+                            fill="#ECEEF4"
+                            style={{
+                                fontSize: 12,
+                                fontFamily: "JetBrains Mono, monospace",
+                                fontWeight: 600,
+                            }}
+                        >
+                            {n.label}
+                        </text>
+                        <text
+                            x={n.x}
+                            y={n.y + 12}
+                            textAnchor="middle"
+                            fill={n.color}
+                            fillOpacity="0.7"
+                            style={{
+                                fontSize: 8,
+                                fontFamily: "JetBrains Mono, monospace",
+                                letterSpacing: "0.06em",
+                            }}
+                        >
+                            {n.role.toUpperCase()}
+                        </text>
+                    </g>
+                ))}
             </svg>
-            <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-border bg-surface p-5 text-sm text-ink-2">
-                <span className="font-mono text-xs uppercase tracking-[0.18em] text-ink-3">
-                    The loop
-                </span>
-                <p className="mt-2">
-                    Agent reads a file → memory injects relevant notes → agent ships
-                    code → Guardian scans the diff → finding is filed as a GitHub issue
-                    → resolution goes back into memory.
-                </p>
-            </div>
         </div>
     );
 }
 
-function BeamNode({
-    x,
-    y,
-    label,
-    sublabel,
-    color,
-    big,
-}: {
-    x: number;
-    y: number;
-    label: string;
-    sublabel: string;
-    color: string;
-    big?: boolean;
-}) {
-    const r = big ? 38 : 30;
+function FlowCard({ title, body }: { title: string; body: string }) {
     return (
-        <g>
-            <circle cx={x} cy={y} r={r + 6} fill="rgba(255,255,255,0.02)" />
-            <circle
-                cx={x}
-                cy={y}
-                r={r}
-                fill="#11131B"
-                stroke={color}
-                strokeWidth="1.5"
-                opacity="0.95"
-            />
-            <text
-                x={x}
-                y={y - 2}
-                textAnchor="middle"
-                className="fill-ink"
-                style={{ fontSize: big ? 13 : 11, fontWeight: 600 }}
-            >
-                {label}
-            </text>
-            <text
-                x={x}
-                y={y + 12}
-                textAnchor="middle"
-                fill="#5C6478"
-                style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.1em" }}
-            >
-                {sublabel.toUpperCase()}
-            </text>
-        </g>
+        <div className="rounded-2xl border border-border bg-surface p-5">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                {title}
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-ink-2">{body}</p>
+        </div>
     );
 }
 
