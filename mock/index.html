@@ -7363,6 +7363,46 @@ function setupReplay() {
   }
 }
 
+// Rebuild events + layout in place without re-attaching listeners or
+// snapping the playhead. Used when Convex hydrates a new dataset while
+// the user is already on the Replay tab.
+function refreshReplayDataInPlace() {
+  const wasPlaying = replayState.playing;
+  if (wasPlaying && replayState.rafId) cancelAnimationFrame(replayState.rafId);
+
+  const prevMin = replayState.minTs;
+  const prevMax = replayState.maxTs;
+  const prevSpan = prevMax - prevMin;
+  const prevFrac = prevSpan > 0 ? (replayState.currentTs - prevMin) / prevSpan : 1;
+
+  replayState.events = buildReplayEvents();
+  if (replayState.events.length === 0) return;
+
+  const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+  const newest = replayState.events[replayState.events.length - 1].ts;
+  const upper = Math.max(NOW_TS, newest, Date.now());
+  replayState.maxTs = upper;
+  replayState.minTs = upper - WINDOW_MS;
+  // Preserve the user's cursor unless they were parked at the very end —
+  // in which case keep it pinned to the new end so freshly-arrived events
+  // become visible immediately.
+  if (prevFrac < 0.999) {
+    replayState.currentTs = replayState.minTs + prevFrac * (replayState.maxTs - replayState.minTs);
+  } else {
+    replayState.currentTs = replayState.maxTs;
+  }
+
+  layoutReplayGraph();
+  drawReplayDensity();
+  drawReplayLanes();
+  updateReplayDisplay();
+
+  if (wasPlaying) {
+    replayState.lastFrame = performance.now();
+    replayState.rafId = requestAnimationFrame(replayLoop);
+  }
+}
+
 function ensureReplayDefs() {
   const svg = document.getElementById('replay-svg');
   if (svg.querySelector('defs')) return;
@@ -9904,18 +9944,16 @@ function applyConvexData(d) {
   injInited = false; agInited = false; gcInited = false;
   guardianInited = false; sourcesInited = false; activityInited = false; hyperspellInited = false;
 
-  // Replay is special: a Convex websocket reconnect re-fires this callback,
-  // and tearing Replay down mid-playback is what the user saw as a "crash".
-  // Only initialize Replay if (a) the user is currently on it AND (b) it
-  // hasn't been built yet. Otherwise leave the running playback alone.
+  // Replay needs special handling — see refreshReplayDataInPlace below.
   const replayView = document.querySelector('[data-view="replay"]');
   const onReplayTab = replayView && replayView.classList.contains('on');
   if (!onReplayTab) {
-    // user isn't on Replay — safe to reset so next visit picks up new data
     replayInited = false;
   } else if (!replayInited) {
     setupReplay();
     replayInited = true;
+  } else {
+    refreshReplayDataInPlace();
   }
 
   const liveSpan = document.querySelector('.live span:last-child');
