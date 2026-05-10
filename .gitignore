@@ -46,5 +46,10 @@ nm.db-journal
 # scratch
 *.tmp
 *.log
+*.log.err
+*.log.out
+
+# script output artifacts at repo root
+/mock_org_*.json
 
 .vercel
