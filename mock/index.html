@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta http-equiv="cache-control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta name="build" content="hindsight-acme-filter-v3" />
 <title>Hindsight · Note Graph</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4314,10 +4316,10 @@
             <div class="gc-threshold">
               <div class="gc-threshold-head">
                 <span class="gc-threshold-lbl">Decay Speed</span>
-                <span class="gc-threshold-val" id="thr-idle-val">21d idle</span>
+                <span class="gc-threshold-val" id="thr-idle-val">1.00×</span>
               </div>
-              <input type="range" min="7" max="60" step="1" value="21" id="thr-idle" class="gc-slider"/>
-              <div class="gc-threshold-hint">notes idle longer than this <b class="bad">decay faster</b> — shorter window = more aggressive collection</div>
+              <input type="range" min="0.00" max="2.00" step="0.05" value="1.00" id="thr-idle" class="gc-slider"/>
+              <div class="gc-threshold-hint">multiplier on age — older notes are <b class="bad">dragged down</b> faster as you raise this; <b>0×</b> = no age penalty, <b>2×</b> = age halves relevance twice as fast</div>
             </div>
           </div>
           <div class="gc-preview" id="gc-preview">
@@ -5071,18 +5073,26 @@ function computeRetained(n) {
   const everInjected = ic > 0;
   const lastInjectMin = everInjected ? (m.last_inject_min || ageMin) : ageMin;
   const lastInjectDays = lastInjectMin / 1440;
-  // recency: fresh notes (< 30d) keep a 0.40 floor even without injects yet —
-  // they haven't earned a low score, they just haven't been picked up yet.
-  const recencyScore = everInjected
-    ? 1 - Math.min(1, lastInjectDays / 30)
-    : Math.max(0.4, 1 - ageDays / 30);
+  // Decay Speed slider — multiplier on age. The 30-day "full decay" window
+  // shrinks to 30/decay days. decay=0 means no age penalty; decay=2 means
+  // age halves relevance twice as fast as the default.
+  const decay = (typeof gcThresholds !== 'undefined' && gcThresholds.idle != null)
+    ? gcThresholds.idle : 1.0;
+  const ageInput = everInjected ? lastInjectDays : ageDays;
+  const ageFactor = decay <= 0 ? 0 : Math.min(1, ageInput * decay / 30);
+  // fresh notes keep a 0.40 floor on the no-injects branch — they haven't
+  // earned a low score, they just haven't been picked up yet.
+  const recencyScore = everInjected ? (1 - ageFactor) : Math.max(0.4, 1 - ageFactor);
   const freqScore = Math.min(1, ic / 8);
   const importance = (n.importance != null && n.importance > 0)
     ? n.importance : pseudoImportance(n.id);
   const feedback = (m.feedback_score != null && m.feedback_score > 0)
-    ? m.feedback_score : 0.5;  // neutral baseline when no votes yet
+    ? m.feedback_score : 0.5;  // neutral when no votes yet
   const score = 0.25 * recencyScore + 0.20 * freqScore + 0.20 * feedback + 0.35 * importance;
   return Math.max(0.05, Math.min(1, score));
+}
+function recomputeAllRetained() {
+  NOTES.forEach(n => { n.metrics.retained_score = computeRetained(n); });
 }
 NOTES.forEach(n => n.metrics.retained_score = computeRetained(n));
 
@@ -5502,9 +5512,17 @@ function countFiles(node) {
   Object.values(node.children).forEach(ch => c += countFiles(ch));
   return c;
 }
+// Hard allow-list — final defense at the render layer. Even if a polluted
+// path survives the upstream filter, this still drops it.
+const __ACME_REPOS = new Set([
+  'acme-agent-gateway', 'acme-connectors', 'acme-control-plane',
+  'acme-memory-graph', 'acme-runtime-orchestrator'
+]);
+
 function renderTree(node, depth = 0) {
   let html = '';
   Object.keys(node.children).sort().forEach(name => {
+    if (depth === 0 && !__ACME_REPOS.has(name)) return;   // drop non-repos at top level
     const child = node.children[name];
     const isRepo = depth === 0;
     const folderAttrs = isRepo ? ` data-repo="${child.path}"` : '';
@@ -5844,9 +5862,21 @@ function applyHighlight() {
 }
 
 /* ─── Wire graph interactions ─────────────────── */
+// Repos start expanded (no .collapsed class). On click, top-level repo
+// folders enforce "only one collapsed at a time" — collapsing one auto-
+// expands any other repo that was previously collapsed. Nested folders keep
+// the default toggle behavior.
 document.querySelectorAll('.folder-row').forEach(row => {
   row.addEventListener('click', () => {
-    row.parentElement.classList.toggle('collapsed');
+    const folder = row.parentElement;
+    const isRepo = folder.classList.contains('repo');
+    folder.classList.toggle('collapsed');
+    if (isRepo && folder.classList.contains('collapsed')) {
+      // single-collapse: clear .collapsed from any other top-level repo
+      document.querySelectorAll('.folder.repo.collapsed').forEach(other => {
+        if (other !== folder) other.classList.remove('collapsed');
+      });
+    }
     requestAnimationFrame(drawEdges);
   });
 });
@@ -6664,7 +6694,7 @@ function renderAgentNotes(notes, title) {
 }
 
 /* ─── GC view ─────────────────────────────── */
-let gcThresholds = { min: 0.15, merge: 0.70, edge: 0.10, idle: 21 };
+let gcThresholds = { min: 0.15, merge: 0.70, edge: 0.10, idle: 1.0 };
 let gcInited = false;
 let gcEtaInterval = null;
 
@@ -6682,7 +6712,7 @@ function setupGC() {
     { id: 'thr-min',   valId: 'thr-min-val',   key: 'min',   fmt: v => v.toFixed(2) },
     { id: 'thr-merge', valId: 'thr-merge-val', key: 'merge', fmt: v => v.toFixed(2) },
     { id: 'thr-edge',  valId: 'thr-edge-val',  key: 'edge',  fmt: v => v.toFixed(2) },
-    { id: 'thr-idle',  valId: 'thr-idle-val',  key: 'idle',  fmt: v => Math.round(v) + 'd idle' },
+    { id: 'thr-idle',  valId: 'thr-idle-val',  key: 'idle',  fmt: v => v.toFixed(2) + '×' },
   ];
   sliders.forEach(s => {
     const el = document.getElementById(s.id);
