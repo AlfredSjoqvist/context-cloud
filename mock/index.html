@@ -5599,14 +5599,19 @@ function renderTree(node, depth = 0) {
       <div class="folder-children">${renderTree(child, depth + 1)}</div>
     </div>`;
   });
-  node.files.sort((a, b) => a.path.localeCompare(b.path)).forEach(f => {
-    const fname = f.path.split('/').pop();
-    html += `<div class="file-row ${f.noteCount > 0 ? 'has-notes' : ''}" data-path="${f.path}" style="padding-left:${24 + depth * 14}px">
-      ${fileIcon(f.type)}
-      <span class="name">${fname}</span>
-      ${f.noteCount > 0 ? `<span class="badge">${f.noteCount}</span>` : ''}
-    </div>`;
-  });
+  // NM_TREE_ACCORDION_V1 — never render loose files at depth 0. Only
+  // the 5 acme-* repo folders show at the top level; everything else
+  // belongs inside one of them.
+  if (depth > 0) {
+    node.files.sort((a, b) => a.path.localeCompare(b.path)).forEach(f => {
+      const fname = f.path.split('/').pop();
+      html += `<div class="file-row ${f.noteCount > 0 ? 'has-notes' : ''}" data-path="${f.path}" style="padding-left:${24 + depth * 14}px">
+        ${fileIcon(f.type)}
+        <span class="name">${fname}</span>
+        ${f.noteCount > 0 ? `<span class="badge">${f.noteCount}</span>` : ''}
+      </div>`;
+    });
+  }
   return html;
 }
 document.getElementById('tree').innerHTML = renderTree(tree);
@@ -5617,7 +5622,19 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function renderNotes() {
+  // NM_TREE_ACCORDION_V1 — when a repo is the sole expanded one, notes
+  // whose edges touch a file inside that repo float to the top; the
+  // user's chosen sort (importance / recent / injects) stays the
+  // secondary key.
+  const _activeRepo = (typeof window._nmActiveRepo === 'function') ? window._nmActiveRepo() : null;
+  const _activePrefix = _activeRepo ? (_activeRepo + '/') : null;
+  const _inActive = n => _activePrefix && (n.edges || []).some(e => (e.path || '').startsWith(_activePrefix));
   const sorted = [...NOTES].sort((a, b) => {
+    if (_activePrefix) {
+      const ai = _inActive(a) ? 0 : 1;
+      const bi = _inActive(b) ? 0 : 1;
+      if (ai !== bi) return ai - bi;
+    }
     if (currentSort === 'importance') return b.importance - a.importance;
     if (currentSort === 'injects')    return b.inject_count - a.inject_count;
     if (currentSort === 'recent') {
@@ -5765,9 +5782,15 @@ function drawEdges() {
   const noteEls = {};
   document.querySelectorAll('.note[data-id]').forEach(el => noteEls[el.dataset.id] = el);
 
+  // NM_TREE_ACCORDION_V1 — when exactly one repo is expanded, restrict
+  // edges to notes that touch a file inside that repo. Other repos'
+  // edges disappear entirely while focus is held.
+  const _activeRepo = (typeof window._nmActiveRepo === 'function') ? window._nmActiveRepo() : null;
+  const _activePrefix = _activeRepo ? (_activeRepo + '/') : null;
   NOTES.forEach(n => {
     const noteEl = noteEls[n.id];
     if (!noteEl) return;
+    if (_activePrefix && !(n.edges || []).some(e => (e.path || '').startsWith(_activePrefix))) return;
     const noteAnchor = getAnchor(noteEl, 'left');
 
     /* group edges of THIS note by their effective anchor key
@@ -5925,22 +5948,49 @@ function applyHighlight() {
 }
 
 /* ─── Wire graph interactions ─────────────────── */
-// Repos start expanded (no .collapsed class). On click, top-level repo
-// folders enforce "only one collapsed at a time" — collapsing one auto-
-// expands any other repo that was previously collapsed. Nested folders keep
-// the default toggle behavior.
+// NM_TREE_ACCORDION_V1
+//   Initial state: collapse every repo except the alphabetically-first
+//   one (acme-agent-gateway). That keeps exactly one repo "active" at
+//   load — drawEdges and renderNotes both filter / re-pin off whichever
+//   repo is the sole expanded one.
+//   Click semantics:
+//     * collapsed repo  → expand it, collapse every other repo
+//                          (accordion: at most one expanded at a time)
+//     * expanded repo   → just collapse it (none expanded)
+//     * nested folder   → simple toggle
+(function () {
+  const repos = Array.from(document.querySelectorAll('.folder.repo'));
+  // Sort by data-repo so "first" is deterministic regardless of DOM order.
+  repos.sort((a, b) => (a.dataset.repo || '').localeCompare(b.dataset.repo || ''));
+  repos.forEach((f, i) => {
+    if (i === 0) f.classList.remove('collapsed');
+    else f.classList.add('collapsed');
+  });
+})();
+function _nmActiveRepo() {
+  const expanded = document.querySelectorAll('.folder.repo:not(.collapsed)');
+  if (expanded.length !== 1) return null;
+  return expanded[0].dataset.repo || null;
+}
+window._nmActiveRepo = _nmActiveRepo;
 document.querySelectorAll('.folder-row').forEach(row => {
   row.addEventListener('click', () => {
     const folder = row.parentElement;
     const isRepo = folder.classList.contains('repo');
+    const wasCollapsed = folder.classList.contains('collapsed');
     folder.classList.toggle('collapsed');
-    if (isRepo && folder.classList.contains('collapsed')) {
-      // single-collapse: clear .collapsed from any other top-level repo
-      document.querySelectorAll('.folder.repo.collapsed').forEach(other => {
-        if (other !== folder) other.classList.remove('collapsed');
+    if (isRepo && wasCollapsed) {
+      document.querySelectorAll('.folder.repo').forEach(other => {
+        if (other !== folder) other.classList.add('collapsed');
       });
     }
-    requestAnimationFrame(drawEdges);
+    requestAnimationFrame(() => {
+      drawEdges();
+      if (typeof renderNotes === 'function') {
+        renderNotes();
+        if (typeof bindNoteCards === 'function') bindNoteCards();
+      }
+    });
   });
 });
 function bindFileRows() {
