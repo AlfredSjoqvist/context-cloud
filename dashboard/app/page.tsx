@@ -289,10 +289,11 @@ function Pillars() {
                     <span className="text-ink-3">One brain.</span>
                 </SectionHeadline>
                 <SectionLede>
-                    Context Cloud is three always-on agents that share state through a
-                    single Convex backend — a memory graph, a code guardian, and a docs
-                    pipeline. They run in Tensorlake microVMs, search through Nia, and
-                    surface their work in a live dashboard.
+                    Three agents share one Convex deployment.{" "}
+                    <span className="text-ink">Note Manager</span> creates the memory,{" "}
+                    <span className="text-ink">Guardian</span> watches the codebase,{" "}
+                    <span className="text-ink">GC</span> keeps the graph honest. All three live
+                    in Tensorlake microVMs and write reactively to the live dashboard.
                 </SectionLede>
 
                 <div className="mt-16 grid gap-4 md:grid-cols-3 md:auto-rows-[minmax(180px,auto)]">
@@ -327,17 +328,28 @@ function Pillars() {
                         </PillarBody>
                     </PillarCard>
 
-                    {/* Stat — small */}
+                    {/* GC — small */}
                     <PillarCard>
-                        <PillarIconBlock color="green" icon={<Zap />} />
-                        <PillarTitle small>Background-first</PillarTitle>
+                        <PillarIconBlock color="green" icon={<Workflow />} />
+                        <PillarTitle small>GC · Garbage Collector</PillarTitle>
                         <PillarBody small>
-                            Cycles run on a schedule, not on a chat. Findings show up
-                            while you sleep. Memory builds while you ship.
+                            Cron{" "}
+                            <code className="mx-1 rounded bg-surface-3 px-1.5 py-0.5 font-mono text-[11px] text-green">
+                                {GC_KNOBS.cron}
+                            </code>
+                            . Three passes per run: decay (half-life {GC_KNOBS.halfLifeDays}d) →
+                            merge (Jaccard ≥ {GC_KNOBS.mergeJaccard} on file sets) → prune
+                            (importance &lt; {GC_KNOBS.pruneImportance}).
                         </PillarBody>
                         <div className="mt-4 grid grid-cols-2 gap-2">
-                            <MiniStat label="cycles" value={String(COUNTS.cyclesRun)} />
-                            <MiniStat label="findings" value={String(COUNTS.findingsTotal)} />
+                            <MiniStat
+                                label="actions lifetime"
+                                value={String(COUNTS.gcActionsLifetime)}
+                            />
+                            <MiniStat
+                                label="prune threshold"
+                                value={GC_KNOBS.pruneImportance.toFixed(2)}
+                            />
                         </div>
                     </PillarCard>
 
