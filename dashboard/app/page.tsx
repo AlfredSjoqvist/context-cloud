@@ -679,8 +679,10 @@ function DashboardShowcase() {
 // Cycle state machine
 // ───────────────────────────────────────────────────────────
 function CycleSection() {
-    const maxTiming = Math.max(...CYCLE_TIMINGS_MS);
-    const dominantIdx = (CYCLE_TIMINGS_MS as readonly number[]).indexOf(maxTiming);
+    const dominantIdx = CYCLE_TIMINGS_MS.reduce(
+        (bestI, v, i, a) => (v > a[bestI] ? i : bestI),
+        0,
+    );
     const dominant = PHASES_DATA[dominantIdx];
     const dominantPct = Math.round((CYCLE_TIMINGS_MS[dominantIdx] / TOTAL_TIMING) * 100);
     return (
@@ -799,7 +801,7 @@ function CycleFlowSVG() {
         { x: 870, y: 130 },
     ];
 
-    // Build flow path (smooth curve through all 6 nodes)
+    // Build flow path (smooth curve through all 7 nodes)
     const pathD = positions.reduce((acc, p, i, arr) => {
         if (i === 0) return `M ${p.x} ${p.y}`;
         const prev = arr[i - 1];
