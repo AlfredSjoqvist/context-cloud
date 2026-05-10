@@ -1095,7 +1095,7 @@ function NoteMappingExplainer() {
                 </span>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
                 <ExplainerStep
                     n="01"
                     color="#66E0FF"
@@ -1112,7 +1112,7 @@ function NoteMappingExplainer() {
                     n="02"
                     color="#FF7A8A"
                     title="hurdle scored"
-                    sub={`7 signals · threshold ${HURDLE_THRESHOLD} · deterministic`}
+                    sub={`7 signals · threshold ${HURDLE_THRESHOLD.toFixed(1)} · deterministic`}
                     body="Not an LLM. nm_signals walks the trace and emits weighted signals — action loops, retry loops, user interrupts, reverted edits, correction phrases, prompt re-asks, explicit feedback. Cluster with gap ≤ 12 events; window opens when the cluster sum crosses 3.0."
                     code={`signal: action_bigram_loop  +3.0
 signal: reverted_edit       +2.0
