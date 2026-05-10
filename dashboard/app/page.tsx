@@ -25,6 +25,7 @@ import {
     SNAPSHOT_DEMO,
     HURDLE_THRESHOLD,
     GC_KNOBS,
+    STACK_NODES,
 } from "@/lib/landing-data";
 
 const TOTAL_TIMING = CYCLE_TIMINGS_MS.reduce((a, b) => a + b, 0);
@@ -441,18 +442,26 @@ function BeamDiagram() {
         { id: "claudecode", label: "Claude Code", role: "agent", x: 420, y: 60, color: "#7C9EFF" },
         { id: "codex",      label: "Codex",       role: "agent", x: 660, y: 90, color: "#7C9EFF" },
     ];
-    // Stack nodes — coordinates here override the storage label colors so the
-    // map renders with deliberate spatial groupings.
-    const stack = [
-        { id: "sqlite",     label: "SQLite",      role: "capture · trace SoT",         x: 180, y: 240, color: "#A0A8BD" },
-        { id: "nia",        label: "Nia",         role: "code + .md index",            x: 420, y: 220, color: "#C49BFF" },
-        { id: "convex",     label: "Convex",      role: "reactive state",              x: 600, y: 340, color: "#FFB86B" },
-        { id: "openai",     label: "OpenAI",      role: "gpt-5 + gpt-5-mini",          x: 840, y: 240, color: "#66E0FF" },
-        { id: "tensorlake", label: "Tensorlake",  role: "always-on sandbox",           x: 1020, y: 340, color: "#7C9EFF" },
-        { id: "docsingest", label: "docs-ingest", role: "external docs → .md leaves", x: 300, y: 500, color: "#FF7A8A" },
-        { id: "github",     label: "GitHub",      role: "issues · PRs · webhooks",     x: 600, y: 500, color: "#F9E27D" },
-        { id: "devin",      label: "Devin",       role: "spawn → PR → sharpen",        x: 900, y: 500, color: "#6EE7B7" },
-    ];
+    // Stack nodes — positions are diagram-local (deliberate spatial groupings),
+    // but every other field (label, role, color) is sourced from STACK_NODES in
+    // landing-data so the system map can't drift from the data SoT.
+    const STACK_POSITIONS: Record<string, { x: number; y: number }> = {
+        sqlite:     { x: 180, y: 240 },
+        nia:        { x: 420, y: 220 },
+        convex:     { x: 600, y: 340 },
+        openai:     { x: 840, y: 240 },
+        tensorlake: { x: 1020, y: 340 },
+        docsingest: { x: 300, y: 500 },
+        github:     { x: 600, y: 500 },
+        devin:      { x: 900, y: 500 },
+    };
+    const stack = STACK_NODES.map((n) => ({
+        id: n.id,
+        label: n.label,
+        role: n.role,
+        color: n.color,
+        ...STACK_POSITIONS[n.id],
+    }));
 
     // Edges with a verb label that fits in ~22 chars.
     type Edge = { from: string; to: string; label: string; pulse?: boolean };
@@ -565,18 +574,33 @@ function BeamDiagram() {
                     );
                 })}
 
-                {/* Edge labels at midpoint (tiny, monospace) */}
+                {/* Edge labels at the bezier curve apex (t = 0.5).
+                    For a quadratic B(t) = (1-t)² P0 + 2(1-t)t C + t² P2, at t=0.5
+                    the point is 0.25*P0 + 0.5*C + 0.25*P2. Placing labels here
+                    keeps them on the visible curve instead of off in space. */}
                 {edges.map((e, i) => {
                     const from = byId[e.from];
                     const to = byId[e.to];
-                    const mx = (from.x + to.x) / 2;
-                    const my = (from.y + to.y) / 2;
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const midX = (from.x + to.x) / 2;
+                    const midY = (from.y + to.y) / 2;
+                    const len = Math.hypot(dx, dy) || 1;
+                    const nx = -dy / len;
+                    const ny = dx / len;
+                    const bow = Math.min(60, len * 0.18);
+                    const cx = midX + nx * bow;
+                    const cy = midY + ny * bow;
+                    const lx = 0.25 * from.x + 0.5 * cx + 0.25 * to.x;
+                    const ly = 0.25 * from.y + 0.5 * cy + 0.25 * to.y;
+                    // Approximate width: 5.2px per char (JetBrains Mono @ 9px) + 12px padding
+                    const w = Math.max(40, e.label.length * 5.6 + 12);
                     return (
                         <g key={`label-${i}`}>
                             <rect
-                                x={mx - 50}
-                                y={my - 8}
-                                width="100"
+                                x={lx - w / 2}
+                                y={ly - 8}
+                                width={w}
                                 height="14"
                                 rx="3"
                                 fill="#0A0B0F"
@@ -584,8 +608,8 @@ function BeamDiagram() {
                                 strokeWidth="0.8"
                             />
                             <text
-                                x={mx}
-                                y={my + 3}
+                                x={lx}
+                                y={ly + 3}
                                 textAnchor="middle"
                                 fill="#A0A8BD"
                                 style={{
