@@ -9193,7 +9193,7 @@ function _hsCard(note) {
 function renderHyperspell() {
   const list = document.getElementById('hs-list');
   if (!list) return;
-  const all = (window.ALL_NOTES || []).filter(n =>
+  const all = (typeof ALL_NOTES !== 'undefined' ? ALL_NOTES : []).filter(n =>
     (n.hyperspell_refs && n.hyperspell_refs.length) ||
     n.created_by === 'hyperspell-importer'
   );
@@ -9662,7 +9662,21 @@ window.applyConvexData = applyConvexData;
 
 // ── Sessions view + Agents Convex hydration ── NM_SESSIONS_TAB_V2 ──
 (function () {
-  const NM_CONVEX_URL = (window.NM_CONVEX_URL || 'https://acoustic-fish-389.convex.site').replace(/\/$/, '');
+  // NM_CONVEX_URL_FIX_V1 — derive Convex HTTP origin from the dashboard's
+  // own CONVEX_URL (.convex.cloud → .convex.site). Falls back to the known
+  // deployment if window.__convex hasn't loaded yet.
+  function _nmConvexHttpUrl() {
+    if (typeof window.NM_CONVEX_URL === 'string' && window.NM_CONVEX_URL) return window.NM_CONVEX_URL.replace(/\/$/, '');
+    try {
+      const wsUrl = (window.__convex && window.__convex.address) || window.CONVEX_URL || null;
+      if (wsUrl) {
+        const httpUrl = String(wsUrl).replace('.convex.cloud', '.convex.site').replace(/\/$/, '');
+        if (httpUrl) return httpUrl;
+      }
+    } catch (_) {}
+    return 'https://colorless-porcupine-926.convex.site';
+  }
+  const NM_CONVEX_URL = _nmConvexHttpUrl();
   let _everything = null;
   let _sessionsPoll = null;
   let _agentsPoll = null;
