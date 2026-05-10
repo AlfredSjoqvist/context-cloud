@@ -4793,17 +4793,26 @@
    from nm.db. If non-empty, those notes/files override the seeded mock data
    below. Sync XHR is fine here — localhost dashboard, single load. */
 let __NM_DATA = null;
-try {
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', '/api/graph', false);
-  xhr.send();
-  if (xhr.status === 200) {
-    const parsed = JSON.parse(xhr.responseText);
-    if (parsed && Array.isArray(parsed.notes) && parsed.notes.length > 0) {
-      __NM_DATA = parsed;
+// Only hit /api/graph when actually served by nm_dashboard.py locally.
+// On Vercel the endpoint doesn't exist; the XHR fails silently via the
+// catch but still logs a 404 to console. Gate by hostname to keep the
+// production console clean.
+const __NM_IS_LOCAL = (location.protocol === 'file:') ||
+  ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname) ||
+  location.hostname.endsWith('.local');
+if (__NM_IS_LOCAL) {
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/graph', false);
+    xhr.send();
+    if (xhr.status === 200) {
+      const parsed = JSON.parse(xhr.responseText);
+      if (parsed && Array.isArray(parsed.notes) && parsed.notes.length > 0) {
+        __NM_DATA = parsed;
+      }
     }
-  }
-} catch (e) { /* not served via nm_dashboard, or no data — use seeded mock */ }
+  } catch (e) { /* not served via nm_dashboard, or no data — use seeded mock */ }
+}
 
 /* ─── Mock data (fallback when nm.db is empty) ─────────────────── */
 let FILES = [
