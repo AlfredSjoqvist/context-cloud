@@ -3903,6 +3903,18 @@
       </svg>
       Guardian
     </button>
+    <button class="tab" data-tab="activity">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12h4l3-9 4 18 3-9h4"/>
+      </svg>
+      Activity
+    </button>
+    <button class="tab" data-tab="sessions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      </svg>
+      Sessions
+    </button>
     <button class="tab" data-tab="sources">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/>
@@ -3916,18 +3928,6 @@
         <line x1="13.7" y1="14.5" x2="17.3" y2="12.5"/>
       </svg>
       Sources
-    </button>
-    <button class="tab" data-tab="sessions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-      </svg>
-      Sessions
-    </button>
-    <button class="tab" data-tab="activity">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 12h4l3-9 4 18 3-9h4"/>
-      </svg>
-      Activity
     </button>
   </nav>
   <div class="stats">
@@ -4859,9 +4859,19 @@ let NOTES = [
    symptom, root_cause, correction, edges:[{path,weight}]) so downstream code
    doesn't need to know the difference. */
 if (__NM_DATA) {
-  // Allow-list to the 5 GitHub repos under the mock org. Strip `mock_org/`
-  // prefix when present, drop everything else (NM project files, absolute
-  // Windows drive paths, loose root files like CLAUDE.md / nm_*.py).
+  FILES = __NM_DATA.files;
+  NOTES = __NM_DATA.notes;
+  console.log('[NM] loaded', NOTES.length, 'notes /', FILES.length, 'files from nm.db');
+} else {
+  console.log('[NM] no live notes — rendering seeded demo data');
+}
+
+// Allow-list filter: ONLY the 5 mock-org repos render in the file tree.
+// Applied unconditionally so it cleans both real data and seeded data.
+// Drops everything else (loose `nm_*.py`, `CLAUDE.md`, `c:` absolute paths,
+// `codebase/`, `convex/`, `src/runtime/...`, etc.) Anchors path normalization
+// (`mock_org/<repo>/x` → `<repo>/x`) so duplicate prefixes collapse.
+(function filterToReposOnly() {
   const REPO_ALLOWLIST = new Set([
     'agent-gateway', 'connectors', 'control-plane', 'memory-graph', 'runtime-orchestrator'
   ]);
@@ -4872,27 +4882,24 @@ if (__NM_DATA) {
     const root = s.split('/')[0];
     return REPO_ALLOWLIST.has(root) ? s : null;
   }
-  const incomingFiles = (__NM_DATA.files || []).map(f => {
-    const np = normalizeRepoPath(f.path);
-    return np ? { ...f, path: np } : null;
-  }).filter(Boolean);
   const filesByPath = new Map();
-  incomingFiles.forEach(f => filesByPath.set(f.path, f));
+  (FILES || []).forEach(f => {
+    const np = normalizeRepoPath(f && f.path);
+    if (np) filesByPath.set(np, { ...f, path: np });
+  });
   FILES = [...filesByPath.values()];
   const allowed = new Set(FILES.map(f => f.path));
-  NOTES = (__NM_DATA.notes || []).map(n => {
+  NOTES = (NOTES || []).map(n => {
     const remappedEdges = (n.edges || [])
       .map(e => {
-        const np = normalizeRepoPath(e.path);
+        const np = normalizeRepoPath(e && e.path);
         return np && allowed.has(np) ? { ...e, path: np } : null;
       })
       .filter(Boolean);
     return remappedEdges.length ? { ...n, edges: remappedEdges } : null;
   }).filter(Boolean);
-  console.log('[NM] loaded', NOTES.length, 'notes /', FILES.length, 'files from nm.db (filtered to', REPO_ALLOWLIST.size, 'repos)');
-} else {
-  console.log('[NM] no live notes — rendering seeded demo data');
-}
+  console.log('[NM] tree filtered to', REPO_ALLOWLIST.size, 'repos · files=' + FILES.length, 'notes=' + NOTES.length);
+})();
 
 const FILE_BY_PATH = Object.fromEntries(FILES.map(f => [f.path, f]));
 NOTES.forEach(n => n.edges = n.edges.filter(e => FILE_BY_PATH[e.path]));
