@@ -9944,16 +9944,14 @@ function applyConvexData(d) {
   injInited = false; agInited = false; gcInited = false;
   guardianInited = false; sourcesInited = false; activityInited = false; hyperspellInited = false;
 
-  // Replay needs special handling — see refreshReplayDataInPlace below.
+  // Replay: init exactly once when the user is on the tab. Subsequent
+  // Convex websocket reconnects must not touch state — they fire
+  // constantly and any teardown breaks the slider drag and playback.
   const replayView = document.querySelector('[data-view="replay"]');
   const onReplayTab = replayView && replayView.classList.contains('on');
-  if (!onReplayTab) {
-    replayInited = false;
-  } else if (!replayInited) {
+  if (onReplayTab && !replayInited) {
     setupReplay();
     replayInited = true;
-  } else {
-    refreshReplayDataInPlace();
   }
 
   const liveSpan = document.querySelector('.live span:last-child');
