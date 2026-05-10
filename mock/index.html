@@ -4987,24 +4987,25 @@ if (__NM_DATA) {
 // bare `agent-gateway/x` both rewrite to the canonical `acme-agent-gateway/x`.
 // Anything outside the 5 repos (loose `nm_*.py`, `CLAUDE.md`, `c:` absolute
 // paths, `codebase/`, `convex/`, `src/runtime/...`) gets dropped.
-(function filterToReposOnly() {
-  const ACME_NAMES = ['agent-gateway', 'connectors', 'control-plane', 'memory-graph', 'runtime-orchestrator'];
-  const ACME_SET = new Set(ACME_NAMES.map(n => 'acme-' + n));
-  const BARE_TO_ACME = new Map(ACME_NAMES.map(n => [n, 'acme-' + n]));
-
-  function normalizeRepoPath(p) {
-    if (!p || typeof p !== 'string') return null;
-    let s = p.replace(/\\/g, '/');
-    if (s.startsWith('mock_org/')) s = s.slice('mock_org/'.length);
-    const parts = s.split('/');
-    const root = parts[0];
-    if (ACME_SET.has(root)) return s;                        // already canonical
-    if (BARE_TO_ACME.has(root)) {                            // bare → acme- prefix
-      parts[0] = BARE_TO_ACME.get(root);
-      return parts.join('/');
-    }
-    return null;                                             // anything else: drop
+// Acme-repo path normalizer — exposed at module scope so the Convex
+// hydration step can apply the same filter as the seed pass.
+const __ACME_NAMES = ['agent-gateway', 'connectors', 'control-plane', 'memory-graph', 'runtime-orchestrator'];
+const __ACME_SET = new Set(__ACME_NAMES.map(n => 'acme-' + n));
+const __BARE_TO_ACME = new Map(__ACME_NAMES.map(n => [n, 'acme-' + n]));
+function normalizeRepoPath(p) {
+  if (!p || typeof p !== 'string') return null;
+  let s = p.replace(/\\/g, '/');
+  if (s.startsWith('mock_org/')) s = s.slice('mock_org/'.length);
+  const parts = s.split('/');
+  const root = parts[0];
+  if (__ACME_SET.has(root)) return s;
+  if (__BARE_TO_ACME.has(root)) {
+    parts[0] = __BARE_TO_ACME.get(root);
+    return parts.join('/');
   }
+  return null;
+}
+(function filterToReposOnly() {
 
   const filesByPath = new Map();
   (FILES || []).forEach(f => {
@@ -9107,6 +9108,7 @@ function highlightSources(kind, id) {
 
 /* ─── Activity view (live event stream) ───────────── */
 let activityInited = false;
+let hyperspellInited = false;
 let actLevelFilter = 'all';
 let actCycleFilter = '';
 
@@ -9118,6 +9120,103 @@ function actHighlight(msg) {
     .replace(/\b(f_[a-z0-9]+)\b/g, '<span class="hl">$1</span>')
     .replace(/\b(devin_[a-z0-9_]+)\b/g, '<span class="hl">$1</span>');
 }
+
+/* ─── Hyperspell view ─────────────────────────────── */
+function setupHyperspell() {
+  const btn = document.getElementById('hs-import-btn');
+  if (btn && !btn.dataset.bound) {
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async () => {
+      const status = document.getElementById('hs-import-status');
+      btn.disabled = true; btn.style.opacity = '0.6';
+      if (status) status.textContent = 'Calling Hyperspell Convention Importer…';
+      try {
+        const r = await fetch('https://hindsight-nm.vercel.app/api/hyperspell', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'import' }),
+        });
+        const j = await r.json();
+        if (status) {
+          status.textContent =
+            'Imported ' + (j.imported || 0) + ' of ' + (j.queries || 0) +
+            ' convention seeds (mode=' + (j.mode || 'unknown') + '). New notes appear within ~5s via Convex live update.';
+          status.style.color = 'var(--green)';
+        }
+      } catch (e) {
+        if (status) { status.textContent = 'Importer error: ' + e.message; status.style.color = 'var(--red)'; }
+      } finally { btn.disabled = false; btn.style.opacity = ''; }
+    });
+  }
+}
+
+const _HS_SOURCE_COLORS = { slack:'#4A154B', notion:'#1a1a1a', github:'#24292e', drive:'#1a73e8', gmail:'#ea4335' };
+
+function _hsChip(ref) {
+  const src = String(ref.source || '?').toLowerCase();
+  const bg = _HS_SOURCE_COLORS[src] || '#888';
+  const title = (ref.title || '').replace(/[<>]/g, '');
+  const url = ref.url || '';
+  const snippet = (ref.snippet || '').replace(/[<>]/g, '').slice(0, 240);
+  return '<a href="' + url + '" target="_blank" rel="noopener" title="' + snippet +
+    '" style="display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:6px;background:' + bg +
+    '1f;border:1px solid ' + bg + '55;color:var(--text-1);text-decoration:none;font-size:11.5px;max-width:540px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+    '<span style="font-weight:600;color:' + bg + ';text-transform:uppercase;letter-spacing:0.04em;font-size:10px;">' + src + '</span>' +
+    '<span style="color:var(--text-2);overflow:hidden;text-overflow:ellipsis;">' + title + '</span></a>';
+}
+
+function _hsCard(note) {
+  const refs = note.hyperspell_refs || [];
+  const seeded = note.created_by === 'hyperspell-importer';
+  const badge = seeded
+    ? '<span style="background:#7C9EFF22;color:#7C9EFF;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600;">SEEDED</span>'
+    : '<span style="background:#6EE7B722;color:#6EE7B7;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600;">ENRICHED</span>';
+  const sym = (note.symptom || '').replace(/[<>]/g, '');
+  const cause = (note.root_cause || '').replace(/[<>]/g, '');
+  const fix = (note.correction || '').replace(/[<>]/g, '');
+  const filesHtml = (note.edges || []).slice(0, 3)
+    .map(e => '<code style="font-size:11px;color:var(--text-3);">' + e.path + '</code>').join(' · ');
+  const refsHtml = refs.map(_hsChip).join(' ');
+  return '<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' + badge +
+    '<code style="font-size:11px;color:var(--text-3);">' + note.id + '</code>' +
+    '<span style="font-size:11px;color:var(--text-3);">imp ' + (note.importance ?? 0).toFixed(2) +
+    ' · ' + (note.inject_count || 0) + ' injects</span></div>' +
+    '<div style="font-weight:600;font-size:13px;margin-bottom:4px;">' + sym + '</div>' +
+    '<div style="font-size:12px;color:var(--text-2);margin-bottom:4px;"><b>Cause:</b> ' + cause + '</div>' +
+    (fix ? '<div style="font-size:12px;color:var(--text-2);margin-bottom:8px;"><b>Fix:</b> ' + fix + '</div>' : '') +
+    (filesHtml ? '<div style="margin-bottom:10px;">' + filesHtml + '</div>' : '') +
+    (refsHtml ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + refsHtml + '</div>' :
+      '<div style="font-size:11px;color:var(--text-4);">No Hyperspell refs attached.</div>') + '</div>';
+}
+
+function renderHyperspell() {
+  const list = document.getElementById('hs-list');
+  if (!list) return;
+  const all = (window.ALL_NOTES || []).filter(n =>
+    (n.hyperspell_refs && n.hyperspell_refs.length) ||
+    n.created_by === 'hyperspell-importer'
+  );
+  const enriched = all.filter(n => n.created_by !== 'hyperspell-importer' && (n.hyperspell_refs || []).length);
+  const imported = all.filter(n => n.created_by === 'hyperspell-importer');
+  const totalRefs = all.reduce((s, n) => s + ((n.hyperspell_refs || []).length), 0);
+  const sources = new Set();
+  all.forEach(n => (n.hyperspell_refs || []).forEach(r => sources.add(r.source)));
+
+  const ec = document.getElementById('hs-enriched-count'); if (ec) ec.textContent = enriched.length;
+  const ic = document.getElementById('hs-imported-count'); if (ic) ic.textContent = imported.length;
+  const rc = document.getElementById('hs-refs-count');     if (rc) rc.textContent = totalRefs;
+  const sc = document.getElementById('hs-sources-count');  if (sc) sc.textContent = sources.size;
+
+  if (!all.length) {
+    list.innerHTML = '<div style="background:var(--panel);border:1px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--text-3);">' +
+      'No Hyperspell-touched notes yet. Click <b>Run Convention Importer</b> above to seed notes from the org\'s Slack / Notion / Drive / GitHub / Gmail surfaces.</div>';
+    return;
+  }
+  const sorted = imported.concat(enriched).sort((a,b) => (b.importance||0) - (a.importance||0));
+  list.innerHTML = sorted.map(_hsCard).join('');
+}
+window.renderHyperspell = renderHyperspell;
 
 function setupActivity() {
   document.querySelectorAll('[data-act-filter]').forEach(b => {
@@ -9220,6 +9319,9 @@ function switchTab(name) {
   } else if (name === 'activity') {
     if (!activityInited) { setupActivity(); activityInited = true; }
     renderActivity();
+  } else if (name === 'hyperspell') {
+    if (!hyperspellInited) { setupHyperspell(); hyperspellInited = true; }
+    renderHyperspell();
   }
 }
 document.querySelectorAll('.tab').forEach(t => {
@@ -9299,6 +9401,8 @@ function applyConvexData(d) {
       edges: edgesByNote[n.noteId] || [],
       pruned_edges: prunedByNote[n.noteId] || [],
       created_by: n.createdBy, created_at, last_inject_at,
+      hyperspell_refs: n.hyperspellRefs || [],
+      hyperspell_enriched_at: n.hyperspellEnrichedAt || null,
       status, invalidated_reason: n.invalidatedReason,
       lifecycle_at,
       lifecycle_type: !n.invalidatedAt ? null : (n.mergedInto ? 'merge' : 'invalidate'),
@@ -9317,7 +9421,27 @@ function applyConvexData(d) {
   const newActive = mappedNotes.filter(n => n.status === 'active').sort((a,b) => b.importance - a.importance);
   const newHistory = mappedNotes.filter(n => n.status !== 'active');
 
-  const newFiles = d.files.map(f => ({ path: f.path, type: f.type || 'txt', noteCount: 0 }));
+  // Acme-only filter on Convex hydration — without this, files from other
+  // sources (the dashboard repo itself, scratch paths, etc.) bleed into the
+  // Note Graph alongside the GitHub-app-fetched ACME repos.
+  const newFiles = d.files
+    .map(f => ({ path: normalizeRepoPath(f.path), type: f.type || 'txt', noteCount: 0 }))
+    .filter(f => f.path);
+  const acmeAllowed = new Set(newFiles.map(f => f.path));
+  // Re-map note edges to the canonical acme-* prefix and drop edges to
+  // anything outside the allowed set.
+  mappedNotes.forEach(n => {
+    n.edges = (n.edges || [])
+      .map(e => {
+        const np = normalizeRepoPath(e && e.path);
+        return np && acmeAllowed.has(np) ? { ...e, path: np } : null;
+      })
+      .filter(Boolean);
+  });
+  // Drop notes that ended up with no edges into ACME repos — they can't
+  // anchor anywhere on the graph and just clutter the right-hand list.
+  const filteredActive = newActive.filter(n => (n.edges || []).length > 0);
+  const filteredHistory = newHistory.filter(n => (n.edges || []).length > 0);
   const newUsers = d.users.map(u => ({
     id: u.userId, name: u.name, handle: u.handle, email: u.email, role: u.role,
     initial: u.initial, color: u.color,
@@ -9361,8 +9485,8 @@ function applyConvexData(d) {
     src.forEach(x => { obj[x[key]] = x; });
   }
 
-  repop(NOTES, newActive);
-  repop(HISTORY_NOTES, newHistory);
+  repop(NOTES, filteredActive);
+  repop(HISTORY_NOTES, filteredHistory);
   repop(FILES, newFiles);
   reMap(FILE_BY_PATH, newFiles, 'path');
   NOTES.forEach(n => n.edges.forEach(e => { if (FILE_BY_PATH[e.path]) FILE_BY_PATH[e.path].noteCount++; }));
@@ -9501,7 +9625,7 @@ function applyConvexData(d) {
 
   // reset lazy view init flags so they re-render with new data
   injInited = false; agInited = false; gcInited = false; replayInited = false;
-  guardianInited = false; sourcesInited = false; activityInited = false;
+  guardianInited = false; sourcesInited = false; activityInited = false; hyperspellInited = false;
 
   const liveSpan = document.querySelector('.live span:last-child');
   if (liveSpan) liveSpan.textContent = 'live · convex';
