@@ -1248,6 +1248,18 @@ type TreeRow =
           label: string;
           depth: number;
           sharedWith?: string[];
+      }
+    | {
+          kind: "finding";
+          id: string;
+          severity: "critical" | "high" | "medium" | "low";
+          category: "intent_drift" | "security" | "bug";
+          weight: number;
+          injects: number;
+          age: string;
+          label: string;
+          depth: number;
+          issue: number;
       };
 
 const TREE_ROWS: TreeRow[] = [
@@ -1261,12 +1273,14 @@ const TREE_ROWS: TreeRow[] = [
     { kind: "folder", name: "routes", depth: 1, count: 1 },
     { kind: "file", name: "login.ts", path: "src/routes/login.ts", type: "ts", depth: 2, notes: 2 },
     {
-        kind: "note", id: "n_a01c", weight: 0.95, importance: 0.91, injects: 28, age: "5d", depth: 3,
+        kind: "finding", id: "f_a01c", severity: "high", category: "intent_drift",
+        weight: 0.95, injects: 28, age: "5d", depth: 3, issue: 3,
         label: "Missing requireCsrfToken on POST /login",
     },
     {
-        kind: "note", id: "n_4f1d", weight: 0.88, importance: 0.88, injects: 31, age: "6d", depth: 3,
-        label: "JWT verified without checking expiry", sharedWith: ["jwt.ts"],
+        kind: "finding", id: "f_4f1d", severity: "high", category: "intent_drift",
+        weight: 0.88, injects: 31, age: "6d", depth: 3, issue: 2,
+        label: "JWT verified without checking expiry",
     },
     { kind: "folder", name: "api", depth: 1, count: 1 },
     { kind: "file", name: "webhooks.ts", path: "src/api/webhooks.ts", type: "ts", depth: 2, notes: 1 },
@@ -1282,19 +1296,22 @@ const TREE_ROWS: TreeRow[] = [
     },
     { kind: "file", name: "jwt.ts", path: "src/lib/jwt.ts", type: "ts", depth: 2, notes: 1 },
     {
-        kind: "note", id: "n_4f1d", weight: 0.81, importance: 0.88, injects: 31, age: "6d", depth: 3,
-        label: "JWT verified without checking expiry", sharedWith: ["login.ts"],
+        kind: "finding", id: "f_4f1d", severity: "high", category: "intent_drift",
+        weight: 0.81, injects: 31, age: "6d", depth: 3, issue: 2,
+        label: "JWT verified without checking expiry",
     },
     { kind: "file", name: "db.ts", path: "src/lib/db.ts", type: "ts", depth: 2, notes: 1 },
     {
-        kind: "note", id: "n_ttl3", weight: 0.79, importance: 0.85, injects: 22, age: "2d", depth: 3,
+        kind: "finding", id: "f_ttl3", severity: "medium", category: "bug",
+        weight: 0.79, injects: 22, age: "2d", depth: 3, issue: 4,
         label: "sliding-TTL inverted in session refresh",
     },
     { kind: "folder", name: "convex", depth: 0, count: 1 },
     { kind: "file", name: "schema.ts", path: "convex/schema.ts", type: "ts", depth: 1, notes: 0 },
     { kind: "file", name: "package.json", path: "package.json", type: "json", depth: 0, notes: 1 },
     {
-        kind: "note", id: "n_lod9", weight: 0.97, importance: 0.91, injects: 38, age: "4d", depth: 1,
+        kind: "finding", id: "f_lod9", severity: "critical", category: "security",
+        weight: 0.97, injects: 38, age: "4d", depth: 1, issue: 1,
         label: "lodash CVE 2021-23337 — prototype pollution via zipObjectDeep",
     },
     { kind: "file", name: ".env.example", path: ".env.example", type: "env", depth: 0, notes: 0 },
@@ -1310,15 +1327,20 @@ const TYPE_COLORS: Record<string, string> = {
 
 function FileTreeWithNotes() {
     const totalFiles = TREE_ROWS.filter((r) => r.kind === "file").length;
-    const totalNotes = new Set(
-        TREE_ROWS.filter((r) => r.kind === "note").map(
-            (r) => (r as { id: string }).id,
-        ),
-    ).size;
-    const totalEdges = TREE_ROWS.filter((r) => r.kind === "note").length;
+    const totalNotes = TREE_ROWS.filter((r) => r.kind === "note").length;
+    const totalFindings = TREE_ROWS.filter((r) => r.kind === "finding").length;
 
     return (
-        <div className="mt-16 overflow-hidden rounded-3xl border border-border-strong bg-bg shadow-2xl">
+        <>
+            <div className="mt-16 mb-6 flex flex-wrap items-baseline gap-4">
+                <h3 className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-3">
+                    Demo: NewCoder3294/demo-target
+                </h3>
+                <span className="font-mono text-[11px] text-ink-3">
+                    Guardian findings + a few NM notes · both shapes share the file tree
+                </span>
+            </div>
+            <div className="mt-0 overflow-hidden rounded-3xl border border-border-strong bg-bg shadow-2xl">
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/60 px-5 py-3 backdrop-blur-md">
                 <div className="flex items-center gap-2">
@@ -1335,11 +1357,11 @@ function FileTreeWithNotes() {
                     </span>
                     <span className="opacity-50">·</span>
                     <span>
-                        <span className="text-accent">{totalNotes}</span> notes
+                        <span className="text-accent">{totalNotes}</span> NM notes
                     </span>
                     <span className="opacity-50">·</span>
                     <span>
-                        <span className="text-ink">{totalEdges}</span> file→note edges
+                        <span className="text-file">{totalFindings}</span> Guardian findings
                     </span>
                 </div>
             </div>
@@ -1352,15 +1374,15 @@ function FileTreeWithNotes() {
             </div>
 
             {/* Footer hint */}
-            <div className="flex items-center gap-3 border-t border-border bg-surface/40 px-5 py-3 font-mono text-[10px] text-ink-3">
-                <span className="text-ink-2">noteFiles</span>
-                <span className="opacity-60">→</span>
-                <span>
-                    open any file, the agent gets the notes attached to it (weight ≥
-                    0.40) injected into context — no embeddings, no chat history walk.
-                </span>
+            <div className="border-t border-border bg-surface/40 px-5 py-3 font-mono text-[11px] leading-relaxed text-ink-3">
+                <span className="text-ink-2">NM notes (n_*)</span> attach via{" "}
+                <code className="text-file">noteFiles.weight</code> — injected on PreToolUse before any agent opens the file.
+                <span className="opacity-50"> · </span>
+                <span className="text-ink-2">Guardian findings (f_*)</span> attach via{" "}
+                <code className="text-file">codeCite</code> + <code className="text-file">constraintCite</code> — filed as GitHub issues.
             </div>
-        </div>
+            </div>
+        </>
     );
 }
 
@@ -1410,6 +1432,57 @@ function TreeRowRender({ row }: { row: TreeRow }) {
                         </span>
                     )}
                 </span>
+            </div>
+        );
+    }
+
+    if (row.kind === "finding") {
+        const SEV_TONE: Record<string, string> = {
+            critical: "text-red border-red/30 bg-red/10",
+            high: "text-accent border-accent/30 bg-accent/10",
+            medium: "text-yellow border-yellow/30 bg-yellow/10",
+            low: "text-green border-green/30 bg-green/10",
+        };
+        const CAT_PILL: Record<string, string> = {
+            intent_drift: "text-purple border-purple/25 bg-purple/10",
+            security: "text-red border-red/25 bg-red/10",
+            bug: "text-yellow border-yellow/25 bg-yellow/10",
+        };
+        return (
+            <div
+                className="flex items-stretch gap-3 bg-bg/40 px-5 py-3"
+                style={{ paddingLeft: `${56 + (row.depth - 1) * 18}px` }}
+            >
+                <div className="flex flex-col items-center pt-1">
+                    <span className="block h-3 w-px bg-border" />
+                    <span className="block h-1.5 w-1.5 rounded-full bg-file shadow-[0_0_0_3px_rgba(124,158,255,0.10)]" />
+                </div>
+                <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[10px] text-ink-3">{row.id}</span>
+                        <span className="opacity-40 text-ink-3">·</span>
+                        <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em]", SEV_TONE[row.severity])}>
+                            {row.severity}
+                        </span>
+                        <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[10px]", CAT_PILL[row.category])}>
+                            {row.category}
+                        </span>
+                        <span className="opacity-40 text-ink-3">·</span>
+                        <span className="inline-flex items-center gap-1 rounded-md border border-file/25 bg-file/10 px-1.5 py-0.5 font-mono text-[10px] text-file">
+                            weight {row.weight.toFixed(2)} →
+                        </span>
+                        <span className="opacity-40 text-ink-3">·</span>
+                        <span className="font-mono text-[10px] text-ink-3">×{row.injects} inj</span>
+                        <span className="opacity-40 text-ink-3">·</span>
+                        <span className="font-mono text-[10px] text-ink-3">{row.age}</span>
+                        <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-green/25 bg-green/10 px-1.5 py-0.5 font-mono text-[10px] text-green">
+                            → issue #{row.issue}
+                        </span>
+                    </div>
+                    <div className="mt-1.5 text-[13px] leading-snug text-ink">
+                        {row.label}
+                    </div>
+                </div>
             </div>
         );
     }
