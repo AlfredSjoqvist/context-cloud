@@ -807,7 +807,7 @@
   .legend .swatch.thick { height: 3px; }
   .canvas-status {
     align-self: center;
-    margin: 0 auto;
+    margin: auto auto 0;          /* NM_TREE_PILL_FIX_V1 — pin to bottom */
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 999px;
@@ -5994,14 +5994,12 @@ function applyHighlight() {
 //                          (accordion: at most one expanded at a time)
 //     * expanded repo   → just collapse it (none expanded)
 //     * nested folder   → simple toggle
+// NM_TREE_PILL_FIX_V1 — at load, leave every repo uncollapsed (the
+// original default before the accordion patch). The accordion still
+// applies on click: clicking a collapsed repo expands it AND collapses
+// every other repo; clicking an expanded repo just collapses it.
 (function () {
-  const repos = Array.from(document.querySelectorAll('.folder.repo'));
-  // Sort by data-repo so "first" is deterministic regardless of DOM order.
-  repos.sort((a, b) => (a.dataset.repo || '').localeCompare(b.dataset.repo || ''));
-  repos.forEach((f, i) => {
-    if (i === 0) f.classList.remove('collapsed');
-    else f.classList.add('collapsed');
-  });
+  document.querySelectorAll('.folder.repo').forEach(f => f.classList.remove('collapsed'));
 })();
 function _nmActiveRepo() {
   const expanded = document.querySelectorAll('.folder.repo:not(.collapsed)');
