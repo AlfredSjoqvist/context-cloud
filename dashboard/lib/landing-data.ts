@@ -1,8 +1,9 @@
 // dashboard/lib/landing-data.ts
 // Single source of truth for any number / example shown on the landing.
 // Frozen snapshot — last refreshed: 2026-05-10 from convex deployment
-// acoustic-fish-389 + demo-target NewCoder3294. Do not edit numbers without
-// re-running the snapshot script in scripts/refresh-landing-snapshot.ts.
+// acoustic-fish-389 + demo-target NewCoder3294. To refresh: re-query the
+// Convex queries listed in docs/superpowers/plans/2026-05-10-landing-fixes.md
+// (Phase 1 / Task 1) and bump SNAPSHOT_TAKEN.
 
 export const SNAPSHOT_TAKEN = "2026-05-10";
 export const SNAPSHOT_CONVEX = "acoustic-fish-389";
