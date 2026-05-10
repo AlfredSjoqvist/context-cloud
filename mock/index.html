@@ -4667,6 +4667,39 @@
       <div class="act-log" id="act-log"></div>
     </div>
   </div>
+
+  <!-- Hyperspell view (notes from / enriched by Hyperspell) ──────── -->
+  <div class="view view-hyperspell" data-view="hyperspell" style="grid-template-columns: 1fr;">
+    <div style="padding: 18px 22px; overflow: auto;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:14px;">
+        <div>
+          <div style="font-weight:700; font-size:15px; letter-spacing:-0.01em;">Hyperspell — supporting context</div>
+          <div style="color:var(--text-3); font-size:12.5px; max-width:780px; line-height:1.55; margin-top:4px;">
+            NM notes are primary provenance from observed coding-session friction.
+            <b>Hyperspell adds the citation layer</b>: every note carries the Slack thread, Notion doc, GitHub issue, Drive file, or Gmail RFC that the org has already discussed.
+            The Convention Importer below seeds notes from non-code surfaces so Hindsight has day-one knowledge.
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="hs-import-btn" class="export-btn" style="padding:8px 14px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5z"/><path d="M3 7l9 5 9-5"/></svg>
+            Run Convention Importer
+          </button>
+        </div>
+      </div>
+
+      <div id="hs-stats" style="display:flex; gap:14px; margin-bottom:18px; flex-wrap:wrap;">
+        <div class="stat" style="background:var(--panel); padding:10px 14px; border-radius:8px;"><span class="num" id="hs-enriched-count">0</span><span class="lbl">enriched notes</span></div>
+        <div class="stat" style="background:var(--panel); padding:10px 14px; border-radius:8px;"><span class="num" id="hs-imported-count">0</span><span class="lbl">imported (seed) notes</span></div>
+        <div class="stat" style="background:var(--panel); padding:10px 14px; border-radius:8px;"><span class="num" id="hs-refs-count">0</span><span class="lbl">total refs</span></div>
+        <div class="stat" style="background:var(--panel); padding:10px 14px; border-radius:8px;"><span class="num" id="hs-sources-count">0</span><span class="lbl">distinct sources</span></div>
+      </div>
+
+      <div id="hs-import-status" style="margin-bottom:14px; font-size:12px; color:var(--text-3);"></div>
+
+      <div id="hs-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+    </div>
+  </div>
 </main>
 
 <div class="mx-tip" id="mx-tip"></div>
