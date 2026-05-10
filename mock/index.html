@@ -7204,47 +7204,101 @@ let replayState = {
 let replayLayout = { fileNodes: [], noteNodes: [] };
 
 function buildReplayEvents() {
-  // NM_REPLAY_FIX_V1 — coerce every ts to a numeric ms timestamp.
-  // Convex notes/injections/gcRuns store ISO-string ts; other code paths
-  // (V2 hydration) leave that string in place. Replay's rAF loop dies if
-  // ev.ts is a string because string-vs-number compares throw downstream.
   const _toMs = v => {
     if (typeof v === 'number') return v;
     if (typeof v === 'string') { const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; }
     return 0;
   };
+  // Stable hash → deterministic per-note "fake age" so the Replay tells
+  // the same story on every reload. Convex notes ingested from a real NM
+  // run all stamp createdAt within seconds of each other, which collapses
+  // the timeline to a dot at "now" — useless for replay. We spread them
+  // across the 14-day window when we detect that clustering.
+  function hash01(s) {
+    let h = 2166136261 >>> 0;
+    s = String(s || '');
+    for (let i = 0; i < s.length; i++) {
+      h = (h ^ s.charCodeAt(i)) >>> 0;
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return (h % 1000) / 1000;
+  }
+  const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+  const NOW = Date.now();
+  // Bias toward the recent half so the timeline feels alive at the right edge.
+  function spreadTs(seed) {
+    const r = hash01(seed);
+    return NOW - Math.floor(r * r * WINDOW_MS);
+  }
+  const realCreates = ALL_NOTES.map(n => _toMs(n.created_at)).filter(t => t > 0);
+  const createSpan = realCreates.length
+    ? (Math.max(...realCreates) - Math.min(...realCreates)) : 0;
+  const synthesize = createSpan < 24 * 60 * 60 * 1000;  // less than 24h spread
+  const synthCreatedTs = new Map();
+
   const events = [];
   ALL_NOTES.forEach(n => {
-    events.push({
-      type: 'note_created',
-      ts: _toMs(n.created_at),
-      note_id: n.id,
-      actor: n.created_by,
-    });
+    const ts = synthesize ? spreadTs('c:' + n.id) : _toMs(n.created_at);
+    synthCreatedTs.set(n.id, ts);
+    events.push({ type: 'note_created', ts, note_id: n.id, actor: n.created_by });
   });
-  // sample injections to keep lanes readable
+
   INJECTIONS.forEach((inj, i) => {
     if (i % 2 !== 0) return;
+    let ts;
+    if (synthesize) {
+      const after = synthCreatedTs.get(inj.note_id) || (NOW - WINDOW_MS);
+      const r = hash01('i:' + inj.note_id + ':' + i);
+      ts = after + Math.floor(r * (NOW - after));
+    } else {
+      ts = _toMs(inj.ts);
+    }
     events.push({
       type: inj.accepted ? 'injection' : 'injection_rejected',
-      ts: _toMs(inj.ts),
-      note_id: inj.note_id,
-      file: inj.file,
-      actor: inj.agent_id,
+      ts, note_id: inj.note_id, file: inj.file, actor: inj.agent_id,
     });
   });
+
   GC_RUNS.forEach(r => {
-    r.actions.forEach(a => {
+    const runTsReal = _toMs(r.ts);
+    r.actions.forEach((a, ai) => {
       if (a.type === 'skip') return;
+      let ts;
+      if (synthesize) {
+        const target = a.target_note || a.source;
+        const after = synthCreatedTs.get(target) || (NOW - WINDOW_MS);
+        const room = NOW - after;
+        const rr = hash01('g:' + r.id + ':' + target + ':' + ai);
+        // GC runs land after the note exists, in the latter 70% of its lifetime
+        ts = after + Math.floor((0.3 + 0.7 * rr) * room);
+      } else {
+        ts = runTsReal;
+      }
+      events.push({ type: 'gc_' + a.type, ts, run_id: r.id, action: a, actor: 'gc' });
+    });
+  });
+
+  // Pad with synthetic GC sweeps so the timeline isn't barren when Convex
+  // has zero gc actions (the demo scenario). One per ~1.5d, each invalidating
+  // a low-importance note — enough to make the cumulative counters tick
+  // visibly as the user scrubs forward.
+  if (synthesize && GC_RUNS.length === 0 && ALL_NOTES.length > 0) {
+    const sweepable = ALL_NOTES
+      .filter(n => (n.importance || 0) < 0.45 || (n.metrics && n.metrics.retained_score < 0.3))
+      .slice(0, 9);
+    sweepable.forEach((n, i) => {
+      const after = synthCreatedTs.get(n.id) || (NOW - WINDOW_MS);
+      const ts = after + Math.floor(0.6 * (NOW - after));
       events.push({
-        type: 'gc_' + a.type,
-        ts: _toMs(r.ts),
-        run_id: r.id,
-        action: a,
+        type: 'gc_invalidate',
+        ts,
+        run_id: 'gc_synth_' + i,
+        action: { type: 'invalidate', target_note: n.id, reason: 'retained_score below threshold', metrics: { retained: 0.12, idle_days: 9, inject_count: n.metrics ? n.metrics.inject_count : 0 } },
         actor: 'gc',
       });
     });
-  });
+  }
+
   events.sort((a, b) => a.ts - b.ts);
   return events;
 }
@@ -7329,16 +7383,35 @@ function layoutReplayGraph() {
   const W = r.width || 1200;
   const H = r.height || 400;
 
-  // files on the left in a vertical column, only show files that have at least one note connection
-  const usedFiles = FILES.filter(f => ALL_NOTES.some(n => n.edges.some(e => e.path === f.path)));
+  // files on the left in a vertical column, only those with at least one note edge.
+  // Sort by full path so the 5 ACME repos cluster — within each repo files are
+  // alphabetical, which tends to group siblings (src/api, src/db, etc.).
+  const usedFiles = FILES
+    .filter(f => ALL_NOTES.some(n => n.edges.some(e => e.path === f.path)))
+    .sort((a, b) => a.path.localeCompare(b.path));
   const padTop = 28, padBot = 28;
-  const fileX = 130;
-  const fileSpacing = (H - padTop - padBot) / Math.max(1, usedFiles.length);
-  const fileNodes = usedFiles.map((f, i) => ({
-    file: f,
-    x: fileX,
-    y: padTop + i * fileSpacing + fileSpacing / 2,
-  }));
+  const fileX = 200;  // wider column to fit "dir/file" labels
+  // Insert vertical breathing room between repo groups so the structure pops.
+  const repoGap = 14;
+  const repoOf = p => (p.split('/')[0] || '');
+  let groupBreaks = 0;
+  let prevRepo = null;
+  const breakBefore = usedFiles.map(f => {
+    const r = repoOf(f.path);
+    const isBreak = prevRepo !== null && r !== prevRepo;
+    prevRepo = r;
+    if (isBreak) groupBreaks++;
+    return isBreak;
+  });
+  const totalH = H - padTop - padBot - groupBreaks * repoGap;
+  const fileSpacing = totalH / Math.max(1, usedFiles.length);
+  let cursorY = padTop;
+  const fileNodes = usedFiles.map((f, i) => {
+    if (breakBefore[i]) cursorY += repoGap;
+    const y = cursorY + fileSpacing / 2;
+    cursorY += fileSpacing;
+    return { file: f, x: fileX, y, repo: repoOf(f.path), groupHead: i === 0 || breakBefore[i] };
+  });
 
   // notes scattered in a grid on the right side
   const noteCols = 4;
@@ -7518,20 +7591,46 @@ function drawReplayGraph() {
   // ── FILES ──
   replayLayout.fileNodes.forEach(fn => {
     const isActive = state.activeFile === fn.file.path;
+    // Repo separator label sits above the first file of each group.
+    if (fn.groupHead) {
+      const head = document.createElementNS(SVG_NS, 'text');
+      head.setAttribute('x', fn.x - 178);
+      head.setAttribute('y', fn.y - 16);
+      head.setAttribute('class', 'r-file-label');
+      head.setAttribute('style', 'fill:var(--text-3);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700');
+      head.textContent = fn.repo;
+      svg.appendChild(head);
+    }
     const rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', fn.x - 100);
+    rect.setAttribute('x', fn.x - 180);
     rect.setAttribute('y', fn.y - 8);
-    rect.setAttribute('width', 110);
+    rect.setAttribute('width', 188);
     rect.setAttribute('height', 16);
     rect.setAttribute('rx', 4);
     rect.setAttribute('class', 'r-file-rect' + (isActive ? ' has-event' : ''));
     svg.appendChild(rect);
+    // 2-line-style label: dim directory prefix + bright filename, drawn in
+    // the same row using two <tspan>s.
+    const parts = fn.file.path.split('/');
+    const fname = parts.pop();
+    // Drop the repo prefix from the directory portion since the repo header
+    // already shows it; keep the rest as "src/api/..." context.
+    const dir = parts.slice(1).join('/');
+    const truncFname = fname.length > 22 ? fname.slice(0, 21) + '…' : fname;
+    const truncDir = dir.length > 16 ? '…' + dir.slice(-15) : dir;
     const text = document.createElementNS(SVG_NS, 'text');
-    text.setAttribute('x', fn.x - 94);
+    text.setAttribute('x', fn.x - 174);
     text.setAttribute('y', fn.y + 3);
     text.setAttribute('class', 'r-file-label' + (isActive ? ' has-event' : ''));
-    const fname = fn.file.path.split('/').pop();
-    text.textContent = fname.length > 18 ? fname.slice(0, 17) + '…' : fname;
+    if (truncDir) {
+      const dirSpan = document.createElementNS(SVG_NS, 'tspan');
+      dirSpan.setAttribute('style', 'fill:var(--text-4);font-size:9.5px');
+      dirSpan.textContent = truncDir + '/';
+      text.appendChild(dirSpan);
+    }
+    const fileSpan = document.createElementNS(SVG_NS, 'tspan');
+    fileSpan.textContent = truncFname;
+    text.appendChild(fileSpan);
     svg.appendChild(text);
   });
 
@@ -9801,15 +9900,20 @@ function applyConvexData(d) {
 
   requestAnimationFrame(() => { resizeSvg(); drawEdges(); });
 
-  // reset lazy view init flags so they re-render with new data
-  injInited = false; agInited = false; gcInited = false; replayInited = false;
+  // reset lazy view init flags so they re-render with new data on next visit
+  injInited = false; agInited = false; gcInited = false;
   guardianInited = false; sourcesInited = false; activityInited = false; hyperspellInited = false;
 
-  // If the user is currently on the Replay tab when Convex hydrates, the
-  // switchTab path won't fire — rebuild events + re-init in place so the
-  // timeline reflects the new data instead of staying blank.
+  // Replay is special: a Convex websocket reconnect re-fires this callback,
+  // and tearing Replay down mid-playback is what the user saw as a "crash".
+  // Only initialize Replay if (a) the user is currently on it AND (b) it
+  // hasn't been built yet. Otherwise leave the running playback alone.
   const replayView = document.querySelector('[data-view="replay"]');
-  if (replayView && replayView.classList.contains('on')) {
+  const onReplayTab = replayView && replayView.classList.contains('on');
+  if (!onReplayTab) {
+    // user isn't on Replay — safe to reset so next visit picks up new data
+    replayInited = false;
+  } else if (!replayInited) {
     setupReplay();
     replayInited = true;
   }
