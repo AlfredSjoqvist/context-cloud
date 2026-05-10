@@ -11,7 +11,7 @@ Three independently-developed halves merged into one app, sharing one Convex dep
 │ GC: decay → merge → prune  │  │ RECONCILE (Devin closed loop)│  │ constraints     │
 └──────────────┬─────────────┘  └──────────────┬───────────────┘  └────────┬────────┘
                │                               │                            │
-               └───────── shared Convex deployment: acoustic-fish-389 ──────┘
+               └───────── shared Convex deployment: colorless-porcupine-926 ──────┘
                                           │
                               ┌───────────┴───────────┐
                               ▼                       ▼
@@ -105,10 +105,10 @@ Writes `<sibling demo-target>/.context-map/library/lodash/security-advisories.md
 
 ## Convex deployment
 
-One shared deployment: `acoustic-fish-389` (project `nozomioHackathon`).
+One shared deployment: `colorless-porcupine-926` (project `nozomioHackathon`).
 
-- Reactive UI endpoint (read): `https://acoustic-fish-389.convex.cloud`
-- HTTP actions endpoint (write from Python): `https://acoustic-fish-389.convex.site`
+- Reactive UI endpoint (read): `https://colorless-porcupine-926.convex.cloud`
+- HTTP actions endpoint (write from Python): `https://colorless-porcupine-926.convex.site`
 
 Schema at [`convex/schema.ts`](convex/schema.ts) is the union of every half's tables. Adding a table on either side is fine; renaming or dropping needs coordination.
 

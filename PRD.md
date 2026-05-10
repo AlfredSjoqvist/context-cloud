@@ -19,7 +19,7 @@ Plus:
 - **mock_org/** — a synthetic ACME organization with five sub-products (`agent-gateway`, `connectors`, `control-plane`, `memory-graph`, `runtime-orchestrator`) and a `.nm/briefs/` corpus. Powers the Hindsight demo replay.
 - **mock/** — static demo-mode HTML served by Vercel for the offline demo path.
 
-All three share one Convex deployment (`acoustic-fish-389`) but write to disjoint table sets. Either half can run alone.
+All three share one Convex deployment (`colorless-porcupine-926`) but write to disjoint table sets. Either half can run alone.
 
 ---
 

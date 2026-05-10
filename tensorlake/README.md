@@ -22,7 +22,7 @@ Local dev parity: with `pip install tensorlake` absent, the decorator becomes a 
 pip install tensorlake
 export TENSORLAKE_API_KEY=<your hackathon key>
 export OPENAI_API_KEY=...                       # used by Note Manager + Guardian critique
-export CONVEX_URL=https://acoustic-fish-389.convex.cloud
+export CONVEX_URL=https://colorless-porcupine-926.convex.cloud
 export NM_SYNC_TOKEN=<shared secret>            # if your Convex deployment requires it
 
 tensorlake deploy tensorlake/guardian_cycle.py --name guardian-cycle --schedule '* * * * *'
@@ -40,7 +40,7 @@ Set these via the Tensorlake CLI or web console (mirror the local `.env`, **neve
 |------------------------------|---------------------------------------------|
 | `NIA_API_KEY`                | nk_…                                        |
 | `NIA_MCP_URL`                | `https://apigcp.trynia.ai/mcp`              |
-| `CONVEX_URL`                 | `https://acoustic-fish-389.convex.cloud`    |
+| `CONVEX_URL`                 | `https://colorless-porcupine-926.convex.cloud`    |
 | `OPENAI_API_KEY`             | sk-proj-…                                   |
 | `OPENAI_MODEL`               | `gpt-5`                                     |
 | `OPENAI_CRITIQUE_MODEL`      | `gpt-5-mini`                                |

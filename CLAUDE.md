@@ -10,7 +10,7 @@ Context Cloud — a post-hackathon merged tree with three halves on `main`:
 - **NM session capture** (Python) under `nm_*.py`, `tensorlake/{note_manager,gc}.py`, `dashboard/`
 - **docs-ingest pipeline** (TypeScript) under `docs-ingest/`
 
-Plus the **mock_org/** synthetic ACME organization that drives the Hindsight demo. All halves share one Convex deployment (`acoustic-fish-389`) with disjoint write tables. Either side can run alone.
+Plus the **mock_org/** synthetic ACME organization that drives the Hindsight demo. All halves share one Convex deployment (`colorless-porcupine-926`) with disjoint write tables. Either side can run alone.
 
 Product spec: [PRD.md](PRD.md). Repo orientation + quickstart: [README.md](README.md). Pre-merge per-half PRDs, the original Guardian handoff, and the NM sponsor-integration snapshot are preserved under [docs/history/](docs/history/) — useful context, not ground truth.
 
@@ -99,4 +99,4 @@ Don't ask for permission to read files, run searches, run typechecks / tests, or
 - Repo works on macOS / Linux. Some pre-merge config carries Windows artifacts:
   - `.mcp.json` references `C:\Users\Alfred\Desktop\nozomio\nm_server.py` — adjust locally before running NM hooks.
 - Node 20+ at the root and in `ui/`, `dashboard/`, `docs-ingest/`. Python 3.10+ for the NM scripts.
-- Convex deployment is `acoustic-fish-389`. Don't link to a different deployment without coordinating — the other half will lose its data.
+- Convex deployment is `colorless-porcupine-926`. Don't link to a different deployment without coordinating — the other half will lose its data.
