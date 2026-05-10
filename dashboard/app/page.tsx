@@ -23,6 +23,8 @@ import {
     SNAPSHOT_TAKEN,
     SNAPSHOT_CONVEX,
     SNAPSHOT_DEMO,
+    HURDLE_THRESHOLD,
+    GC_KNOBS,
 } from "@/lib/landing-data";
 
 const TOTAL_TIMING = CYCLE_TIMINGS_MS.reduce((a, b) => a + b, 0);
@@ -1093,13 +1095,13 @@ function NoteMappingExplainer() {
                 </span>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-5">
                 <ExplainerStep
                     n="01"
                     color="#66E0FF"
                     title="hurdle captured"
                     sub="session message"
-                    body="A Cursor session gets stuck on auth. The agent's tool calls + final fix are mirrored into Convex via a PostToolUse hook."
+                    body="A Cursor session gets stuck on auth. Every tool call + the final fix mirror into Convex via a PostToolUse hook."
                     code={`session.upsert({
   sessionId: s_a8f2,
   agentVendor: "Cursor",
@@ -1108,10 +1110,23 @@ function NoteMappingExplainer() {
                 />
                 <ExplainerStep
                     n="02"
+                    color="#FF7A8A"
+                    title="hurdle scored"
+                    sub={`7 signals · threshold ${HURDLE_THRESHOLD} · deterministic`}
+                    body="Not an LLM. nm_signals walks the trace and emits weighted signals — action loops, retry loops, user interrupts, reverted edits, correction phrases, prompt re-asks, explicit feedback. Cluster with gap ≤ 12 events; window opens when the cluster sum crosses 3.0."
+                    code={`signal: action_bigram_loop  +3.0
+signal: reverted_edit       +2.0
+signal: correction_phrase   +1.0
+score = 6.0  →  hurdle window
+  start = first_signal - 10
+  end   = resolution within 16 events`}
+                />
+                <ExplainerStep
+                    n="03"
                     color="#C49BFF"
                     title="note extracted"
-                    sub="LLM · symptom + cause + correction"
-                    body="A scheduled extractor reads the session, decides if it's worth remembering, and writes a structured note. No free text — every field is typed."
+                    sub="LLM distills the window"
+                    body="Only after the deterministic detector fires. The LLM receives the failure→resolution event slice and the candidate file list. It cannot invent file paths and it never decides whether the user was stuck — that's already settled."
                     code={`notes.upsert({
   noteId: n_4f1d,
   symptom: "JWT verified
@@ -1120,11 +1135,11 @@ function NoteMappingExplainer() {
 })`}
                 />
                 <ExplainerStep
-                    n="03"
+                    n="04"
                     color="#FFB86B"
                     title="edges added"
                     sub="noteFiles · weighted"
-                    body="The extractor names the files it touched. Each file becomes a weighted edge — co-occurrence × recency. This is the file→note mapping."
+                    body="The extractor names the files it touched. Each becomes a weighted edge — co-occurrence × recency. This is the file→note mapping."
                     code={`noteFiles.upsert({
   noteId: n_4f1d,
   path:   "src/routes/login.ts",
@@ -1132,7 +1147,7 @@ function NoteMappingExplainer() {
 })`}
                 />
                 <ExplainerStep
-                    n="04"
+                    n="05"
                     color="#6EE7B7"
                     title="auto-injected"
                     sub="PreToolUse hook · 0 chat needed"
@@ -1146,15 +1161,9 @@ function NoteMappingExplainer() {
             </div>
 
             <div className="mt-3 grid gap-3 text-[11px] text-ink-3 md:grid-cols-3">
-                <RuleChip k="threshold" v="weight ≥ 0.40 → injects" />
-                <RuleChip
-                    k="ranking"
-                    v="importance × weight, capped 8 notes / call"
-                />
-                <RuleChip
-                    k="lifecycle"
-                    v="GC prunes notes that haven't fired in 14 days"
-                />
+                <RuleChip k="hurdle threshold" v={`signal sum ≥ ${HURDLE_THRESHOLD}`} />
+                <RuleChip k="GC decay" v={`half-life ${GC_KNOBS.halfLifeDays} days from last inject`} />
+                <RuleChip k="GC prune" v={`importance < ${GC_KNOBS.pruneImportance}`} />
             </div>
         </div>
     );
