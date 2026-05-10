@@ -68,13 +68,15 @@ def _convex_query(path: str, args: dict) -> object:
 
 def _convex_post(route: str, body: dict) -> bool:
     """POST to a Convex http.ts /sync/* route. Returns True on 200."""
+    # Convex's v.optional(...) accepts missing fields but rejects explicit null.
+    clean = {k: v for k, v in body.items() if v is not None}
     try:
         headers = {"Content-Type": "application/json"}
         if NM_SYNC_TOKEN:
             headers["X-NM-TOKEN"] = NM_SYNC_TOKEN
         r = requests.post(
             f"{CONVEX_SITE_URL}{route}",
-            json=body,
+            json=clean,
             headers=headers,
             timeout=8,
         )
@@ -204,9 +206,42 @@ def _tool_get_relevant_notes(args: dict, installation_id: str) -> dict:
     }
 
 
+# Correction-phrase regex — kept in sync with nm_signals.py CORRECTION_RE.
+# Matches the high-signal verbal corrections at the start of a user turn.
+import re as _re
+_CORRECTION_RE = _re.compile(
+    r"^\s*(no|nope|stop|wrong|that[' ]?s wrong|actually|instead|not quite|"
+    r"that[' ]?s not (right|what)|don[' ]?t|we don[' ]?t|never|wait,?\s)\b",
+    _re.IGNORECASE,
+)
+
+
+def _classify_kind(event: dict) -> str:
+    """Map a record_event payload to one of:
+        user_msg | agent_msg | tool_call | tool_error | correction
+    """
+    role = (event.get("role") or "").lower()
+    explicit = (event.get("kind") or event.get("type") or "").lower()
+    if explicit in ("user_msg", "agent_msg", "tool_call", "tool_error", "correction"):
+        return explicit
+    if role == "user":
+        text = event.get("text") or event.get("content") or event.get("message") or ""
+        if isinstance(text, str) and _CORRECTION_RE.search(text):
+            return "correction"
+        return "user_msg"
+    if role in ("assistant", "agent"):
+        return "agent_msg"
+    if event.get("tool_name") or event.get("toolName"):
+        is_err = bool(event.get("is_error") or event.get("isError"))
+        return "tool_error" if is_err else "tool_call"
+    return "user_msg"
+
+
 def _tool_record_event(args: dict, installation_id: str) -> dict:
     event = args.get("event") or {}
-    summary = json.dumps(event)[:300]
+    if not isinstance(event, dict):
+        event = {"text": str(event)}
+    summary = json.dumps(event)[:200]
     print(f"[hindsight-mcp:{installation_id}] record_event {summary}")
 
     session_id = (
@@ -215,6 +250,9 @@ def _tool_record_event(args: dict, installation_id: str) -> dict:
         or f"mcp-{installation_id}"
     )
     cwd = event.get("cwd") or event.get("project_root") or ""
+    now = _now_iso()
+
+    # 1. Keep session metadata fresh.
     _convex_post(
         "/sync/session",
         {
@@ -222,11 +260,36 @@ def _tool_record_event(args: dict, installation_id: str) -> dict:
             "agentVendor": event.get("agent") or "Claude Code (hosted MCP)",
             "cwd": cwd,
             "projectRoot": event.get("project_root") or cwd,
-            "startedAt": event.get("started_at") or _now_iso(),
-            "lastSeenAt": _now_iso(),
+            "startedAt": event.get("started_at") or now,
+            "lastSeenAt": now,
             "messageCount": event.get("message_count") or 1,
         },
     )
+
+    # 2. Persist the event itself for the remote Note Manager.
+    kind = _classify_kind(event)
+    text = event.get("text") or event.get("content") or event.get("message")
+    if isinstance(text, list):
+        text = " ".join(str(b.get("text", b)) for b in text if b)
+    if text is not None:
+        text = str(text)[:4000]
+    _convex_post(
+        "/sync/agent-event",
+        {
+            "ts": event.get("ts") or now,
+            "sessionId": session_id,
+            "installationId": installation_id,
+            "kind": kind,
+            "text": text,
+            "toolName": event.get("tool_name") or event.get("toolName"),
+            "filePath": event.get("file_path") or event.get("filePath"),
+            "isError": bool(event.get("is_error") or event.get("isError"))
+            if event.get("is_error") is not None or event.get("isError") is not None
+            else None,
+            "payload": event,
+        },
+    )
+
     return {"content": [{"type": "text", "text": "recorded"}]}
 
 

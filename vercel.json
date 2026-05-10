@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": "mock",
+  "ignoreCommand": "exit 1",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ]
+}

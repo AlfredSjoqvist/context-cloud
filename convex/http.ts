@@ -38,6 +38,33 @@ function bad(status: number, msg: string): Response {
     });
 }
 
+// CORS-enabled, no-auth wrapper for read-only public dashboard endpoints.
+// The deployed dashboard at hindsight-nm.vercel.app calls these from the
+// browser; gating them with NM_SYNC_TOKEN would mean leaking the secret in
+// client JS. These return only public-shape data (no secrets, no PII).
+const CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Max-Age": "86400",
+};
+function jsonPublic(payload: unknown, status = 200): Response {
+    return new Response(JSON.stringify(payload), {
+        status,
+        headers: { "content-type": "application/json", ...CORS_HEADERS },
+    });
+}
+const wrapPublicGet = (fn: (ctx: any, url: URL) => Promise<unknown>) =>
+    httpAction(async (ctx, req) => {
+        if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+        try {
+            const result = await fn(ctx, new URL(req.url));
+            return jsonPublic(result);
+        } catch (e: any) {
+            return jsonPublic({ error: String(e?.message ?? e) }, 500);
+        }
+    });
+
 const wrap = (fn: (ctx: any, body: any) => Promise<unknown>) =>
     httpAction(async (ctx, req) => {
         if (!authed(req)) return bad(401, "unauthorized");
@@ -115,6 +142,41 @@ http.route({
         const id = await ctx.runMutation(internal.sessions.upsertSession, body);
         return { id };
     }),
+});
+
+http.route({
+    path: "/sync/agent-event",
+    method: "POST",
+    handler: wrap(async (ctx, body) => {
+        // body shape matches agentEvents.append validator
+        const id = await ctx.runMutation(internal.agentEvents.append, body);
+        return { id };
+    }),
+});
+
+http.route({
+    path: "/sync/mark-extracted",
+    method: "POST",
+    handler: wrap(async (ctx, body) => {
+        const id = await ctx.runMutation(internal.agentEvents.markExtracted, body);
+        return { id };
+    }),
+});
+
+// ---- public dashboard reads (CORS-enabled, no auth) ----
+
+http.route({
+    path: "/dashboard/sessions-with-notes",
+    method: "GET",
+    handler: wrapPublicGet(async (ctx, url) => {
+        const limit = Number(url.searchParams.get("limit") || 50);
+        return await ctx.runQuery(internal.sessions.listWithNotes, { limit });
+    }),
+});
+http.route({
+    path: "/dashboard/sessions-with-notes",
+    method: "OPTIONS",
+    handler: wrapPublicGet(async () => ({ ok: true })),
 });
 
 http.route({

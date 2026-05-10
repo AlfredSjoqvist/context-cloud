@@ -477,6 +477,21 @@
   }
   .file-row.has-notes .icon { color: var(--note); }
   .file-row.dim { opacity: 0.3; }
+  /* GitHub mark on top-level repo folders */
+  .folder.repo > .folder-row .repo-icon { color: var(--text-2); }
+  .folder.repo > .folder-row:hover .repo-icon { color: var(--text); }
+  .folder.repo.repo-active > .folder-row {
+    background: var(--surface);
+    color: var(--text);
+  }
+  .folder.repo.repo-active > .folder-row::before {
+    content: '';
+    position: absolute; left: 0; top: 4px; bottom: 4px;
+    width: 2px;
+    background: var(--note);
+    border-radius: 0 2px 2px 0;
+  }
+  .folder.repo.repo-active > .folder-row .repo-icon { color: var(--note); }
   .file-row.active { background: var(--file-soft); color: var(--text); }
   .file-row.active::before {
     content: '';
@@ -685,6 +700,65 @@
     cursor: pointer;
   }
   .file-chip:hover { background: rgba(124,158,255,.22); }
+
+  /* ─── Compact note cards (click to expand) ───────────────────── */
+  .note { padding: 8px 12px 9px; }
+  .note-meta { margin-bottom: 4px; padding-right: 16px; }
+  .note-symptom {
+    font-size: 12.5px;
+    line-height: 1.4;
+    margin-bottom: 0;
+    padding-right: 16px;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .note.expanded .note-symptom {
+    -webkit-line-clamp: unset;
+    margin-bottom: 6px;
+  }
+  .note-collapsed-tail {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 5px;
+    min-height: 18px;
+  }
+  .note-collapsed-tail .file-chip { font-size: 10px; padding: 1px 6px; }
+  .note-collapsed-tail .more {
+    color: var(--text-3);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .note.expanded .note-collapsed-tail { display: none; }
+  .note-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows .22s cubic-bezier(.2,.7,.2,1), opacity .18s ease-out;
+  }
+  .note-expand > .note-expand-inner {
+    overflow: hidden;
+    min-height: 0;
+  }
+  .note.expanded .note-expand { grid-template-rows: 1fr; opacity: 1; }
+  .note.expanded .note-expand > .note-expand-inner { padding-top: 8px; }
+  .note.expanded::before { opacity: 1; }
+  .note-chevron {
+    position: absolute;
+    top: 8px; right: 10px;
+    width: 12px; height: 12px;
+    color: var(--text-4);
+    transition: transform .22s cubic-bezier(.2,.7,.2,1), color .15s;
+    pointer-events: none;
+  }
+  .note:hover .note-chevron { color: var(--text-2); }
+  .note.expanded .note-chevron { transform: rotate(180deg); color: var(--note); }
+  .note.recent::after { top: 10px; right: 26px; }
+  .note:focus-visible {
+    outline: none;
+    border-color: var(--note);
+    box-shadow: 0 0 0 1px rgba(255,184,107,.4);
+  }
 
   /* ─── Canvas (center, graph view) ────────────────────────────── */
   .canvas {
@@ -3177,6 +3251,475 @@
     align-self: end;
   }
   .act-empty { padding: 48px 24px; text-align: center; color: var(--text-3); font-size: 12px; font-family: inherit; }
+
+  /* ─── Guardian view (revamped) ──────────────────────── */
+  .view-guardian { grid-template-columns: 1fr; }
+  .g2-stage {
+    overflow: auto;
+    min-height: 0;
+    padding: 18px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(110,231,183,.04), transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(196,155,255,.03), transparent 50%),
+      var(--bg);
+  }
+  .g2-section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .g2-section-head > span:first-child {
+    font-size: 11px; color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+  }
+  .g2-section-sub { font-size: 11px; color: var(--text-3); }
+
+  /* per-repo strip */
+  .g2-repos-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .g2-repo-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 12px 13px;
+    display: flex; flex-direction: column; gap: 8px;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .g2-repo-card:hover { border-color: var(--border-bright); background: var(--surface); }
+  .g2-repo-card.selected { border-color: var(--file); background: var(--surface); box-shadow: 0 0 0 1px var(--file); }
+  .g2-repo-card.has-cve { border-left: 3px solid var(--red); }
+  .g2-repo-card.has-open { border-left: 3px solid var(--note); }
+  .g2-repo-card.clean { border-left: 3px solid var(--green); }
+  .g2-repo-card.scanning { border-left: 3px solid var(--file); animation: g2-scan-pulse 1.6s ease-in-out infinite; }
+  @keyframes g2-scan-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124,158,255,0); }
+    50%      { box-shadow: 0 0 0 1px rgba(124,158,255,.4); }
+  }
+  .g2-repo-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .g2-repo-meta {
+    display: flex; gap: 10px;
+    font-size: 10px;
+    color: var(--text-3);
+    flex-wrap: wrap;
+  }
+  .g2-repo-meta .stack {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .g2-repo-counts {
+    display: flex; gap: 8px;
+    margin-top: 2px;
+  }
+  .g2-repo-count {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+    border-radius: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 9.5px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .g2-repo-count .num {
+    font-size: 14px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 1px;
+  }
+  .g2-repo-count.iss .num { color: var(--note); }
+  .g2-repo-count.pr  .num { color: var(--purple); }
+  .g2-repo-count.res .num { color: var(--green); }
+  .g2-repo-count.zero .num { color: var(--text-3); }
+  .g2-repo-scan {
+    font-size: 10px; color: var(--text-3);
+    display: flex; align-items: center; gap: 5px;
+    border-top: 1px solid var(--border);
+    padding-top: 6px;
+  }
+  .g2-repo-scan .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+  .g2-repo-scan.scanning .dot { background: var(--file); animation: pulse 1.2s ease-in-out infinite; }
+  .g2-repo-scan.stale .dot { background: var(--note); }
+
+  /* pipelines: Issues + PRs */
+  .g2-pipelines {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .g2-pipeline {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  .g2-pipeline-head {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .g2-pipeline-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text); font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .g2-pipeline-filters { display: flex; gap: 4px; }
+  .g2-pipeline-filters .pill { padding: 3px 9px; font-size: 10.5px; }
+  .g2-pipeline-list {
+    padding: 8px 10px 14px;
+    display: flex; flex-direction: column;
+    gap: 5px;
+    max-height: 380px;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* issue row */
+  .g2-iss-row {
+    display: grid;
+    grid-template-columns: 50px 78px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--text-4);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .g2-iss-row:hover { background: var(--surface-2); border-color: var(--border-bright); }
+  .g2-iss-row.selected { background: var(--surface-2); border-color: var(--file); box-shadow: 0 0 0 1px var(--file); }
+  .g2-iss-row.critical { border-left-color: var(--red); }
+  .g2-iss-row.high     { border-left-color: var(--note); }
+  .g2-iss-row.medium   { border-left-color: var(--file); }
+  .g2-iss-row.low      { border-left-color: var(--text-3); }
+  .g2-iss-num {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-2);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .g2-iss-num.unfiled { color: var(--text-4); font-style: italic; }
+  .g2-iss-sev {
+    text-align: center;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .g2-iss-sev.critical { background: rgba(255,110,95,.18); color: rgb(255,140,120); }
+  .g2-iss-sev.high     { background: rgba(255,184,107,.18); color: var(--note); }
+  .g2-iss-sev.medium   { background: rgba(124,158,255,.15); color: var(--file); }
+  .g2-iss-sev.low      { background: var(--surface-2); color: var(--text-3); }
+  .g2-iss-mid {
+    display: flex; flex-direction: column;
+    min-width: 0; gap: 1px;
+  }
+  .g2-iss-path {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .g2-iss-repo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .g2-iss-status {
+    text-align: right;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+  .g2-iss-status.resolved      { color: var(--green); }
+  .g2-iss-status.pr_open       { color: var(--note); }
+  .g2-iss-status.devin_running { color: var(--purple); }
+  .g2-iss-status.verifying     { color: var(--file); }
+  .g2-iss-status.detected      { color: var(--text-2); }
+  .g2-iss-status.escalated     { color: var(--red); }
+
+  /* PR row */
+  .g2-pr-row {
+    display: grid;
+    grid-template-columns: 70px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--purple);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .g2-pr-row:hover { background: var(--surface-2); border-color: var(--border-bright); }
+  .g2-pr-row.selected { background: var(--surface-2); border-color: var(--file); box-shadow: 0 0 0 1px var(--file); }
+  .g2-pr-row.merged { border-left-color: var(--green); }
+  .g2-pr-row.verifying { border-left-color: var(--file); }
+  .g2-pr-row.running { border-left-color: var(--purple); }
+  .g2-pr-num {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .g2-pr-mid { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+  .g2-pr-link {
+    font-size: 10.5px; color: var(--text-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .g2-pr-fp { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-3); }
+  .g2-pr-stat {
+    text-align: right;
+    display: flex; flex-direction: column; gap: 2px;
+    align-items: flex-end;
+  }
+  .g2-pr-state {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .g2-pr-state.merged    { background: rgba(110,231,183,.18); color: var(--green); }
+  .g2-pr-state.pr_open   { background: rgba(255,184,107,.18); color: var(--note); }
+  .g2-pr-state.verifying { background: rgba(124,158,255,.15); color: var(--file); }
+  .g2-pr-state.running   { background: rgba(196,155,255,.18); color: var(--purple); }
+  .g2-pr-iter {
+    font-size: 9.5px; color: var(--text-3);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* detail drawer */
+  .g2-detail {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+    padding: 0;
+    min-height: 80px;
+  }
+  .g2-detail-empty {
+    padding: 32px 24px;
+    color: var(--text-3);
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .g2-detail-body { padding: 18px 22px 22px; }
+  .g2-detail-head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .g2-detail-fp { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 12px; font-weight: 500; }
+  .g2-detail-issue-num {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--note);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .g2-detail-repo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    background: var(--surface);
+    color: var(--text-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .g2-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 22px;
+  }
+  .g2-detail-grid > .g2-detail-col-full { grid-column: span 2; }
+  .g2-detail-section { margin-bottom: 12px; }
+  .g2-detail-section .lbl {
+    font-size: 10px; color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .g2-detail-cite {
+    background: #0A0C12;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    overflow-x: auto;
+  }
+  .g2-detail-cite .loc { color: var(--text-3); font-size: 10px; margin-bottom: 3px; }
+  .g2-detail-cite .text { color: var(--green); }
+  .g2-detail-cite.constraint .text { color: var(--note); }
+  /* state pipeline (reused naming from earlier) */
+  .g2-state-pipe {
+    display: flex; align-items: center; column-gap: 0; row-gap: 6px;
+    padding: 8px 0 12px; flex-wrap: wrap;
+  }
+  .g2-state-step {
+    display: inline-flex; align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    line-height: 1.4;
+    min-height: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--surface);
+    color: var(--text-3);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .g2-state-step.passed   { background: rgba(110,231,183,.12); color: var(--green); border-color: rgba(110,231,183,.3); }
+  .g2-state-step.current  { background: var(--surface-2); color: var(--text); border-color: var(--file); box-shadow: 0 0 0 2px rgba(124,158,255,.15); }
+  .g2-state-step.future   { opacity: 0.4; }
+  .g2-state-step.escalated { background: rgba(255,122,138,.18); color: var(--red); border-color: rgba(255,122,138,.4); }
+  .g2-state-arrow { color: var(--text-4); font-size: 11px; padding: 0 4px; }
+
+  .g2-sharpen-callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--note);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+  .g2-sharpen-callout .head {
+    color: var(--note);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 10px;
+    margin-bottom: 5px;
+  }
+  .g2-sharpen-callout .body { color: var(--text-2); }
+  .g2-sharpen-callout .body b { color: var(--red); }
+
+  .g2-detail-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .g2-detail-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .g2-detail-chip.note { color: var(--note); border-color: rgba(255,184,107,.3); background: var(--note-soft); }
+  .g2-detail-chip.leaf { color: var(--purple); border-color: rgba(196,155,255,.3); background: rgba(196,155,255,.1); }
+
+  .g2-devin-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--purple);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .g2-devin-row { display: flex; align-items: baseline; gap: 12px; font-size: 11px; flex-wrap: wrap; }
+  .g2-devin-row .id { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+  .g2-devin-row .iter { font-size: 10px; color: var(--text-3); }
+  .g2-devin-row .lbl { color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .g2-devin-row a { color: var(--file); text-decoration: none; font-family: 'JetBrains Mono', monospace; }
+  .g2-devin-row a:hover { text-decoration: underline; }
+
+  /* cycles compact */
+  .g2-cycles {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px 14px;
+  }
+  .g2-cycles-list {
+    display: flex; flex-direction: column;
+    gap: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .g2-cyc-row {
+    display: grid;
+    grid-template-columns: 50px 90px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .g2-cyc-row.running { border-color: rgba(110,231,183,.4); background: rgba(110,231,183,.04); }
+  .g2-cyc-num { font-family: 'JetBrains Mono', monospace; color: var(--text); font-weight: 600; }
+  .g2-cyc-status {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-align: center;
+  }
+  .g2-cyc-status.running { background: rgba(110,231,183,.15); color: var(--green); }
+  .g2-cyc-status.done    { background: var(--surface-2); color: var(--text-2); }
+  .g2-cyc-status.failed  { background: rgba(255,122,138,.15); color: var(--red); }
+  .g2-cyc-summary { color: var(--text-2); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g2-cyc-time { color: var(--text-3); font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .g2-cyc-phase {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    color: var(--text-2);
+  }
+  .g2-cyc-phase.PLAN      { background: rgba(124,158,255,.18); color: var(--file); }
+  .g2-cyc-phase.SCAN      { background: rgba(110,231,183,.18); color: var(--green); }
+  .g2-cyc-phase.ANALYZE   { background: rgba(255,184,107,.18); color: var(--note); }
+  .g2-cyc-phase.CRITIQUE  { background: rgba(196,155,255,.18); color: var(--purple); }
+  .g2-cyc-phase.HANDOFF   { background: rgba(255,184,107,.22); color: var(--note); }
+  .g2-cyc-phase.RECONCILE { background: rgba(124,158,255,.18); color: var(--file); }
 </style>
 </head>
 <body>
@@ -3736,54 +4279,59 @@
 
   <!-- Guardian view ────────────────────────────────────── -->
   <div class="view view-guardian" data-view="guardian">
-    <div class="g-stage">
-      <div class="g-top-row">
-        <div class="g-status-card">
-          <div class="g-status-head">
-            <span class="pulse-dot"></span>
-            <span class="g-status-title">Guardian</span>
-            <span class="g-status-sub" id="g-current-cycle">cycle —</span>
+    <div class="g2-stage">
+
+      <!-- Issues + PRs side-by-side pipelines -->
+      <div class="g2-pipelines">
+        <div class="g2-pipeline">
+          <div class="g2-pipeline-head">
+            <div class="g2-pipeline-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+              GitHub Issues filed by Guardian
+            </div>
+            <div class="g2-pipeline-filters">
+              <button class="pill on" data-g2-iss-filter="all">All</button>
+              <button class="pill" data-g2-iss-filter="open">Open</button>
+              <button class="pill" data-g2-iss-filter="resolved">Resolved</button>
+            </div>
           </div>
-          <div class="g-status-grid">
-            <div class="g-stat"><span class="g-stat-num" id="g-cycle-count">0</span><span class="g-stat-lbl">cycles</span></div>
-            <div class="g-stat"><span class="g-stat-num" id="g-finding-count">0</span><span class="g-stat-lbl">findings</span></div>
-            <div class="g-stat"><span class="g-stat-num" id="g-pr-count">0</span><span class="g-stat-lbl">PRs open</span></div>
-            <div class="g-stat resolved"><span class="g-stat-num" id="g-resolved-count">0</span><span class="g-stat-lbl">resolved</span></div>
-          </div>
-          <div class="g-status-foot" id="g-status-foot">— next sweep on Tensorlake cron</div>
+          <div class="g2-pipeline-list" id="g2-issues-list"></div>
         </div>
 
-        <div class="g-cycles-card">
-          <div class="panel-head"><span>Recent cycles</span><span class="count" id="g-cycles-count">0</span></div>
-          <div class="g-cycles-list" id="g-cycles-list"></div>
+        <div class="g2-pipeline">
+          <div class="g2-pipeline-head">
+            <div class="g2-pipeline-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v7"/><path d="M11 6h4a3 3 0 0 1 3 3v6.5"/></svg>
+              Devin PRs opened to fix issues
+            </div>
+            <div class="g2-pipeline-filters">
+              <button class="pill on" data-g2-pr-filter="all">All</button>
+              <button class="pill" data-g2-pr-filter="open">Open</button>
+              <button class="pill" data-g2-pr-filter="merged">Merged</button>
+            </div>
+          </div>
+          <div class="g2-pipeline-list" id="g2-prs-list"></div>
         </div>
       </div>
 
-      <div class="g-mid-row">
-        <div class="g-findings-card">
-          <div class="panel-head">
-            <span>Findings</span>
-            <div class="g-status-pills">
-              <button class="pill on" data-g-filter="all">All</button>
-              <button class="pill" data-g-filter="open">Open</button>
-              <button class="pill" data-g-filter="resolved">Resolved</button>
-            </div>
-          </div>
-          <div class="g-findings-list" id="g-findings-list"></div>
+      <!-- 4. Detail drawer: full info on selected issue/PR -->
+      <div class="g2-detail" id="g2-detail">
+        <div class="g2-detail-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 10px;">
+            <path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+          <span>Click any issue or PR above to see Guardian's full reasoning, citations, lifecycle state, and the inputs (NM notes + docs leaves) that informed the issue.</span>
         </div>
+      </div>
 
-        <div class="g-detail-card">
-          <div class="panel-head"><span id="g-detail-title">Finding detail</span></div>
-          <div class="g-detail-body" id="g-detail-body">
-            <div class="pd-empty" style="padding:48px 24px">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 12px;">
-                <path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>
-                <path d="m9 12 2 2 4-4"/>
-              </svg>
-              <div>Pick a finding to inspect — code citation, constraint, used context (NM notes + docs leaves), and the linked Devin run.</div>
-            </div>
-          </div>
+      <!-- 5. Cycles timeline -->
+      <div class="g2-cycles">
+        <div class="g2-section-head">
+          <span>Recent autonomous cycles</span>
+          <span class="g2-section-sub" id="g2-cycles-sub">runs in Tensorlake sandbox</span>
         </div>
+        <div class="g2-cycles-list" id="g2-cycles-list"></div>
       </div>
     </div>
   </div>
@@ -3848,7 +4396,7 @@
           <div class="act-sub">
             Every meaningful state transition writes one row. Per the Guardian spec
             (<b>events</b> table = source of truth), this is what the agent is doing
-            right now — plan picks with reasons, dropped findings, handoffs, reconciles.
+            right now — plan picks with reasons, dropped issues, handoffs, reconciles.
           </div>
         </div>
         <div class="act-header-r">
@@ -4662,6 +5210,9 @@ function fileIcon(type) {
 const folderIcon = `<svg class="icon" viewBox="0 0 16 16" fill="none">
   <path d="M2 4a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.2" fill="currentColor" fill-opacity="0.15"/>
 </svg>`;
+const githubIcon = `<svg class="icon repo-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+  <path d="M8 .25a7.75 7.75 0 0 0-2.45 15.1c.39.07.53-.17.53-.38v-1.32c-2.16.47-2.61-1.04-2.61-1.04-.35-.9-.86-1.14-.86-1.14-.7-.48.05-.47.05-.47.78.06 1.19.8 1.19.8.69 1.18 1.81.84 2.25.64.07-.5.27-.84.49-1.03-1.72-.2-3.53-.86-3.53-3.83 0-.85.3-1.54.8-2.08-.08-.2-.35-.99.07-2.06 0 0 .65-.21 2.13.79a7.4 7.4 0 0 1 3.88 0c1.48-1 2.13-.79 2.13-.79.43 1.07.16 1.86.08 2.06.5.54.8 1.23.8 2.08 0 2.98-1.81 3.63-3.54 3.82.28.24.52.71.52 1.43v2.12c0 .21.14.45.54.38A7.75 7.75 0 0 0 8 .25z"/>
+</svg>`;
 const chevIcon = `<svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M5 6l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function countFiles(node) {
@@ -4673,9 +5224,12 @@ function renderTree(node, depth = 0) {
   let html = '';
   Object.keys(node.children).sort().forEach(name => {
     const child = node.children[name];
-    html += `<div class="folder" data-folder="${child.path}">
+    const isRepo = depth === 0;
+    const folderAttrs = isRepo ? ` data-repo="${child.path}"` : '';
+    const folderClass = isRepo ? 'folder repo' : 'folder';
+    html += `<div class="${folderClass}" data-folder="${child.path}"${folderAttrs}>
       <div class="folder-row" style="padding-left:${6 + depth * 14}px">
-        ${chevIcon}${folderIcon}
+        ${chevIcon}${isRepo ? githubIcon : folderIcon}
         <span class="name">${name}</span>
         <span class="badge">${countFiles(child)}</span>
       </div>
@@ -4721,7 +5275,10 @@ function renderNotes() {
       return a ? `<span class="av ${vendorClass(a.vendor)}" title="${USER_BY_ID[a.user_id].handle} · ${a.vendor}">${vendorInitial(a.vendor)}</span>` : '';
     }).join('');
     const moreCount = consumers.length > 4 ? `<span class="num">+${consumers.length - 4}</span>` : `<span class="num">${consumers.length}</span>`;
-    return `<div class="note ${n.recent ? 'recent' : ''}" data-id="${n.id}">
+    const primaryFile = n.edges[0];
+    const moreFiles = n.edges.length - 1;
+    return `<div class="note ${n.recent ? 'recent' : ''}" data-id="${n.id}" role="button" tabindex="0" aria-expanded="false">
+      <svg class="note-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6.5l4.5 4 4.5-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="note-meta">
         <span class="mono">${n.id}</span>
         <span class="meta-dot">·</span>
@@ -4731,22 +5288,28 @@ function renderNotes() {
         <span class="meta-dot">·</span><span>${n.age}</span>
       </div>
       <div class="note-symptom">${escapeHtml(n.symptom)}</div>
-      <div class="note-section"><span class="lbl">why</span><span class="body">${escapeHtml(n.root_cause)}</span></div>
-      <div class="note-section fix"><span class="lbl">fix</span><span class="body">${escapeHtml(n.correction)}</span></div>
-      <div class="note-files">
-        ${n.edges.map(e => `<span class="file-chip" data-path="${e.path}">${e.path.split('/').pop()}</span>`).join('')}
+      <div class="note-collapsed-tail">
+        ${primaryFile ? `<span class="file-chip" data-path="${primaryFile.path}">${primaryFile.path.split('/').pop()}</span>` : ''}
+        ${moreFiles > 0 ? `<span class="more">+${moreFiles}</span>` : ''}
       </div>
-      <div class="note-attribution">
-        ${creator ? `<span class="note-creator">
-          <span class="lbl">by</span>
-          <span class="agent-badge"><span class="av ${vendorClass(creator.vendor)}">${vendorInitial(creator.vendor)}</span><span class="name">${creatorUser ? creatorUser.handle : ''}</span></span>
-        </span>` : '<span></span>'}
-        ${consumers.length > 0 ? `<span class="note-consumers">
-          <span class="lbl">served</span>
-          <span class="consumer-stack">${stackAvatars}</span>
-          ${moreCount}
-        </span>` : ''}
-      </div>
+      <div class="note-expand"><div class="note-expand-inner">
+        <div class="note-section"><span class="lbl">why</span><span class="body">${escapeHtml(n.root_cause)}</span></div>
+        <div class="note-section fix"><span class="lbl">fix</span><span class="body">${escapeHtml(n.correction)}</span></div>
+        <div class="note-files">
+          ${n.edges.map(e => `<span class="file-chip" data-path="${e.path}">${e.path.split('/').pop()}</span>`).join('')}
+        </div>
+        <div class="note-attribution">
+          ${creator ? `<span class="note-creator">
+            <span class="lbl">by</span>
+            <span class="agent-badge"><span class="av ${vendorClass(creator.vendor)}">${vendorInitial(creator.vendor)}</span><span class="name">${creatorUser ? creatorUser.handle : ''}</span></span>
+          </span>` : '<span></span>'}
+          ${consumers.length > 0 ? `<span class="note-consumers">
+            <span class="lbl">served</span>
+            <span class="consumer-stack">${stackAvatars}</span>
+            ${moreCount}
+          </span>` : ''}
+        </div>
+      </div></div>
     </div>`;
   }).join('');
 }
@@ -4917,11 +5480,15 @@ function applyHighlight() {
   const noteCards = document.querySelectorAll('.note[data-id]');
   const baseWidth = (w, kind, fileCount) => 0.6 + w * 1.8 + (kind === 'folder' && fileCount > 1 ? Math.min((fileCount-1) * 0.6, 1.6) : 0);
   const litWidth  = (w, kind, fileCount) => 1.4 + w * 2.0 + (kind === 'folder' && fileCount > 1 ? Math.min((fileCount-1) * 0.6, 1.6) : 0);
+  // Clear repo accent on every pass; re-applied below if highlight is a repo.
+  document.querySelectorAll('.folder.repo.repo-active').forEach(el => el.classList.remove('repo-active'));
   if (!highlight) {
     fileRows.forEach(el => el.classList.remove('active','dim','connected'));
     noteCards.forEach(el => el.classList.remove('active','dim','connected'));
+    // Hush all edges by default — drill in by hovering a repo, file, or note.
+    // (User: "edges become too numerous".)
     edgeData.forEach(({ path, weight, anchorKind, files }) => {
-      path.setAttribute('stroke-opacity', String(0.18 + weight * 0.55));
+      path.setAttribute('stroke-opacity', String(0.05 + weight * 0.05));
       path.setAttribute('stroke-width', String(baseWidth(weight, anchorKind, files.length)));
       path.removeAttribute('filter');
     });
@@ -4941,6 +5508,17 @@ function applyHighlight() {
       connectedNotes.add(note.id);
       note.edges.forEach(e => connectedFiles.add(e.path));
     }
+  } else if (highlight.kind === 'repo') {
+    const repoPath = highlight.key;
+    const prefix = repoPath + '/';
+    NOTES.forEach(n => n.edges.forEach(e => {
+      if (e.path === repoPath || e.path.startsWith(prefix)) {
+        connectedNotes.add(n.id);
+        connectedFiles.add(e.path);
+      }
+    }));
+    const folderEl = document.querySelector(`.folder.repo[data-repo="${repoPath}"]`);
+    if (folderEl) folderEl.classList.add('repo-active');
   } else if (highlight.kind === 'edge') {
     const [nid, anchorKey] = highlight.key.split('||');
     connectedNotes.add(nid);
@@ -4963,6 +5541,10 @@ function applyHighlight() {
     let lit = false;
     if (highlight.kind === 'note' && noteId === highlight.key) lit = true;
     else if (highlight.kind === 'file' && files.some(f => f.path === highlight.key)) lit = true;
+    else if (highlight.kind === 'repo') {
+      const prefix = highlight.key + '/';
+      if (files.some(f => f.path === highlight.key || f.path.startsWith(prefix))) lit = true;
+    }
     else if (highlight.kind === 'edge') {
       const [hNote, hKey] = highlight.key.split('||');
       if (noteId === hNote && anchorKey === hKey) lit = true;
@@ -4992,10 +5574,45 @@ function bindFileRows() {
     el.addEventListener('mouseleave', () => setHighlight(null));
   });
 }
+function bindRepoRows() {
+  // Top-level folders are repos. Hovering one focuses the graph onto that
+  // repo's edges only. The folder click-to-collapse handler stays in place.
+  document.querySelectorAll('.folder.repo[data-repo]').forEach(folder => {
+    const row = folder.querySelector(':scope > .folder-row');
+    if (!row) return;
+    const repoPath = folder.dataset.repo;
+    row.addEventListener('mouseenter', () => setHighlight({ kind: 'repo', key: repoPath }));
+    row.addEventListener('mouseleave', () => setHighlight(null));
+  });
+}
 function bindNoteCards() {
   document.querySelectorAll('.note[data-id]').forEach(el => {
     el.addEventListener('mouseenter', () => setHighlight({ kind: 'note', key: el.dataset.id }));
     el.addEventListener('mouseleave', () => setHighlight(null));
+    el.addEventListener('click', (e) => {
+      // file-chip clicks already stopPropagation; this fires only for the card body
+      const willExpand = !el.classList.contains('expanded');
+      // single-expansion: collapse any other note that's open
+      document.querySelectorAll('.note.expanded').forEach(o => {
+        if (o !== el) {
+          o.classList.remove('expanded');
+          o.setAttribute('aria-expanded', 'false');
+        }
+      });
+      el.classList.toggle('expanded', willExpand);
+      el.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
+      if (willExpand) {
+        requestAnimationFrame(() => {
+          const r = el.getBoundingClientRect();
+          const list = document.getElementById('notes-list').getBoundingClientRect();
+          if (r.bottom > list.bottom) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        });
+      }
+      requestAnimationFrame(drawEdges);
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
   });
   document.querySelectorAll('.file-chip').forEach(el => {
     el.addEventListener('mouseenter', (e) => {
@@ -5024,6 +5641,7 @@ function bindNoteCards() {
 }
 bindFileRows();
 bindNoteCards();
+bindRepoRows();
 
 svg.addEventListener('mousemove', (e) => {
   const target = e.target;
@@ -7125,19 +7743,320 @@ document.getElementById('export-download').addEventListener('click', () => {
   showExportToast(`Downloaded nm-graph-${ts}.${ext}`);
 });
 
-/* ─── Guardian view ─────────────────────────── */
+/* ─── Guardian view (revamped: repo strip + issues/PRs split) ── */
 let guardianInited = false;
 let selectedFindingFp = null;
-let guardianFilter = 'all';
+let g2IssFilter = 'all';
+let g2PrFilter = 'all';
+// 5 ACME repos under continuous Guardian scan. lastScannedOffsetMin is the
+// staggered "last sweep" timestamp the strip surfaces; in production this
+// would come from fileScanHistory.lastScannedAt aggregated per repo.
+const ACME_REPOS = [
+  { name: 'acme-agent-gateway',         stack: 'TypeScript', lastScannedOffsetMin: 12 },
+  { name: 'acme-connectors',            stack: 'TypeScript', lastScannedOffsetMin: 47 },
+  { name: 'acme-control-plane',         stack: 'Next.js',    lastScannedOffsetMin: 60 },
+  { name: 'acme-memory-graph',          stack: 'Python',     lastScannedOffsetMin: 240 },
+  { name: 'acme-runtime-orchestrator',  stack: 'Python',     lastScannedOffsetMin: 180 },
+];
 
-function fmtFindingTs(ts) { return fmtRelTime(ts); }
-function findingsForFilter() {
-  if (guardianFilter === 'open')      return FINDINGS.filter(f => !['resolved'].includes(f.status));
-  if (guardianFilter === 'resolved')  return FINDINGS.filter(f => f.status === 'resolved');
+function repoOfPath(p) {
+  const m = String(p || '').match(/^(acme-[^/]+)/);
+  return m ? m[1] : '—';
+}
+function fmtMinAgo(min) {
+  if (min < 1) return 'now';
+  if (min < 60) return Math.round(min) + 'm ago';
+  if (min < 1440) return Math.round(min/60) + 'h ago';
+  return Math.round(min/1440) + 'd ago';
+}
+function findingsByRepo(repo) {
+  return FINDINGS.filter(f => repoOfPath(f.path) === repo);
+}
+function devinRunForFinding(fp) {
+  const f = FINDINGS.find(x => x.fingerprint === fp);
+  if (!f) return null;
+  return DEVIN_RUNS.find(d => d.findingId === f.id) || null;
+}
+function findingsForIssFilter() {
+  if (g2IssFilter === 'open')      return FINDINGS.filter(f => f.status !== 'resolved');
+  if (g2IssFilter === 'resolved')  return FINDINGS.filter(f => f.status === 'resolved');
   return FINDINGS;
+}
+function devinForPrFilter() {
+  if (g2PrFilter === 'open')      return DEVIN_RUNS.filter(d => d.prNumber && !d.prMergedAt);
+  if (g2PrFilter === 'merged')    return DEVIN_RUNS.filter(d => d.prMergedAt);
+  return DEVIN_RUNS.filter(d => d.prNumber || d.outcome === 'running');
 }
 
 function renderGuardian() {
+  renderIssuesList();
+  renderPRsList();
+  renderCyclesV2();
+  // pre-select highest-severity unresolved finding so the drawer isn't empty
+  if (!selectedFindingFp && FINDINGS.length > 0) {
+    const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const sorted = [...FINDINGS].sort((a,b) => (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9));
+    selectedFindingFp = sorted[0].fingerprint;
+  }
+  renderFindingDetail(selectedFindingFp);
+}
+
+function renderReposStrip() {
+  const runningCycle = CYCLES.find(c => c.status === 'running');
+  const scanningRepo = runningCycle && runningCycle.plannedFiles[0]
+    ? repoOfPath(runningCycle.plannedFiles[0].path) : null;
+  const grid = document.getElementById('g2-repos-grid');
+  grid.innerHTML = ACME_REPOS.map(r => {
+    const fs = findingsByRepo(r.name);
+    const open = fs.filter(f => f.status !== 'resolved').length;
+    const pr   = fs.filter(f => ['pr_open','verifying','devin_running'].includes(f.status)).length;
+    const res  = fs.filter(f => f.status === 'resolved').length;
+    const hasCve = fs.some(f => /CVE/i.test(f.constraintCite && f.constraintCite.text || ''));
+    const isScanning = r.name === scanningRepo;
+    let cardCls = 'g2-repo-card';
+    if (isScanning)        cardCls += ' scanning';
+    else if (hasCve)       cardCls += ' has-cve';
+    else if (open > 0)     cardCls += ' has-open';
+    else                   cardCls += ' clean';
+    const scanCls = isScanning ? 'scanning' : (r.lastScannedOffsetMin > 120 ? 'stale' : '');
+    const scanLbl = isScanning ? 'scanning now' : 'last scan ' + fmtMinAgo(r.lastScannedOffsetMin);
+    return `<div class="${cardCls}" data-repo="${escapeHtml(r.name)}">
+      <div>
+        <div class="g2-repo-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</div>
+        <div class="g2-repo-meta"><span class="stack">${escapeHtml(r.stack)}</span></div>
+      </div>
+      <div class="g2-repo-counts">
+        <div class="g2-repo-count iss ${open === 0 ? 'zero' : ''}"><span class="num">${open}</span>open</div>
+        <div class="g2-repo-count pr ${pr === 0 ? 'zero' : ''}"><span class="num">${pr}</span>devin</div>
+        <div class="g2-repo-count res ${res === 0 ? 'zero' : ''}"><span class="num">${res}</span>resolved</div>
+      </div>
+      <div class="g2-repo-scan ${scanCls}"><span class="dot"></span>${scanLbl}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderIssuesList() {
+  const list = findingsForIssFilter().slice().sort((a,b) => {
+    // active first (devin_running, pr_open, verifying), then detected, then resolved
+    const order = { devin_running: 0, pr_open: 1, verifying: 2, reopened_sharpened: 3, escalated: 4, detected: 5, resolved: 9 };
+    return (order[a.status] ?? 99) - (order[b.status] ?? 99);
+  });
+  const el = document.getElementById('g2-issues-list');
+  if (list.length === 0) {
+    el.innerHTML = `<div class="ms-empty" style="padding:18px 12px">No issues match this filter.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(f => {
+    const repo = repoOfPath(f.path);
+    const fnameAndLine = f.path.split('/').slice(1).join('/') + ':' + f.codeCite.line;
+    const issNum = f.githubIssueNumber ? '#' + f.githubIssueNumber : 'unfiled';
+    const issCls = f.githubIssueNumber ? '' : 'unfiled';
+    return `<div class="g2-iss-row ${f.severity} ${f.fingerprint === selectedFindingFp ? 'selected' : ''}" data-fp="${f.fingerprint}">
+      <span class="g2-iss-num ${issCls}">${issNum}</span>
+      <span class="g2-iss-sev ${f.severity}">${f.severity}</span>
+      <div class="g2-iss-mid">
+        <span class="g2-iss-repo">${escapeHtml(repo)}</span>
+        <span class="g2-iss-path" title="${escapeHtml(f.path)}:${f.codeCite.line}">${escapeHtml(fnameAndLine)}</span>
+      </div>
+      <span class="g2-iss-status ${f.status}">${f.status.replace('_',' ')}</span>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.g2-iss-row').forEach(r => {
+    r.addEventListener('click', () => {
+      selectedFindingFp = r.dataset.fp;
+      document.querySelectorAll('.g2-iss-row').forEach(x => x.classList.toggle('selected', x.dataset.fp === selectedFindingFp));
+      document.querySelectorAll('.g2-pr-row').forEach(x => x.classList.toggle('selected', x.dataset.fp === selectedFindingFp));
+      renderFindingDetail(selectedFindingFp);
+    });
+  });
+}
+
+function renderPRsList() {
+  const all = devinForPrFilter().slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const el = document.getElementById('g2-prs-list');
+  if (all.length === 0) {
+    el.innerHTML = `<div class="ms-empty" style="padding:18px 12px">No PRs match this filter.</div>`;
+    return;
+  }
+  el.innerHTML = all.map(d => {
+    const finding = FINDINGS.find(f => f.id === d.findingId);
+    const fp = finding ? finding.fingerprint : null;
+    const repo = finding ? repoOfPath(finding.path) : '—';
+    const state = d.prMergedAt ? 'merged'
+                  : (d.prNumber && finding && finding.status === 'verifying') ? 'verifying'
+                  : d.prNumber ? 'pr_open'
+                  : 'running';
+    const stateLbl = state === 'merged' ? 'merged'
+                   : state === 'verifying' ? 'verifying'
+                   : state === 'pr_open' ? 'pr open'
+                   : 'devin running';
+    const prText = d.prNumber ? '#' + d.prNumber : '—';
+    return `<div class="g2-pr-row ${state} ${fp === selectedFindingFp ? 'selected' : ''}" data-fp="${fp || ''}">
+      <span class="g2-pr-num">${prText}</span>
+      <div class="g2-pr-mid">
+        <span class="g2-pr-link" title="${escapeHtml(d.devinRunId)}">${escapeHtml(repo)} → ${fp || '—'}</span>
+        <span class="g2-pr-fp">${escapeHtml(d.devinRunId)}</span>
+      </div>
+      <div class="g2-pr-stat">
+        <span class="g2-pr-state ${state}">${stateLbl}</span>
+        <span class="g2-pr-iter">iter ${d.iteration}/${(d.iteration >= 2 ? '2 cap' : '2')}</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.g2-pr-row').forEach(r => {
+    r.addEventListener('click', () => {
+      if (!r.dataset.fp) return;
+      selectedFindingFp = r.dataset.fp;
+      document.querySelectorAll('.g2-iss-row').forEach(x => x.classList.toggle('selected', x.dataset.fp === selectedFindingFp));
+      document.querySelectorAll('.g2-pr-row').forEach(x => x.classList.toggle('selected', x.dataset.fp === selectedFindingFp));
+      renderFindingDetail(selectedFindingFp);
+    });
+  });
+}
+
+function renderCyclesV2() {
+  document.getElementById('g2-cycles-sub').textContent = CYCLES.length + ' runs · Tensorlake cron · 60s default';
+  const el = document.getElementById('g2-cycles-list');
+  el.innerHTML = CYCLES.map(c => {
+    const phaseChip = (c.status === 'running' && c.currentPhase)
+      ? `<span class="g2-cyc-phase ${c.currentPhase}">${c.currentPhase}</span>` : '';
+    return `<div class="g2-cyc-row ${c.status}">
+      <span class="g2-cyc-num">#${c.cycleNumber}</span>
+      <div style="display:flex; gap:6px; align-items:center">
+        <span class="g2-cyc-status ${c.status}">${c.status}</span>
+        ${phaseChip}
+      </div>
+      <span class="g2-cyc-summary">${escapeHtml(c.summary || (c.currentPhase ? 'phase=' + c.currentPhase : '(in progress…)'))}</span>
+      <span class="g2-cyc-time">${c.ts ? fmtRelTime(c.ts) : '—'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderFindingDetail(fp) {
+  const detail = document.getElementById('g2-detail');
+  if (!fp) {
+    detail.innerHTML = `<div class="g2-detail-empty"><span>Click any issue or PR to inspect.</span></div>`;
+    return;
+  }
+  const f = FINDINGS.find(x => x.fingerprint === fp);
+  if (!f) return;
+  const devin = DEVIN_RUNS.find(d => d.findingId === f.id);
+  const noteIds = (f.usedContext && f.usedContext.noteIds) || [];
+  const docIds  = (f.usedContext && f.usedContext.docsLeafIds) || [];
+  const noteChips = noteIds.map(nid => `<span class="g2-detail-chip note" title="${escapeHtml((NOTE_BY_ID[nid] && NOTE_BY_ID[nid].symptom) || '')}">${nid}</span>`).join('');
+  const leafChips = docIds.map(lp => `<span class="g2-detail-chip leaf" title="${escapeHtml(lp)}">${lp.split('/').pop().replace(/\.md$/, '')}</span>`).join('');
+
+  // state-machine pipeline
+  const allStates = ['detected','devin_running','pr_open','verifying','resolved'];
+  const passedFor = {
+    detected: [], devin_running:['detected'], pr_open:['detected','devin_running'],
+    verifying:['detected','devin_running','pr_open'], resolved:['detected','devin_running','pr_open','verifying'],
+    reopened_sharpened:['detected','devin_running','pr_open','verifying'],
+    escalated:['detected','devin_running','pr_open','verifying'],
+  }[f.status] || [];
+  const stepHtml = allStates.map((st, i) => {
+    let cls = 'future';
+    if (passedFor.includes(st)) cls = 'passed';
+    if (st === f.status) cls = 'current';
+    if (f.status === 'reopened_sharpened' && st === 'pr_open') cls = 'current';
+    if (f.status === 'escalated' && st === 'resolved') cls = 'escalated';
+    const arrow = i < allStates.length - 1 ? '<span class="g2-state-arrow">→</span>' : '';
+    return `<span class="g2-state-step ${cls}">${st.replace('_',' ')}</span>${arrow}`;
+  }).join('');
+
+  const iters = f.sharpenIterations || 0;
+
+  detail.innerHTML = `<div class="g2-detail-body">
+    <div class="g2-detail-head">
+      <span class="g2-detail-fp">${f.fingerprint}</span>
+      ${f.githubIssueNumber ? `<a class="g2-detail-issue-num" href="https://github.com/${escapeHtml(repoOfPath(f.path).replace('acme-','acme-eng/'))}/issues/${f.githubIssueNumber}" target="_blank">issue #${f.githubIssueNumber}</a>` : '<span style="color:var(--text-3); font-size:11px">not yet filed</span>'}
+      <span class="g2-detail-repo">${escapeHtml(repoOfPath(f.path))}</span>
+      <span class="g2-iss-sev ${f.severity}">${f.severity}</span>
+      <span class="g2-iss-status ${f.status}" style="margin-left:auto">${f.status.replace('_',' ')}</span>
+    </div>
+    <div class="g2-detail-grid">
+      <div class="g2-detail-col-full g2-detail-section">
+        <div class="lbl">Lifecycle (sharpen ${iters}/2)</div>
+        <div class="g2-state-pipe">${stepHtml}</div>
+        ${iters > 0 ? `<div class="g2-sharpen-callout">
+          <div class="head">Sharpen iteration ${iters}${iters >= 2 ? ' · CAP REACHED' : ''}</div>
+          <div class="body">First Devin attempt didn't satisfy the constraint. The re-prompt was constructed from the previous diff + verbatim constraint citation + the analyzer's reasoning on why the diff fell short. ${iters >= 2 ? '<b>Hard cap hit — escalates on next failure.</b>' : 'Capped at 2 — escalates if iteration 2 also fails.'}</div>
+        </div>` : ''}
+      </div>
+      <div class="g2-detail-section">
+        <div class="lbl">Reasoning</div>
+        <div style="color:var(--text); font-size:12px; line-height:1.5">${escapeHtml(f.reasoning)}</div>
+      </div>
+      <div class="g2-detail-section">
+        <div class="lbl">Suggested fix</div>
+        <div style="color:var(--text-2); font-size:11.5px; line-height:1.5">${escapeHtml(f.suggestedFixDirection)}</div>
+      </div>
+      <div class="g2-detail-section">
+        <div class="lbl">Code citation</div>
+        <div class="g2-detail-cite">
+          <div class="loc">${escapeHtml(f.path)}:${f.codeCite.line}</div>
+          <span class="text">${escapeHtml(f.codeCite.excerpt)}</span>
+        </div>
+      </div>
+      <div class="g2-detail-section">
+        <div class="lbl">Constraint citation (.context-map)</div>
+        <div class="g2-detail-cite constraint">
+          <div class="loc">${escapeHtml(f.constraintCite.mdFile)}:${f.constraintCite.line}</div>
+          <span class="text">${escapeHtml(f.constraintCite.text)}</span>
+        </div>
+      </div>
+      <div class="g2-detail-col-full g2-detail-section">
+        <div class="lbl">Inputs that informed this issue · provenance</div>
+        <div class="g2-detail-chips">
+          ${noteChips || '<span style="color:var(--text-3); font-size:11px">no NM notes attached</span>'}
+          ${leafChips}
+        </div>
+      </div>
+      ${devin ? `<div class="g2-detail-col-full g2-detail-section">
+        <div class="lbl">Devin run</div>
+        <div class="g2-devin-card">
+          <div class="g2-devin-row">
+            <span class="id">${escapeHtml(devin.devinRunId)}</span>
+            <span class="iter">iter ${devin.iteration}</span>
+            <span class="lbl">spawned ${fmtRelTime(devin.ts)}</span>
+            ${devin.prNumber ? `<a href="${devin.prUrl || '#'}" target="_blank">PR #${devin.prNumber}</a>` : ''}
+            ${devin.prMergedAt ? `<span class="lbl">merged ${fmtRelTime(devin.prMergedAt)}</span>` : ''}
+            <span class="iter" style="margin-left:auto">${devin.outcome || 'running'}</span>
+          </div>
+        </div>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function setupGuardian() {
+  document.querySelectorAll('[data-g2-iss-filter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-g2-iss-filter]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      g2IssFilter = b.dataset.g2IssFilter;
+      renderIssuesList();
+    });
+  });
+  document.querySelectorAll('[data-g2-pr-filter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-g2-pr-filter]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      g2PrFilter = b.dataset.g2PrFilter;
+      renderPRsList();
+    });
+  });
+}
+
+// Legacy placeholder — older code paths may call renderGuardianFindings;
+// route it to the new issues-list renderer so nothing throws.
+function renderGuardianFindings() { renderIssuesList(); }
+
+/* OLD renderGuardian/renderGuardianFindings/renderFindingDetail/setupGuardian
+   bodies — REPLACED above. The guard below preserves the legacy code under a
+   never-true if so any latent reference doesn't crash; safe to delete later. */
+if (false) {
+function _legacyRenderGuardian() {
   const cycleCount = CYCLES.length;
   const findingCount = FINDINGS.length;
   const prCount = FINDINGS.filter(f => ['pr_open','verifying'].includes(f.status)).length;
@@ -7341,6 +8260,7 @@ function setupGuardian() {
     });
   });
 }
+} /* end if(false) — legacy Guardian block */
 
 /* ─── Sources view (external library registry) ─────── */
 let sourcesInited = false;
@@ -7512,7 +8432,7 @@ function renderLibraryDetail(name) {
     </div>` : ''}
 
     ${citingFindings.length > 0 ? `<div class="src2-section">
-      <div class="src2-section-head">Cited in Guardian findings (${citingFindings.length})</div>
+      <div class="src2-section-head">Cited in Guardian issues (${citingFindings.length})</div>
       <div class="src2-cite-list">
         ${citingFindings.map(f => `<div class="src2-cite-row">
           <span class="src2-cite-fp">${f.fingerprint}</span>
@@ -8168,6 +9088,7 @@ function applyConvexData(d) {
     row.addEventListener('click', () => { row.parentElement.classList.toggle('collapsed'); requestAnimationFrame(drawEdges); });
   });
   bindFileRows();
+  bindRepoRows();
   renderNotes();
   bindNoteCards();
 

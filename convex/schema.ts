@@ -185,9 +185,31 @@ export default defineSchema({
     startedAt: v.optional(v.string()),
     lastSeenAt: v.optional(v.string()),
     messageCount: v.optional(v.number()),
+    // Note Manager remote-poller bookkeeping. Set after a hurdle-detection
+    // pass so the next pass only re-scans sessions with new events.
+    lastExtractedAt: v.optional(v.string()),
+    lastExtractedEventTs: v.optional(v.string()),
   })
     .index("by_session", ["sessionId"])
     .index("by_last_seen", ["lastSeenAt"]),
+
+  // -------- AGENT EVENTS (hosted MCP) --------
+  // Streamed by mock/api/mcp/[installation_id].py on every record_event call
+  // from a remote agent. Holds the transcript pieces the Note Manager needs
+  // to detect hurdles for sessions that never touch local nm.db.
+  agentEvents: defineTable({
+    ts: v.string(),
+    sessionId: v.string(),
+    installationId: v.optional(v.string()),
+    kind: v.string(), // user_msg | agent_msg | tool_call | tool_error | correction
+    text: v.optional(v.string()),
+    toolName: v.optional(v.string()),
+    filePath: v.optional(v.string()),
+    isError: v.optional(v.boolean()),
+    payload: v.optional(v.any()),
+  })
+    .index("by_session_ts", ["sessionId", "ts"])
+    .index("by_ts", ["ts"]),
 
   // -------- NM NOTE GRAPH --------
   notes: defineTable({

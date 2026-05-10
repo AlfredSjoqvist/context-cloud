@@ -46,3 +46,5 @@ nm.db-journal
 # scratch
 *.tmp
 *.log
+
+.vercel

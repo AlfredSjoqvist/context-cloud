@@ -15,6 +15,7 @@ export const everything = query({
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
             cycles, findings, devinRuns, guardianEvents, docsLeaves,
+            sessions, agentEvents,
         ] = await Promise.all([
             ctx.db.query("users").collect(),
             ctx.db.query("agents").collect(),
@@ -31,6 +32,9 @@ export const everything = query({
             ctx.db.query("devinRuns").order("desc").take(100),
             ctx.db.query("events").order("desc").take(200),
             ctx.db.query("docsIngestRuns").collect(),
+            // Live trace from hosted MCP
+            ctx.db.query("sessions").order("desc").take(50),
+            ctx.db.query("agentEvents").withIndex("by_ts").order("desc").take(100),
         ]);
         const libraries = await ctx.db.query("libraries").collect();
         return {
@@ -38,6 +42,7 @@ export const everything = query({
             injections, gcRuns, gcActions,
             cycles, findings, devinRuns, guardianEvents, docsLeaves,
             libraries,
+            sessions, agentEvents,
         };
     },
 });
