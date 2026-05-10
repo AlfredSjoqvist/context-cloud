@@ -2043,6 +2043,24 @@
   .gc-risk-row:hover { background: var(--surface-2); }
   .gc-risk-row.critical { border-left: 2px solid var(--red); }
   .gc-risk-row.warn { border-left: 2px solid var(--note); }
+  .gc-risk-row.top  { border-left: 2px solid var(--green); }
+  .gc-risk-row.mid  { border-left: 2px solid var(--file); }
+  .gc-risk-row.top .gc-risk-score  { color: var(--green); }
+  .gc-risk-row.mid .gc-risk-score  { color: var(--file); }
+  .gc-risk-bar {
+    grid-column: 1 / -1;
+    height: 3px; border-radius: 2px;
+    background: var(--surface-2);
+    overflow: hidden;
+    margin-top: 2px;
+  }
+  .gc-risk-bar > div {
+    height: 100%;
+    background: linear-gradient(90deg, var(--file), var(--green));
+    transition: width .25s ease;
+  }
+  .gc-risk-row.mid .gc-risk-bar > div { background: var(--file); }
+  .gc-risk-row.top .gc-risk-bar > div { background: var(--green); }
   .gc-risk-id {
     font-family: 'JetBrains Mono', monospace;
     color: var(--text);
@@ -3985,6 +4003,14 @@
       </svg>
       Sources
     </button>
+    <button class="tab" data-tab="hyperspell">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 3 7v10l9 5 9-5V7l-9-5z"/>
+        <path d="M3 7l9 5 9-5"/>
+        <path d="M12 12v10"/>
+      </svg>
+      Hyperspell
+    </button>
   </nav>
   <div class="stats">
     <div class="stat"><span class="num" id="stat-files">0</span><span class="lbl">files</span></div>
@@ -4350,8 +4376,8 @@
 
         <div class="gc-risk-card">
           <div class="gc-card-head">
-            <span>At-risk notes</span>
-            <span class="gc-card-sub" id="gc-risk-sub">within 0.10 of threshold</span>
+            <span>Top retained notes</span>
+            <span class="gc-card-sub" id="gc-risk-sub">highest-scoring · agent reaches for these first</span>
           </div>
           <div class="gc-risk-list" id="gc-risk-list"></div>
         </div>
@@ -6720,6 +6746,8 @@ function setupGC() {
       const v = parseFloat(el.value);
       gcThresholds[s.key] = v;
       document.getElementById(s.valId).textContent = s.fmt(v);
+      // decay slider re-shapes every score; cheap to just re-score on any move
+      if (s.key === 'idle') recomputeAllRetained();
       updateGCPreview();
     });
   });
@@ -6773,31 +6801,36 @@ function renderGCDistribution() {
 }
 
 function renderGCAtRisk() {
+  // Top-retained list: notes the agent reaches for first. Inverse complement
+  // to the cutoff slider on the left — drag the cutoff up and the rows here
+  // visibly shorten as low-scorers fall away.
   const list = document.getElementById('gc-risk-list');
   const thr = gcThresholds.min;
-  const all = NOTES.map(n => ({
-    note: n,
-    score: n.metrics.retained_score,
-    margin: n.metrics.retained_score - thr,
-  })).filter(x => x.margin <= 0.10).sort((a, b) => a.margin - b.margin);
+  const ranked = NOTES
+    .filter(n => n.metrics.retained_score >= thr)
+    .map(n => ({ note: n, score: n.metrics.retained_score }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 12);
+  const totalAbove = NOTES.filter(n => n.metrics.retained_score >= thr).length;
 
-  if (all.length === 0) {
-    list.innerHTML = `<div class="gc-risk-empty">All active notes are safely above the threshold.</div>`;
-    document.getElementById('gc-risk-sub').textContent = '0 notes';
+  if (ranked.length === 0) {
+    list.innerHTML = `<div class="gc-risk-empty">No notes are above the cutoff. Drop the slider on the left to see retained notes.</div>`;
+    document.getElementById('gc-risk-sub').textContent = '0 above cutoff';
     return;
   }
-  list.innerHTML = all.map(({ note, score, margin }) => {
-    const cls = margin < 0 ? 'critical' : 'warn';
-    const arrow = margin < 0 ? '✗' : '▾';
-    return `<div class="gc-risk-row ${cls}">
+  list.innerHTML = ranked.map(({ note, score }, i) => {
+    const cls = i < 3 ? 'top' : 'mid';
+    const ic = (note.metrics && note.metrics.inject_count) || 0;
+    const meta = `imp ${(note.importance || 0).toFixed(2)} · ${ic} inject${ic === 1 ? '' : 's'}`;
+    return `<div class="gc-risk-row ${cls}" title="${escapeHtml(note.symptom)}">
       <span class="gc-risk-id">${note.id}</span>
-      <span class="gc-risk-symptom" title="${escapeHtml(note.symptom)}">${escapeHtml(note.symptom)}</span>
-      <span class="gc-risk-score">${score.toFixed(2)} <span style="font-size:10px">${arrow}${Math.abs(margin).toFixed(2)}</span></span>
+      <span class="gc-risk-symptom">${escapeHtml(note.symptom)} <span style="color:var(--text-3); font-size:10px; margin-left:4px">${meta}</span></span>
+      <span class="gc-risk-score">${score.toFixed(2)}</span>
+      <div class="gc-risk-bar"><div style="width:${(score * 100).toFixed(1)}%"></div></div>
     </div>`;
   }).join('');
-  const critCount = all.filter(x => x.margin < 0).length;
   document.getElementById('gc-risk-sub').textContent =
-    all.length + ' note' + (all.length === 1 ? '' : 's') + (critCount > 0 ? ` · ${critCount} below threshold` : '');
+    `top ${ranked.length} of ${totalAbove} above cutoff ${thr.toFixed(2)}`;
 }
 
 function renderGC() {
@@ -6847,12 +6880,19 @@ function selectRun(id) {
   </div><div class="gc-action-list">`;
 
   if (run.actions.length === 0 || (run.actions.length === 1 && run.actions[0].type === 'skip')) {
+    const lowest = NOTES.slice().sort((a, b) => a.metrics.retained_score - b.metrics.retained_score)[0];
+    const lowestLine = lowest
+      ? `Closest call: <span class="mono">${lowest.id}</span> at ${lowest.metrics.retained_score.toFixed(2)} (cutoff ${gcThresholds.min.toFixed(2)}) — survived this sweep.`
+      : '';
     html += `<div class="gc-action skip">
       <div class="gc-action-head">
         <span class="gc-action-type">no-op</span>
-        <span class="gc-action-target">all retained scores above threshold</span>
+        <span class="gc-action-target">${run.metrics_after.active} active · ${run.metrics_after.edges} edges · all above cutoff</span>
       </div>
-      <div class="gc-action-reason">${run.actions[0] ? run.actions[0].reason : 'no actions taken'}</div>
+      <div class="gc-action-reason">${run.actions[0] ? run.actions[0].reason : 'no actions taken'}${lowestLine ? '<br>' + lowestLine : ''}</div>
+      <div class="gc-action-reason" style="margin-top:6px; color:var(--text-3); font-size:10.5px">
+        See this run on the timeline → switch to <b>Replay</b> and seek to ${fmtRelTime(run.ts)}.
+      </div>
     </div>`;
   } else {
     run.actions.forEach(a => {
@@ -6975,11 +7015,20 @@ let replayState = {
 let replayLayout = { fileNodes: [], noteNodes: [] };
 
 function buildReplayEvents() {
+  // NM_REPLAY_FIX_V1 — coerce every ts to a numeric ms timestamp.
+  // Convex notes/injections/gcRuns store ISO-string ts; other code paths
+  // (V2 hydration) leave that string in place. Replay's rAF loop dies if
+  // ev.ts is a string because string-vs-number compares throw downstream.
+  const _toMs = v => {
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string') { const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; }
+    return 0;
+  };
   const events = [];
   ALL_NOTES.forEach(n => {
     events.push({
       type: 'note_created',
-      ts: n.created_at,
+      ts: _toMs(n.created_at),
       note_id: n.id,
       actor: n.created_by,
     });
@@ -6989,7 +7038,7 @@ function buildReplayEvents() {
     if (i % 2 !== 0) return;
     events.push({
       type: inj.accepted ? 'injection' : 'injection_rejected',
-      ts: inj.ts,
+      ts: _toMs(inj.ts),
       note_id: inj.note_id,
       file: inj.file,
       actor: inj.agent_id,
@@ -7000,7 +7049,7 @@ function buildReplayEvents() {
       if (a.type === 'skip') return;
       events.push({
         type: 'gc_' + a.type,
-        ts: r.ts,
+        ts: _toMs(r.ts),
         run_id: r.id,
         action: a,
         actor: 'gc',
@@ -9691,11 +9740,16 @@ window.applyConvexData = applyConvexData;
       AGENTS.length = 0; mapped.forEach(a => AGENTS.push(a));
     }
     if (typeof ALL_NOTES !== 'undefined' && Array.isArray(data.notes)) {
+      const _toMsHydrate = v => {
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') { const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; }
+        return 0;
+      };
       const mapped = data.notes.map(n => ({
         id: n.noteId, symptom: n.symptom, root_cause: n.rootCause,
         correction: n.correction, importance: n.importance,
         inject_count: n.injectCount || 0, created_by: n.createdBy,
-        created_at: n.createdAt,
+        created_at: _toMsHydrate(n.createdAt),
       }));
       ALL_NOTES.length = 0; mapped.forEach(n => ALL_NOTES.push(n));
     }
