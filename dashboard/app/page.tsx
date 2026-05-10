@@ -1325,10 +1325,30 @@ const TYPE_COLORS: Record<string, string> = {
     md: "#A0A8BD",
 };
 
+type FindingSeverity = Extract<TreeRow, { kind: "finding" }>["severity"];
+type FindingCategory = Extract<TreeRow, { kind: "finding" }>["category"];
+
+const SEV_TONE: Record<FindingSeverity, string> = {
+    critical: "text-red border-red/30 bg-red/10",
+    high: "text-accent border-accent/30 bg-accent/10",
+    medium: "text-yellow border-yellow/30 bg-yellow/10",
+    low: "text-green border-green/30 bg-green/10",
+};
+
+const CAT_PILL: Record<FindingCategory, string> = {
+    intent_drift: "text-purple border-purple/25 bg-purple/10",
+    security: "text-red border-red/25 bg-red/10",
+    bug: "text-yellow border-yellow/25 bg-yellow/10",
+};
+
 function FileTreeWithNotes() {
     const totalFiles = TREE_ROWS.filter((r) => r.kind === "file").length;
     const totalNotes = TREE_ROWS.filter((r) => r.kind === "note").length;
-    const totalFindings = TREE_ROWS.filter((r) => r.kind === "finding").length;
+    // Dedupe by finding id — the same finding can attach to multiple files
+    // (f_4f1d shows up once per linked file).
+    const totalFindings = new Set(
+        TREE_ROWS.filter((r) => r.kind === "finding").map((r) => r.id),
+    ).size;
 
     return (
         <>
@@ -1437,17 +1457,6 @@ function TreeRowRender({ row }: { row: TreeRow }) {
     }
 
     if (row.kind === "finding") {
-        const SEV_TONE: Record<string, string> = {
-            critical: "text-red border-red/30 bg-red/10",
-            high: "text-accent border-accent/30 bg-accent/10",
-            medium: "text-yellow border-yellow/30 bg-yellow/10",
-            low: "text-green border-green/30 bg-green/10",
-        };
-        const CAT_PILL: Record<string, string> = {
-            intent_drift: "text-purple border-purple/25 bg-purple/10",
-            security: "text-red border-red/25 bg-red/10",
-            bug: "text-yellow border-yellow/25 bg-yellow/10",
-        };
         return (
             <div
                 className="flex items-stretch gap-3 bg-bg/40 px-5 py-3"
@@ -1487,8 +1496,8 @@ function TreeRowRender({ row }: { row: TreeRow }) {
         );
     }
 
-    // note
-    return (
+    if (row.kind === "note") {
+        return (
         <div
             className="flex items-stretch gap-3 bg-bg/40 px-5 py-3"
             style={{ paddingLeft: `${56 + (row.depth - 1) * 18}px` }}
@@ -1518,7 +1527,7 @@ function TreeRowRender({ row }: { row: TreeRow }) {
                     </span>
                     <span className="opacity-40 text-ink-3">·</span>
                     {/* weight chip — to THIS file */}
-                    <span className="inline-flex items-center gap-1 rounded-md border border-file/25 bg-file/8 px-1.5 py-0.5 font-mono text-[10px] text-file">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-file/25 bg-file/10 px-1.5 py-0.5 font-mono text-[10px] text-file">
                         weight {row.weight.toFixed(2)} →
                     </span>
                     <span className="opacity-40 text-ink-3">·</span>
@@ -1547,7 +1556,14 @@ function TreeRowRender({ row }: { row: TreeRow }) {
                 </div>
             </div>
         </div>
-    );
+        );
+    }
+
+    // exhaustive: if a new TreeRow variant is added without a branch above,
+    // this assignment fails at compile time.
+    const _exhaustive: never = row;
+    void _exhaustive;
+    return null;
 }
 
 function ChevronGlyph() {
