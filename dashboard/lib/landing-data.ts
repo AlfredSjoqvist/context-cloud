@@ -87,12 +87,12 @@ export const GUARDIAN_FINDING_EXAMPLE = {
 export const SEVERITY_COUNTS = { critical: 1, high: 3, medium: 2, low: 0 } as const;
 
 export const STACK_NODES = [
-    { id: "tensorlake", label: "Tensorlake", role: "background sandbox · cron + webhook + event", color: "#7C9EFF" },
-    { id: "convex",     label: "Convex",     role: "reactive state · subscriptions",                color: "#FFB86B" },
-    { id: "nia",        label: "Nia",        role: "code + .md index · semantic retrieval",         color: "#C49BFF" },
-    { id: "openai",     label: "OpenAI",     role: "gpt-5 analyzer · gpt-5-mini critique",          color: "#66E0FF" },
-    { id: "devin",      label: "Devin",      role: "spawn → PR → sharpen",                          color: "#6EE7B7" },
-    { id: "github",     label: "GitHub",     role: "issues · PRs · webhooks (octokit)",             color: "#F9E27D" },
-    { id: "docsingest", label: "docs-ingest", role: "external docs → .md leaves",                   color: "#FF7A8A" },
-    { id: "sqlite",     label: "SQLite",     role: "capture tier · trace source of truth",          color: "#A0A8BD" },
+    { id: "tensorlake", label: "Tensorlake", role: "scheduler · sandbox",       color: "#7C9EFF" },
+    { id: "convex",     label: "Convex",     role: "reactive state",            color: "#FFB86B" },
+    { id: "nia",        label: "Nia",        role: "code + .md index",          color: "#C49BFF" },
+    { id: "openai",     label: "OpenAI",     role: "analyzer + critique",       color: "#66E0FF" },
+    { id: "devin",      label: "Devin",      role: "spawn → PR → sharpen",      color: "#6EE7B7" },
+    { id: "github",     label: "GitHub",     role: "issues · PRs · webhooks",   color: "#F9E27D" },
+    { id: "docsingest", label: "docs-ingest", role: "external docs → .md",      color: "#FF7A8A" },
+    { id: "sqlite",     label: "SQLite",     role: "capture tier · trace",      color: "#A0A8BD" },
 ] as const;

@@ -53,3 +53,4 @@ nm.db-journal
 /mock_org_*.json
 
 .vercel
+.gstack/

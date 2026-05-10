@@ -109,7 +109,9 @@ function Nav() {
                         Repo
                     </Link>
                     <Link
-                        href="/dashboard"
+                        href="https://hindsight-nm.vercel.app/"
+                        target="_blank"
+                        rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3.5 py-1.5 text-sm font-medium text-bg hover:bg-ink/90 transition-colors"
                     >
                         Open dashboard
@@ -126,45 +128,64 @@ function Nav() {
 // ───────────────────────────────────────────────────────────
 function Hero() {
     return (
-        <section className="relative isolate overflow-hidden pt-32 pb-32">
+        <section className="relative isolate overflow-hidden pt-24 pb-24">
             <GridBackground />
             <SpotlightGlow />
-            <div className="mx-auto max-w-6xl px-6">
+            <div className="mx-auto max-w-7xl px-6">
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.05 }}
+                    className="mx-auto mb-8 flex w-fit items-center gap-2 rounded-full border border-border bg-surface/60 px-4 py-1.5 backdrop-blur-md"
+                >
+                    <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green/70 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-green" />
+                    </span>
+                    <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink-2">
+                        Live · {COUNTS.cyclesRun} cycles · {COUNTS.totalInjections} injections
+                    </span>
+                </motion.div>
+
                 <motion.h1
                     initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
                     animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
                     transition={{ duration: 1.1, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                    className="mt-8 text-balance text-center text-5xl font-medium tracking-[-0.03em] text-ink md:text-7xl lg:text-[88px] lg:leading-[0.98]"
+                    className="text-balance text-center text-6xl font-medium tracking-[-0.035em] text-ink md:text-[88px] lg:text-[112px] lg:leading-[0.95]"
                 >
-                    Three always-on agents.{" "}
-                    <span className="bg-gradient-to-br from-accent via-accent to-yellow bg-clip-text text-transparent">
-                        One Convex deployment.
-                    </span>
-                    <br />
-                    Cursor reads what Claude Code learned.
+                    Cursor reads what{" "}
+                    <span
+                        className="bg-gradient-to-br from-accent via-accent to-yellow bg-clip-text text-transparent"
+                        style={{
+                            filter: "drop-shadow(0 0 32px rgba(255, 184, 107, 0.35))",
+                        }}
+                    >
+                        Claude Code
+                    </span>{" "}
+                    learned.
                 </motion.h1>
 
                 <motion.p
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.4 }}
-                    className="mx-auto mt-8 max-w-2xl text-balance text-center text-lg text-ink-2 md:text-xl"
+                    className="mx-auto mt-10 max-w-3xl text-balance text-center text-xl leading-relaxed text-ink-2 md:text-2xl"
                 >
-                    Note Manager captures hurdles deterministically (7 signals, threshold 3.0).
-                    Guardian scans your repo every 60s and files GitHub issues with byte-verified
-                    citations. GC keeps the graph honest. Devin closes the loop. Sixty-second
-                    cycles, Tensorlake schedule, live Convex dashboard. Built in one weekend.
+                    Three always-on agents capture context, scan for drift, and close
+                    the loop — every 60 seconds, on one Convex deployment.
                 </motion.p>
 
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.55 }}
-                    className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
+                    className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row"
                 >
                     <Link
-                        href="/dashboard"
-                        className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-ink px-6 py-3 text-base font-medium text-bg transition-transform hover:scale-[1.02]"
+                        href="https://hindsight-nm.vercel.app/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-ink px-7 py-3.5 text-base font-medium text-bg transition-transform hover:scale-[1.02]"
                     >
                         <span className="relative z-10">See the live dashboard</span>
                         <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -172,7 +193,7 @@ function Hero() {
                     <Link
                         href="https://github.com/AlfredSjoqvist/context-cloud"
                         target="_blank"
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-6 py-3 text-base font-medium text-ink-2 backdrop-blur-sm hover:text-ink hover:border-border-strong transition-colors"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-7 py-3.5 text-base font-medium text-ink-2 backdrop-blur-sm hover:text-ink hover:border-border-strong transition-colors"
                     >
                         <GithubIcon className="h-4 w-4" />
                         View on GitHub
@@ -180,13 +201,24 @@ function Hero() {
                 </motion.div>
 
                 <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.9, delay: 0.7 }}
+                    className="mx-auto mt-16 grid max-w-3xl grid-cols-3 gap-3 sm:gap-6"
+                >
+                    <HeroAgentPulse name="Note Memory" sub="captures hurdles" delay={0} color="#7C9EFF" />
+                    <HeroAgentPulse name="Guardian" sub="scans + files issues" delay={0.4} color="#FFB86B" />
+                    <HeroAgentPulse name="GC" sub="prunes the graph" delay={0.8} color="#6EE7B7" />
+                </motion.div>
+
+                <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 0.8 }}
-                    className="mt-16 flex flex-col items-center gap-4 text-xs uppercase tracking-[0.2em] text-ink-3"
+                    transition={{ duration: 1, delay: 0.9 }}
+                    className="mt-14 flex flex-col items-center gap-4 text-xs uppercase tracking-[0.2em] text-ink-3"
                 >
                     <span className="font-mono">Wired into the agents you use</span>
-                    <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-medium text-ink-2">
+                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-medium text-ink-2">
                         <AgentBadge>Claude Code</AgentBadge>
                         <AgentBadge>Cursor</AgentBadge>
                         <AgentBadge>Codex</AgentBadge>
@@ -194,7 +226,7 @@ function Hero() {
                     </div>
                 </motion.div>
             </div>
-            <div className="absolute right-6 top-32 hidden md:block">
+            <div className="absolute right-6 top-28 hidden md:block">
                 <div className="rounded-2xl border border-accent/30 bg-surface/80 px-5 py-4 backdrop-blur-md">
                     <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
                         Top 3
@@ -208,6 +240,39 @@ function Hero() {
                 </div>
             </div>
         </section>
+    );
+}
+
+function HeroAgentPulse({
+    name,
+    sub,
+    delay,
+    color,
+}: {
+    name: string;
+    sub: string;
+    delay: number;
+    color: string;
+}) {
+    return (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface/40 px-3 py-4 backdrop-blur-sm sm:flex-row sm:gap-3 sm:px-4">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <motion.span
+                    className="absolute inline-flex h-full w-full rounded-full"
+                    style={{ background: color, opacity: 0.6 }}
+                    animate={{ scale: [1, 2.2, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2.4, repeat: Infinity, delay, ease: "easeOut" }}
+                />
+                <span
+                    className="relative inline-flex h-2.5 w-2.5 rounded-full"
+                    style={{ background: color }}
+                />
+            </span>
+            <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+                <span className="font-mono text-[12px] text-ink">{name}</span>
+                <span className="font-mono text-[10px] text-ink-3">{sub}</span>
+            </div>
+        </div>
     );
 }
 
@@ -392,7 +457,9 @@ function Pillars() {
                                 </PillarBody>
                             </div>
                             <Link
-                                href="/dashboard"
+                                href="https://hindsight-nm.vercel.app/"
+                                target="_blank"
+                                rel="noreferrer"
                                 className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-bg transition-transform group-hover:scale-[1.03]"
                             >
                                 Open dashboard
@@ -415,15 +482,15 @@ function ArchitectureBand() {
             id="architecture"
             className="relative border-y border-border/60 bg-surface/30 py-32"
         >
-            <div className="mx-auto max-w-6xl px-6">
+            <div className="mx-auto max-w-7xl px-6">
                 <SectionEyebrow>System map</SectionEyebrow>
                 <SectionHeadline>
                     Every node here is{" "}
                     <span className="text-ink-3">load-bearing.</span>
                 </SectionHeadline>
                 <SectionLede>
-                    Eight services, three always-on agents, one loop. Remove any node and the
-                    demo breaks — that&apos;s the rubric line.
+                    Eight services, three always-on agents, one loop. Hover any node to
+                    trace its connections — click to pin.
                 </SectionLede>
 
                 <div className="mt-16 flex justify-center">
@@ -450,24 +517,28 @@ function ArchitectureBand() {
 }
 
 function BeamDiagram() {
-    const NODE_R = 36;
+    const [hovered, setHovered] = useState<string | null>(null);
+    const [selected, setSelected] = useState<string | null>(null);
+    const focused = hovered ?? selected;
+
+    const NODE_R = 44;
     const ide = [
-        { id: "cursor",     label: "Cursor",      role: "agent", x: 180, y: 90, color: "#7C9EFF" },
-        { id: "claudecode", label: "Claude Code", role: "agent", x: 420, y: 60, color: "#7C9EFF" },
-        { id: "codex",      label: "Codex",       role: "agent", x: 660, y: 90, color: "#7C9EFF" },
+        { id: "cursor",     label: "Cursor",      role: "agent", x: 210, y: 110, color: "#7C9EFF" },
+        { id: "claudecode", label: "Claude Code", role: "agent", x: 490, y: 80,  color: "#7C9EFF" },
+        { id: "codex",      label: "Codex",       role: "agent", x: 770, y: 110, color: "#7C9EFF" },
     ];
     // Stack nodes — positions are diagram-local (deliberate spatial groupings),
     // but every other field (label, role, color) is sourced from STACK_NODES in
     // landing-data so the system map can't drift from the data SoT.
     const STACK_POSITIONS: Record<string, { x: number; y: number }> = {
-        sqlite:     { x: 180, y: 240 },
-        nia:        { x: 420, y: 220 },
-        convex:     { x: 600, y: 340 },
-        openai:     { x: 840, y: 240 },
-        tensorlake: { x: 1020, y: 340 },
-        docsingest: { x: 300, y: 500 },
-        github:     { x: 600, y: 500 },
-        devin:      { x: 900, y: 500 },
+        sqlite:     { x: 210,  y: 290 },
+        nia:        { x: 490,  y: 280 },
+        convex:     { x: 700,  y: 430 },
+        openai:     { x: 980,  y: 290 },
+        tensorlake: { x: 1190, y: 430 },
+        docsingest: { x: 350,  y: 610 },
+        github:     { x: 700,  y: 610 },
+        devin:      { x: 1050, y: 610 },
     };
     const stack = STACK_NODES.map((n) => ({
         id: n.id,
@@ -505,6 +576,20 @@ function BeamDiagram() {
     const allNodes = [...ide, ...stack];
     const byId = Object.fromEntries(allNodes.map((n) => [n.id, n]));
 
+    // Connected sets when a node is focused
+    const connectedNodeIds = new Set<string>();
+    if (focused) {
+        connectedNodeIds.add(focused);
+        edges.forEach((e) => {
+            if (e.from === focused) connectedNodeIds.add(e.to);
+            if (e.to === focused) connectedNodeIds.add(e.from);
+        });
+    }
+    const isEdgeActive = (e: Edge) => !focused || e.from === focused || e.to === focused;
+    const isNodeActive = (id: string) => !focused || connectedNodeIds.has(id);
+    const edgeOpacity = (e: Edge) => (focused ? (isEdgeActive(e) ? 1 : 0.06) : 1);
+    const nodeOpacity = (id: string) => (focused ? (isNodeActive(id) ? 1 : 0.22) : 1);
+
     // Helper: curved cubic between two nodes, leaving a margin near the perimeter.
     function pathFor(from: { x: number; y: number }, to: { x: number; y: number }) {
         const dx = to.x - from.x;
@@ -524,9 +609,13 @@ function BeamDiagram() {
     return (
         <div className="relative w-full">
             <svg
-                viewBox="0 0 1200 600"
+                viewBox="0 0 1400 760"
                 className="w-full h-auto"
                 xmlns="http://www.w3.org/2000/svg"
+                onClick={(ev) => {
+                    // Click on empty SVG area clears selection
+                    if (ev.target === ev.currentTarget) setSelected(null);
+                }}
             >
                 <defs>
                     {edges.map((e, i) => {
@@ -546,15 +635,35 @@ function BeamDiagram() {
                 </defs>
 
                 {/* Base edge layer */}
-                {edges.map((_, i) => (
+                {edges.map((e, i) => (
                     <use
                         key={`base-${i}`}
                         href={`#arch-edge-${i}`}
                         stroke="#1F2330"
                         strokeWidth="1.2"
                         fill="none"
+                        opacity={edgeOpacity(e)}
+                        style={{ transition: "opacity 220ms ease" }}
                     />
                 ))}
+
+                {/* Focused-edge accent — highlights connections when a node is focused */}
+                {focused &&
+                    edges.map((e, i) => {
+                        if (!isEdgeActive(e)) return null;
+                        return (
+                            <use
+                                key={`focus-${i}`}
+                                href={`#arch-edge-${i}`}
+                                stroke="#FFB86B"
+                                strokeOpacity="0.85"
+                                strokeWidth="2"
+                                fill="none"
+                                strokeLinecap="round"
+                                style={{ transition: "opacity 220ms ease" }}
+                            />
+                        );
+                    })}
 
                 {/* Highlight + pulse layer for select edges */}
                 {edges.map((e, i) => {
@@ -568,6 +677,8 @@ function BeamDiagram() {
                             strokeWidth="1.5"
                             fill="none"
                             strokeLinecap="round"
+                            opacity={edgeOpacity(e)}
+                            style={{ transition: "opacity 220ms ease" }}
                         />
                     );
                 })}
@@ -576,7 +687,14 @@ function BeamDiagram() {
                 {edges.map((e, i) => {
                     if (!e.pulse) return null;
                     return (
-                        <circle key={`pulse-${i}`} r="3" fill="#FFB86B" filter="url(#arch-glow)">
+                        <circle
+                            key={`pulse-${i}`}
+                            r="3"
+                            fill="#FFB86B"
+                            filter="url(#arch-glow)"
+                            opacity={edgeOpacity(e)}
+                            style={{ transition: "opacity 220ms ease" }}
+                        >
                             <animateMotion
                                 dur={`${3 + (i % 3) * 0.6}s`}
                                 begin={`${(i * 0.5) % 5}s`}
@@ -607,27 +725,33 @@ function BeamDiagram() {
                     const cy = midY + ny * bow;
                     const lx = 0.25 * from.x + 0.5 * cx + 0.25 * to.x;
                     const ly = 0.25 * from.y + 0.5 * cy + 0.25 * to.y;
-                    // Approximate width: 5.2px per char (JetBrains Mono @ 9px) + 12px padding
-                    const w = Math.max(40, e.label.length * 5.6 + 12);
+                    const active = isEdgeActive(e);
+                    // Approximate width: 5.6px per char (JetBrains Mono @ 10px) + 14px padding
+                    const w = Math.max(44, e.label.length * 5.6 + 14);
                     return (
-                        <g key={`label-${i}`}>
+                        <g
+                            key={`label-${i}`}
+                            opacity={edgeOpacity(e)}
+                            style={{ transition: "opacity 220ms ease" }}
+                        >
                             <rect
                                 x={lx - w / 2}
-                                y={ly - 8}
+                                y={ly - 9}
                                 width={w}
-                                height="14"
+                                height="16"
                                 rx="3"
                                 fill="#0A0B0F"
-                                stroke="#1F2330"
+                                stroke={focused && active ? "#FFB86B" : "#1F2330"}
+                                strokeOpacity={focused && active ? 0.6 : 1}
                                 strokeWidth="0.8"
                             />
                             <text
                                 x={lx}
                                 y={ly + 3}
                                 textAnchor="middle"
-                                fill="#A0A8BD"
+                                fill={focused && active ? "#ECEEF4" : "#A0A8BD"}
                                 style={{
-                                    fontSize: 9,
+                                    fontSize: 10,
                                     fontFamily: "JetBrains Mono, monospace",
                                     fontWeight: 500,
                                 }}
@@ -639,54 +763,106 @@ function BeamDiagram() {
                 })}
 
                 {/* Nodes */}
-                {allNodes.map((n) => (
-                    <g key={n.id}>
-                        <circle
-                            cx={n.x}
-                            cy={n.y}
-                            r={NODE_R + 6}
-                            fill={n.color}
-                            fillOpacity="0.04"
-                            filter="url(#arch-glow)"
-                        />
-                        <circle
-                            cx={n.x}
-                            cy={n.y}
-                            r={NODE_R}
-                            fill="#11131B"
-                            stroke={n.color}
-                            strokeWidth="1.4"
-                        />
-                        <text
-                            x={n.x}
-                            y={n.y - 2}
-                            textAnchor="middle"
-                            fill="#ECEEF4"
+                {allNodes.map((n) => {
+                    const isFocused = focused === n.id;
+                    const isConnected = focused && focused !== n.id && connectedNodeIds.has(n.id);
+                    const rScale = isFocused ? 1.1 : 1;
+                    return (
+                        <g
+                            key={n.id}
+                            opacity={nodeOpacity(n.id)}
                             style={{
-                                fontSize: 12,
-                                fontFamily: "JetBrains Mono, monospace",
-                                fontWeight: 600,
+                                cursor: "pointer",
+                                transition: "opacity 220ms ease",
+                            }}
+                            onMouseEnter={() => setHovered(n.id)}
+                            onMouseLeave={() => setHovered(null)}
+                            onClick={(ev) => {
+                                ev.stopPropagation();
+                                setSelected((prev) => (prev === n.id ? null : n.id));
                             }}
                         >
-                            {n.label}
-                        </text>
-                        <text
-                            x={n.x}
-                            y={n.y + 12}
-                            textAnchor="middle"
-                            fill={n.color}
-                            fillOpacity="0.7"
-                            style={{
-                                fontSize: 8,
-                                fontFamily: "JetBrains Mono, monospace",
-                                letterSpacing: "0.06em",
-                            }}
-                        >
-                            {n.role.toUpperCase()}
-                        </text>
-                    </g>
-                ))}
+                            {/* Invisible hit area — bigger than the visible circle so hover is forgiving */}
+                            <circle cx={n.x} cy={n.y} r={NODE_R + 18} fill="transparent" />
+                            {/* Outer glow */}
+                            <circle
+                                cx={n.x}
+                                cy={n.y}
+                                r={(NODE_R + 8) * rScale}
+                                fill={n.color}
+                                fillOpacity={isFocused ? 0.16 : isConnected ? 0.08 : 0.04}
+                                filter="url(#arch-glow)"
+                                style={{ transition: "all 220ms ease" }}
+                            />
+                            {/* Node body */}
+                            <circle
+                                cx={n.x}
+                                cy={n.y}
+                                r={NODE_R * rScale}
+                                fill="#11131B"
+                                stroke={n.color}
+                                strokeWidth={isFocused ? 2.2 : isConnected ? 1.8 : 1.4}
+                                strokeOpacity={isFocused ? 1 : 0.85}
+                                style={{ transition: "all 220ms ease" }}
+                            />
+                            <text
+                                x={n.x}
+                                y={n.y + 5}
+                                textAnchor="middle"
+                                fill="#ECEEF4"
+                                style={{
+                                    fontSize: 14,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    fontWeight: 600,
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                {n.label}
+                            </text>
+                            <text
+                                x={n.x}
+                                y={n.y + NODE_R + 18}
+                                textAnchor="middle"
+                                fill={n.color}
+                                fillOpacity={isFocused || isConnected ? 1 : 0.7}
+                                style={{
+                                    fontSize: 10,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    letterSpacing: "0.04em",
+                                    pointerEvents: "none",
+                                    transition: "fill-opacity 220ms ease",
+                                }}
+                            >
+                                {n.role.toUpperCase()}
+                            </text>
+                        </g>
+                    );
+                })}
             </svg>
+
+            {/* Status row under the diagram */}
+            <div className="mt-4 flex items-center justify-between gap-3 text-[11px] font-mono text-ink-3">
+                <span>
+                    {focused ? (
+                        <>
+                            <span className="text-ink">{byId[focused].label}</span>
+                            <span className="mx-2 text-ink-3">·</span>
+                            <span className="text-ink-2">{byId[focused].role}</span>
+                        </>
+                    ) : (
+                        "hover a node to inspect connections · click to pin"
+                    )}
+                </span>
+                {selected && (
+                    <button
+                        type="button"
+                        onClick={() => setSelected(null)}
+                        className="rounded-md border border-border bg-surface px-2.5 py-1 text-ink-2 transition-colors hover:border-border-strong hover:text-ink"
+                    >
+                        clear
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
@@ -739,13 +915,13 @@ function DashboardShowcase() {
                             <span className="h-3 w-3 rounded-full bg-yellow/70" />
                             <span className="h-3 w-3 rounded-full bg-green/70" />
                             <span className="ml-3 font-mono text-xs text-ink-3">
-                                context-cloud.app/dashboard
+                                hindsight-nm.vercel.app
                             </span>
                         </div>
                         <div className="overflow-hidden rounded-xl border border-border">
                             <img
                                 src="/dashboard-preview.png"
-                                alt="Context Cloud live dashboard"
+                                alt="Hindsight · Note Graph live dashboard"
                                 className="block w-full"
                                 loading="lazy"
                             />
@@ -762,7 +938,9 @@ function DashboardShowcase() {
 
                 <div className="mt-12 flex justify-center">
                     <Link
-                        href="/dashboard"
+                        href="https://hindsight-nm.vercel.app/"
+                        target="_blank"
+                        rel="noreferrer"
                         className="group inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-base font-medium text-bg transition-transform hover:scale-[1.02]"
                     >
                         Open the live dashboard
@@ -848,11 +1026,18 @@ function CycleSection() {
                     </div>
                 </div>
 
-                {/* Phase detail cards */}
-                <div className="mt-6 grid gap-3 md:grid-cols-3 lg:grid-cols-4">
-                    {PHASES_DATA.map((phase, i) => (
-                        <CyclePhaseCardV2 key={phase.id} phase={phase} index={i} />
-                    ))}
+                {/* Phase detail cards — 4 + 3 layout with the second row centered */}
+                <div className="mt-6 space-y-3">
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                        {PHASES_DATA.slice(0, 4).map((phase, i) => (
+                            <CyclePhaseCardV2 key={phase.id} phase={phase} index={i} />
+                        ))}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 lg:mx-[12.5%]">
+                        {PHASES_DATA.slice(4).map((phase, i) => (
+                            <CyclePhaseCardV2 key={phase.id} phase={phase} index={i + 4} />
+                        ))}
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -1731,7 +1916,9 @@ function FinalCTA() {
                         </p>
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                             <Link
-                                href="/dashboard"
+                                href="https://hindsight-nm.vercel.app/"
+                                target="_blank"
+                                rel="noreferrer"
                                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-6 py-3 text-base font-medium text-bg hover:scale-[1.02] transition-transform"
                             >
                                 Open the dashboard
@@ -1761,7 +1948,12 @@ function Footer() {
                     Context Cloud · Nozomio Hackathon · May 2026
                 </span>
                 <div className="flex gap-5 font-mono">
-                    <Link href="/dashboard" className="hover:text-ink-2 transition-colors">
+                    <Link
+                        href="https://hindsight-nm.vercel.app/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-ink-2 transition-colors"
+                    >
                         Dashboard
                     </Link>
                     <Link
@@ -2164,9 +2356,9 @@ function CitationDisciplineBand() {
                             constraintCite.text must literally appear at
                             mdFile:line. Any miss → drop.
                         </p>
-                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
-{`drop "f_d04" · citation:
-  expected: ".context-map/.../login-constraints.md:1"
+                        <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-[11px] leading-relaxed text-file">
+{`drop f_d04 · citation expected:
+  login-constraints.md:1
   actual: "0"`}
                         </pre>
                     </div>
@@ -2184,10 +2376,10 @@ function CitationDisciplineBand() {
                             Cheaper than analyzer; runs every surviving
                             finding.
                         </p>
-                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
+                        <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-[11px] leading-relaxed text-file">
 {`{ confident: false,
-  reason: "code references csrf but no
-   middleware mounted on the router" }`}
+  reason: "no csrf middleware
+           on the router" }`}
                         </pre>
                     </div>
 
@@ -2205,7 +2397,7 @@ function CitationDisciplineBand() {
                             pointed at the offending dependency. Demo never
                             empty-handed.
                         </p>
-                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
+                        <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-[11px] leading-relaxed text-file">
 {`finding: lodash@4.17.20
   CVE-2021-23337
   prototype pollution
@@ -2214,21 +2406,6 @@ function CitationDisciplineBand() {
                     </div>
                 </div>
 
-                {/* Task 12: mock-seam chips */}
-                <div className="mt-10 grid gap-3 text-[11px] text-ink-3 md:grid-cols-3">
-                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-                        <code className="font-mono text-file">USE_MOCK_LLM=1</code>
-                        <span className="text-ink-2">deterministic finding set</span>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-                        <code className="font-mono text-file">USE_MOCK_DEVIN=1</code>
-                        <span className="text-ink-2">fakes a 30s PR open</span>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-                        <code className="font-mono text-file">SKIP_NIA=1</code>
-                        <span className="text-ink-2">filesystem fallback</span>
-                    </div>
-                </div>
             </div>
         </section>
     );
@@ -2265,10 +2442,10 @@ function ClosedLoopSection() {
 
                 <div className="mt-16 grid gap-3 md:grid-cols-4 lg:grid-cols-7">
                     {states.map((s) => (
-                        <div key={s.id} className="rounded-2xl border border-border bg-surface p-4">
+                        <div key={s.id} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-surface p-4">
                             <span className="block h-2.5 w-2.5 rounded-full"
                                   style={{ background: s.color, boxShadow: `0 0 0 3px ${s.color}1a` }} />
-                            <div className="mt-3 font-mono text-[10.5px] font-semibold text-ink">
+                            <div className="mt-3 break-all font-mono text-[10.5px] font-semibold leading-tight text-ink">
                                 {s.label}
                             </div>
                             <div className="mt-2 font-mono text-[10px] leading-snug text-ink-3">
