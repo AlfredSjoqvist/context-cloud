@@ -41,8 +41,12 @@ export default function Landing() {
             <Hero />
             <ProblemBand />
             <Pillars />
+            <DocsIngestSection />
             <NoteGraphSection />
+            <NarrativeBridge />
             <CycleSection />
+            <CitationDisciplineBand />
+            <ClosedLoopSection />
             <ArchitectureBand />
             <DashboardShowcase />
             <FinalCTA />
@@ -126,33 +130,18 @@ function Hero() {
             <GridBackground />
             <SpotlightGlow />
             <div className="mx-auto max-w-6xl px-6">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                    className="flex justify-center"
-                >
-                    <Pill>
-                        <Sparkles className="h-3.5 w-3.5 text-accent" />
-                        <span>Top 3 · Nozomio Hackathon · May 2026</span>
-                    </Pill>
-                </motion.div>
-
                 <motion.h1
                     initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
                     animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
                     transition={{ duration: 1.1, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
                     className="mt-8 text-balance text-center text-5xl font-medium tracking-[-0.03em] text-ink md:text-7xl lg:text-[88px] lg:leading-[0.98]"
                 >
-                    The{" "}
-                    <span className="relative inline-block">
-                        <span className="bg-gradient-to-br from-accent via-accent to-yellow bg-clip-text text-transparent">
-                            always-on
-                        </span>
-                    </span>{" "}
-                    memory
+                    Three always-on agents.{" "}
+                    <span className="bg-gradient-to-br from-accent via-accent to-yellow bg-clip-text text-transparent">
+                        One Convex deployment.
+                    </span>
                     <br />
-                    for AI coding agents.
+                    Cursor reads what Claude Code learned.
                 </motion.h1>
 
                 <motion.p
@@ -161,10 +150,10 @@ function Hero() {
                     transition={{ duration: 0.8, delay: 0.4 }}
                     className="mx-auto mt-8 max-w-2xl text-balance text-center text-lg text-ink-2 md:text-xl"
                 >
-                    A typed note graph and a code Guardian sharing one Convex backend.
-                    Cursor reads what Claude Code learned. Drift becomes a filed GitHub
-                    issue before the next PR opens. Sixty-second cycles, on a
-                    Tensorlake schedule, written to a live dashboard.
+                    Note Manager captures hurdles deterministically (7 signals, threshold 3.0).
+                    Guardian scans your repo every 60s and files GitHub issues with byte-verified
+                    citations. GC keeps the graph honest. Devin closes the loop. Sixty-second
+                    cycles, Tensorlake schedule, live Convex dashboard. Built in one weekend.
                 </motion.p>
 
                 <motion.div
@@ -204,6 +193,19 @@ function Hero() {
                         <AgentBadge>OpenAI Agents SDK</AgentBadge>
                     </div>
                 </motion.div>
+            </div>
+            <div className="absolute right-6 top-32 hidden md:block">
+                <div className="rounded-2xl border border-accent/30 bg-surface/80 px-5 py-4 backdrop-blur-md">
+                    <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+                        Top 3
+                    </div>
+                    <div className="mt-1 font-mono text-sm text-ink">
+                        Nozomio Hackathon
+                    </div>
+                    <div className="font-mono text-[10px] text-ink-3">
+                        Always-On Agents track · May 2026
+                    </div>
+                </div>
             </div>
         </section>
     );
@@ -2029,5 +2031,291 @@ function NoteMockup() {
                 <span>Read from process.env.INTERNAL_API_BASE; never inline a URL.</span>
             </div>
         </div>
+    );
+}
+
+// ───────────────────────────────────────────────────────────
+// DocsIngestSection (Task 8)
+// ───────────────────────────────────────────────────────────
+function DocsIngestSection() {
+    const formats = [
+        { id: "md",     label: "markdown_dir",  color: "#7C9EFF", sample: ".context-map/library/stripe/webhook-security.md", count: 7 },
+        { id: "html",   label: "html_url",      color: "#C49BFF", sample: "https://expressjs.com/en/advanced/best-practice-security.html", count: 13 },
+        { id: "openapi",label: "openapi_spec",  color: "#FFB86B", sample: "fixtures/openapi/payments.yaml", count: 22 },
+    ];
+    return (
+        <section className="relative border-y border-border/60 py-32">
+            <div className="mx-auto max-w-6xl px-6">
+                <SectionEyebrow>Constraints, not vibes</SectionEyebrow>
+                <SectionHeadline>
+                    Real docs in.{" "}
+                    <span className="text-ink-3">Byte-citable rules out.</span>
+                </SectionHeadline>
+                <SectionLede>
+                    Guardian doesn&apos;t hallucinate constraints. It cites them.
+                    A separate pipeline (docs-ingest) reads real external sources
+                    and emits per-line citable <code className="font-mono text-file">.md</code> leaves
+                    under <code className="font-mono text-file">.context-map/library/&lt;lib&gt;/</code>.
+                    Every line is a complete imperative — verbatim-checkable when
+                    Guardian files a finding.
+                </SectionLede>
+
+                <div className="mt-16 grid gap-3 md:grid-cols-3">
+                    {formats.map((f) => (
+                        <div key={f.id} className="rounded-2xl border border-border bg-surface p-5">
+                            <div className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full"
+                                      style={{ background: f.color, boxShadow: `0 0 0 3px ${f.color}1a` }} />
+                                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                                    {f.label}
+                                </span>
+                            </div>
+                            <code className="mt-3 block overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-ink-2">
+                                {f.sample}
+                            </code>
+                            <div className="mt-3 font-mono text-2xl font-semibold text-ink">
+                                {f.count} rules
+                            </div>
+                            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                                extracted · line-citable
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-10 rounded-2xl border border-border bg-surface p-6 font-mono text-[12px] leading-relaxed text-ink-2">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ink-3 mb-3">
+                        sample leaf · lodash/security-advisories.md:1
+                    </div>
+                    <pre className="overflow-x-auto rounded-md bg-bg p-4 text-[11px]">{`---
+scope: library
+library: lodash
+applies_to: ["src/lib/db.ts"]
+source: https://github.com/lodash/lodash/security/advisories
+---
+
+1. Files importing lodash MUST upgrade \`lodash\` to \`4.17.21\` or later.
+2. Files importing lodash MUST NOT call \`_.template(userInput)\` directly.
+…`}</pre>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+// ───────────────────────────────────────────────────────────
+// NarrativeBridge (Task 13)
+// ───────────────────────────────────────────────────────────
+function NarrativeBridge() {
+    return (
+        <section className="relative py-20">
+            <div className="mx-auto max-w-4xl px-6">
+                <div className="rounded-3xl border border-border bg-surface p-8 text-center">
+                    <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-ink-3">
+                        the bridge
+                    </div>
+                    <h3 className="mt-3 text-2xl font-medium tracking-tight text-ink md:text-3xl">
+                        Memory is the input.{" "}
+                        <span className="text-ink-3">A cycle is the output.</span>
+                    </h3>
+                    <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-ink-2">
+                        Every note in the graph is fuel for the next Guardian cycle —
+                        the analyzer queries Nia for both <code className="font-mono text-file">.md</code>
+                        constraints AND attached NM notes when it reads a file. The cycle
+                        below is what reads from the graph above.
+                    </p>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+// ───────────────────────────────────────────────────────────
+// CitationDisciplineBand (Task 9 + 12)
+// ───────────────────────────────────────────────────────────
+function CitationDisciplineBand() {
+    return (
+        <section className="relative py-32">
+            <div className="mx-auto max-w-6xl px-6">
+                <SectionEyebrow>Hallucination defense</SectionEyebrow>
+                <SectionHeadline>
+                    Every finding ships with{" "}
+                    <span className="text-ink-3">two citations.</span>
+                </SectionHeadline>
+                <SectionLede>
+                    The analyzer is GPT-5. The critique pass is two checks the
+                    LLM can&apos;t bullshit: a byte-equal code-line + constraint-line
+                    verifier, then a cheaper GPT-5-mini self-critique with an
+                    80% confidence floor. Below that, the finding drops with a
+                    logged reason.
+                </SectionLede>
+
+                <div className="mt-16 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-border bg-surface p-6">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                            check 01 · programmatic
+                        </div>
+                        <h3 className="mt-3 font-mono text-base font-semibold text-ink">
+                            verifyCitation()
+                        </h3>
+                        <p className="mt-2 text-xs leading-relaxed text-ink-2">
+                            codeCite.line must exist; codeCite.excerpt must
+                            substring-match the actual code at that line;
+                            constraintCite.text must literally appear at
+                            mdFile:line. Any miss → drop.
+                        </p>
+                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
+{`drop "f_d04" · citation:
+  expected: ".context-map/.../login-constraints.md:1"
+  actual: "0"`}
+                        </pre>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-surface p-6">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                            check 02 · llm self-critique
+                        </div>
+                        <h3 className="mt-3 font-mono text-base font-semibold text-ink">
+                            gpt-5-mini, &lt;80% drops
+                        </h3>
+                        <p className="mt-2 text-xs leading-relaxed text-ink-2">
+                            Re-reads the code excerpt and the constraint side
+                            by side. Outputs {`{ confident: bool, reason: string }`}.
+                            Cheaper than analyzer; runs every surviving
+                            finding.
+                        </p>
+                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
+{`{ confident: false,
+  reason: "code references csrf but no
+   middleware mounted on the router" }`}
+                        </pre>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-surface p-6">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                            floor · no llm
+                        </div>
+                        <h3 className="mt-3 font-mono text-base font-semibold text-ink">
+                            npm audit
+                        </h3>
+                        <p className="mt-2 text-xs leading-relaxed text-ink-2">
+                            Any cycle that scans package.json runs npm audit
+                            first. CVEs become findings with{" "}
+                            <code className="font-mono text-file">codeCite.line</code>
+                            pointed at the offending dependency. Demo never
+                            empty-handed.
+                        </p>
+                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
+{`finding: lodash@4.17.20
+  CVE-2021-23337
+  prototype pollution
+  → package.json:18`}
+                        </pre>
+                    </div>
+                </div>
+
+                {/* Task 12: mock-seam chips */}
+                <div className="mt-10 grid gap-3 text-[11px] text-ink-3 md:grid-cols-3">
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+                        <code className="font-mono text-file">USE_MOCK_LLM=1</code>
+                        <span className="text-ink-2">deterministic finding set</span>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+                        <code className="font-mono text-file">USE_MOCK_DEVIN=1</code>
+                        <span className="text-ink-2">fakes a 30s PR open</span>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+                        <code className="font-mono text-file">SKIP_NIA=1</code>
+                        <span className="text-ink-2">filesystem fallback</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+// ───────────────────────────────────────────────────────────
+// ClosedLoopSection (Task 10)
+// ───────────────────────────────────────────────────────────
+function ClosedLoopSection() {
+    const states = [
+        { id: "detected", label: "detected",           color: "#66E0FF", desc: "post-critique, ready to file" },
+        { id: "running",  label: "devin_running",      color: "#7C9EFF", desc: "Devin spawned, session id stored" },
+        { id: "pr_open",  label: "pr_open",            color: "#C49BFF", desc: "Devin opened the PR" },
+        { id: "verify",   label: "verifying",          color: "#FFB86B", desc: "re-scan after PR merged" },
+        { id: "resolved", label: "resolved",           color: "#6EE7B7", desc: "constraint satisfied" },
+        { id: "reopen",   label: "reopened_sharpened", color: "#F9E27D", desc: "sharpen prompt, new Devin run" },
+        { id: "escalate", label: "escalated",          color: "#FF7A8A", desc: "sharpenIterations > 2; human-only" },
+    ];
+    return (
+        <section className="relative border-y border-border/60 bg-surface/30 py-32">
+            <div className="mx-auto max-w-6xl px-6">
+                <SectionEyebrow>Closed loop · Devin</SectionEyebrow>
+                <SectionHeadline>
+                    Filed → fixed → verified.{" "}
+                    <span className="text-ink-3">By the agent.</span>
+                </SectionHeadline>
+                <SectionLede>
+                    Each finding has a state machine. Guardian files an issue,
+                    spawns a Devin run, watches the PR, then re-scans on merge.
+                    If the constraint still fails, it sharpens the prompt with
+                    the previous diff + verbatim citation and spawns a second
+                    Devin run. Hard cap at 2 iterations before <code className="font-mono text-file">escalated</code>.
+                </SectionLede>
+
+                <div className="mt-16 grid gap-3 md:grid-cols-4 lg:grid-cols-7">
+                    {states.map((s) => (
+                        <div key={s.id} className="rounded-2xl border border-border bg-surface p-4">
+                            <span className="block h-2.5 w-2.5 rounded-full"
+                                  style={{ background: s.color, boxShadow: `0 0 0 3px ${s.color}1a` }} />
+                            <div className="mt-3 font-mono text-[10.5px] font-semibold text-ink">
+                                {s.label}
+                            </div>
+                            <div className="mt-2 font-mono text-[10px] leading-snug text-ink-3">
+                                {s.desc}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-10 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-border bg-surface p-6">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                            sharpen prompt · iteration 2
+                        </div>
+                        <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-bg p-4 font-mono text-[11px] leading-relaxed text-ink-2">{`Previous attempt diff:
+  + import { requireCsrf } from './lib/csrf'
+  + router.use(requireCsrf)        ← mounted globally
+
+Constraint (verbatim):
+  "All authentication endpoints MUST verify CSRF
+   token via the requireCsrfToken middleware before
+   processing the request body."
+
+Why the previous fix didn't satisfy: middleware
+mounted at router-level fires after body parsing.
+Move it before req.body is touched in
+src/routes/login.ts.`}</pre>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-surface p-6">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-3">
+                            fingerprint dedup
+                        </div>
+                        <p className="mt-3 text-xs leading-relaxed text-ink-2">
+                            Every finding hashes to{" "}
+                            <code className="font-mono text-file">sha256(path + mdFile + mdLine + codeLine)</code>.
+                            Re-scans on the same line + constraint never file a duplicate
+                            issue. After resolution, the row stays in the table so the
+                            same finding can&apos;t be re-detected.
+                        </p>
+                        <pre className="mt-3 rounded-md border border-border bg-bg p-3 font-mono text-[11px] text-file">
+{`fingerprint: 1f9c…0a3b
+status: resolved (cycle 47)
+issue: #3 · PR: #18`}
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </section>
     );
 }
