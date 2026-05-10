@@ -12,6 +12,7 @@ export const upsertNote = mutation({
         lastInjectedAt: v.optional(v.string()),
         invalidatedAt: v.optional(v.string()),
         createdAt: v.string(),
+        createdBy: v.optional(v.string()),
         createdFromSession: v.optional(v.string()),
         createdFromHurdle: v.optional(v.number()),
     },
@@ -96,6 +97,35 @@ export const bumpInjectCount = mutation({
         await ctx.db.patch(n._id, {
             injectCount: (n.injectCount ?? 0) + 1,
             lastInjectedAt: a.at,
+        });
+        return n._id;
+    },
+});
+
+// Hyperspell supporting context. Best-effort enrichment — never blocks
+// note creation, never overrides the symptom/cause/correction.
+export const attachHyperspellRefs = mutation({
+    args: {
+        noteId: v.string(),
+        refs: v.array(v.object({
+            source: v.string(),
+            title: v.string(),
+            url: v.string(),
+            snippet: v.optional(v.string()),
+            ts: v.optional(v.string()),
+            author: v.optional(v.string()),
+        })),
+        enrichedAt: v.string(),
+    },
+    handler: async (ctx, a) => {
+        const n = await ctx.db
+            .query("notes")
+            .withIndex("by_note_id", (q) => q.eq("noteId", a.noteId))
+            .first();
+        if (!n) return null;
+        await ctx.db.patch(n._id, {
+            hyperspellRefs: a.refs.slice(0, 5),
+            hyperspellEnrichedAt: a.enrichedAt,
         });
         return n._id;
     },

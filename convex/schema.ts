@@ -232,6 +232,18 @@ export default defineSchema({
     feedbackUseful: v.optional(v.number()),
     feedbackTotal: v.optional(v.number()),
     feedbackScore: v.optional(v.number()),
+    // Hyperspell supporting context. NM notes are primary provenance from
+    // coding friction — these refs only enrich, never replace. See
+    // PRD > "design rule: NM notes are primary; company-brain only enriches".
+    hyperspellRefs: v.optional(v.array(v.object({
+      source: v.string(),     // 'slack' | 'notion' | 'gmail' | 'github' | 'drive'
+      title: v.string(),
+      url: v.string(),
+      snippet: v.optional(v.string()),
+      ts: v.optional(v.string()),
+      author: v.optional(v.string()),
+    }))),
+    hyperspellEnrichedAt: v.optional(v.string()),
   })
     .index("by_note_id", ["noteId"])
     .index("by_active_importance", ["invalidatedAt", "importance"]),

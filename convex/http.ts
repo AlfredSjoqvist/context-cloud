@@ -163,6 +163,15 @@ http.route({
     }),
 });
 
+http.route({
+    path: "/sync/hyperspell-refs",
+    method: "POST",
+    handler: wrap(async (ctx, body) => {
+        const id = await ctx.runMutation(internal.notes.attachHyperspellRefs, body);
+        return { id };
+    }),
+});
+
 // ---- public dashboard reads (CORS-enabled, no auth) ----
 
 http.route({

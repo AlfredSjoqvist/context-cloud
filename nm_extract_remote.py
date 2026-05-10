@@ -54,6 +54,9 @@ CONVEX_SITE_URL = (
     os.environ.get("CONVEX_URL")
     or "https://colorless-porcupine-926.convex.site"
 ).rstrip("/")
+HYPERSPELL_BRIDGE_URL = os.environ.get(
+    "HYPERSPELL_BRIDGE_URL", "https://hindsight-nm.vercel.app/api/hyperspell"
+).rstrip("/")
 SYNC_TOKEN = os.environ.get("NM_SYNC_TOKEN", "")
 POLL_INTERVAL_S = float(os.environ.get("NM_POLL_INTERVAL_S", "30"))
 
@@ -287,10 +290,38 @@ def _process_session(s: dict) -> int:
             )
             if ok:
                 notes_made += 1
+                note_id = bundle["note"]["noteId"]
                 print(
-                    f"[remote-nm]   note {bundle['note']['noteId']} for "
+                    f"[remote-nm]   note {note_id} for "
                     f"{session_id[:10]} score={score:.1f} files={window.files}"
                 )
+                # Best-effort Hyperspell enrichment. Never blocks; supporting
+                # context only — the symptom/cause/correction stay primary.
+                try:
+                    enrich_query = (
+                        f"{bundle['note']['symptom']} {' '.join(window.files)}"
+                    )[:300]
+                    er = urllib.request.urlopen(
+                        urllib.request.Request(
+                            HYPERSPELL_BRIDGE_URL,
+                            data=json.dumps({
+                                "action": "enrich",
+                                "noteId": note_id,
+                                "query": enrich_query,
+                            }).encode("utf-8"),
+                            headers={"Content-Type": "application/json"},
+                            method="POST",
+                        ),
+                        timeout=10,
+                    )
+                    enrich_body = json.loads(er.read().decode("utf-8"))
+                    if enrich_body.get("refs"):
+                        print(
+                            f"[remote-nm]   hyperspell enriched {note_id} "
+                            f"with {enrich_body['refs']} ref(s)"
+                        )
+                except Exception as e:
+                    print(f"[remote-nm]   hyperspell enrich error: {e}")
 
     last_ts = rows[-1].get("ts")
     _post(

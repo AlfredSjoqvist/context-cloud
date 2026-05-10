@@ -159,6 +159,15 @@ def _format_notes_text(notes: list[dict], paths: list[str]) -> str:
         lines.append(f"  Cause:  {n.get('rootCause', '')}")
         if n.get("correction"):
             lines.append(f"  Fix:    {n['correction']}")
+        # Hyperspell supporting context (compact: source · title · url)
+        refs = n.get("hyperspellRefs") or []
+        if refs:
+            lines.append("  Evidence (Hyperspell):")
+            for r in refs[:3]:
+                src = r.get("source", "?")
+                title = (r.get("title") or "")[:80]
+                url = r.get("url") or ""
+                lines.append(f"    · {src}: {title}  {url}")
     return "\n".join(lines)
 
 

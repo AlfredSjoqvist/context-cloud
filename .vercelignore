@@ -1,0 +1,16 @@
+nm.db
+nm.db-shm
+nm.db-wal
+*.log
+*.log.err
+remote_nm.log*
+node_modules
+__pycache__
+.venv
+agent
+convex
+mock_org
+.git
+.context-map
+*.pdf
+architecture.pdf

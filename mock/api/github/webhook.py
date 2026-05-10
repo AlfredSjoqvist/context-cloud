@@ -229,10 +229,23 @@ def _format_comment(matches: list[dict]) -> str:
         lines.append(f"**Cause:** {note.get('rootCause', '')}")
         if note.get("correction"):
             lines.append(f"**Fix:** {note['correction']}")
+        # Hyperspell supporting context — links to org's Slack / Notion / GH / Drive.
+        refs = note.get("hyperspellRefs") or []
+        if refs:
+            lines.append("")
+            lines.append("**Evidence (Hyperspell):**")
+            for r in refs[:3]:
+                src = r.get("source", "?")
+                title = r.get("title") or ""
+                url = r.get("url") or ""
+                if url:
+                    lines.append(f"- `{src}` · [{title}]({url})")
+                else:
+                    lines.append(f"- `{src}` · {title}")
         lines.append("")
     lines.append("---")
     lines.append(
-        "_Captured from this org's coding sessions. "
+        "_Captured from this org's coding sessions, enriched via Hyperspell. "
         "[Open the Hindsight dashboard](https://hindsight-nm.vercel.app)_"
     )
     return "\n".join(lines)
