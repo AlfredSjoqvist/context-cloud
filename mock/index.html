@@ -3838,6 +3838,66 @@
   .skel-line { height: 10px; }
   .skel-line.w20 { width: 20%; } .skel-line.w40 { width: 40%; } .skel-line.w50 { width: 50%; } .skel-line.w60 { width: 60%; }
   @keyframes nm-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+  /* ── Sessions view · injections + V2 ──── NM_SESSIONS_TAB_V2 ── */
+  .session-section {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .session-section:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .session-section-head {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 8px; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.6px; font-size: 10.5px; font-weight: 600;
+  }
+  .session-section-head .count {
+    font-family: 'JetBrains Mono', monospace; color: var(--text-2);
+    background: var(--surface-2); padding: 1px 6px; border-radius: 4px;
+    font-weight: 500; letter-spacing: 0;
+  }
+  .session-injections-list {
+    display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .session-injection-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto;
+    gap: 12px; align-items: center;
+    padding: 7px 12px;
+    font-size: 11.5px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .session-injection-row:first-child { border-top: 0; }
+  .session-injection-row:hover { background: var(--surface-2); }
+  .session-inj-ts { color: var(--text-3); font-size: 10.5px; }
+  .session-inj-tool {
+    font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: rgba(124,158,255,.10); color: var(--file);
+    text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600;
+  }
+  .session-inj-path { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .session-inj-note {
+    color: var(--note); font-size: 10.5px;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,184,107,.10);
+  }
+  .session-inj-decision {
+    font-size: 10.5px; padding: 2px 7px; border-radius: 4px;
+    font-weight: 600; letter-spacing: 0.3px;
+  }
+  .session-inj-decision.ok {
+    background: rgba(110,231,183,.14); color: var(--green);
+  }
+  .session-inj-decision.rej {
+    background: rgba(255,122,138,.14); color: var(--red);
+  }
+  .session-inj-empty {
+    padding: 12px; text-align: center; color: var(--text-3);
+    font-size: 11.5px; border: 1px dashed var(--border); border-radius: 8px;
+  }
+
 </style>
 </head>
 <body>
@@ -3866,11 +3926,11 @@
       </svg>
       Matrix
     </button>
-    <button class="tab" data-tab="injections">
+    <button class="tab" data-tab="sessions">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M5 12h11"/><path d="m12 5 7 7-7 7"/>
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
       </svg>
-      Injections
+      Sessions
     </button>
     <button class="tab" data-tab="agents">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -3908,12 +3968,6 @@
         <path d="M3 12h4l3-9 4 18 3-9h4"/>
       </svg>
       Activity
-    </button>
-    <button class="tab" data-tab="sessions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-      </svg>
-      Sessions
     </button>
     <button class="tab" data-tab="sources">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -4238,7 +4292,7 @@
                 <span class="gc-threshold-lbl">Note Relevance Cutoff</span>
                 <span class="gc-threshold-val" id="thr-min-val">0.15</span>
               </div>
-              <input type="range" min="0.05" max="0.40" step="0.01" value="0.15" id="thr-min" class="gc-slider"/>
+              <input type="range" min="0.00" max="1.00" step="0.01" value="0.15" id="thr-min" class="gc-slider"/>
               <div class="gc-threshold-hint">notes below this relevance score are <b class="bad">invalidated</b></div>
             </div>
             <div class="gc-threshold">
@@ -4246,7 +4300,7 @@
                 <span class="gc-threshold-lbl">Merge Threshold</span>
                 <span class="gc-threshold-val" id="thr-merge-val">0.70</span>
               </div>
-              <input type="range" min="0.50" max="0.95" step="0.01" value="0.70" id="thr-merge" class="gc-slider"/>
+              <input type="range" min="0.00" max="1.00" step="0.01" value="0.70" id="thr-merge" class="gc-slider"/>
               <div class="gc-threshold-hint">pairs above this are <b class="warn">merged</b> into the higher-importance note</div>
             </div>
             <div class="gc-threshold">
@@ -4254,7 +4308,7 @@
                 <span class="gc-threshold-lbl">Edge Relevance Cutoff</span>
                 <span class="gc-threshold-val" id="thr-edge-val">0.10</span>
               </div>
-              <input type="range" min="0.02" max="0.30" step="0.01" value="0.10" id="thr-edge" class="gc-slider"/>
+              <input type="range" min="0.00" max="1.00" step="0.01" value="0.10" id="thr-edge" class="gc-slider"/>
               <div class="gc-threshold-hint">edges below this and never anchored are <b class="warn">pruned</b></div>
             </div>
             <div class="gc-threshold">
@@ -4866,22 +4920,31 @@ if (__NM_DATA) {
   console.log('[NM] no live notes — rendering seeded demo data');
 }
 
-// Allow-list filter: ONLY the 5 mock-org repos render in the file tree.
-// Applied unconditionally so it cleans both real data and seeded data.
-// Drops everything else (loose `nm_*.py`, `CLAUDE.md`, `c:` absolute paths,
-// `codebase/`, `convex/`, `src/runtime/...`, etc.) Anchors path normalization
-// (`mock_org/<repo>/x` → `<repo>/x`) so duplicate prefixes collapse.
+// Allow-list filter: ONLY the 5 acme-* mock-org repos render in the file
+// tree. Applied unconditionally so it cleans seeded + live data identically.
+// Path normalization collapses duplicates so `mock_org/agent-gateway/x` and
+// bare `agent-gateway/x` both rewrite to the canonical `acme-agent-gateway/x`.
+// Anything outside the 5 repos (loose `nm_*.py`, `CLAUDE.md`, `c:` absolute
+// paths, `codebase/`, `convex/`, `src/runtime/...`) gets dropped.
 (function filterToReposOnly() {
-  const REPO_ALLOWLIST = new Set([
-    'agent-gateway', 'connectors', 'control-plane', 'memory-graph', 'runtime-orchestrator'
-  ]);
+  const ACME_NAMES = ['agent-gateway', 'connectors', 'control-plane', 'memory-graph', 'runtime-orchestrator'];
+  const ACME_SET = new Set(ACME_NAMES.map(n => 'acme-' + n));
+  const BARE_TO_ACME = new Map(ACME_NAMES.map(n => [n, 'acme-' + n]));
+
   function normalizeRepoPath(p) {
     if (!p || typeof p !== 'string') return null;
     let s = p.replace(/\\/g, '/');
     if (s.startsWith('mock_org/')) s = s.slice('mock_org/'.length);
-    const root = s.split('/')[0];
-    return REPO_ALLOWLIST.has(root) ? s : null;
+    const parts = s.split('/');
+    const root = parts[0];
+    if (ACME_SET.has(root)) return s;                        // already canonical
+    if (BARE_TO_ACME.has(root)) {                            // bare → acme- prefix
+      parts[0] = BARE_TO_ACME.get(root);
+      return parts.join('/');
+    }
+    return null;                                             // anything else: drop
   }
+
   const filesByPath = new Map();
   (FILES || []).forEach(f => {
     const np = normalizeRepoPath(f && f.path);
@@ -4898,7 +4961,7 @@ if (__NM_DATA) {
       .filter(Boolean);
     return remappedEdges.length ? { ...n, edges: remappedEdges } : null;
   }).filter(Boolean);
-  console.log('[NM] tree filtered to', REPO_ALLOWLIST.size, 'repos · files=' + FILES.length, 'notes=' + NOTES.length);
+  console.log('[NM] tree filtered to', ACME_SET.size, 'acme-* repos · files=' + FILES.length, 'notes=' + NOTES.length);
 })();
 
 const FILE_BY_PATH = Object.fromEntries(FILES.map(f => [f.path, f]));
@@ -9359,18 +9422,21 @@ window.applyConvexData = applyConvexData;
     if (liveSpan) liveSpan.textContent = 'inline · convex offline';
   }
 
-// ── Sessions view ────────────────────────────────── NM_SESSIONS_TAB_V1 ──
+
+
+// ── Sessions view + Agents Convex hydration ── NM_SESSIONS_TAB_V2 ──
 (function () {
   const NM_CONVEX_URL = (window.NM_CONVEX_URL || 'https://acoustic-fish-389.convex.site').replace(/\/$/, '');
-  let _sessionsData = null;
+  let _everything = null;
   let _sessionsPoll = null;
-  let _sessionsLoading = false;
+  let _agentsPoll = null;
+  let _loading = false;
   let _stampTicker = null;
 
-  const _esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const _esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const _fmtRel = iso => {
     if (!iso) return '—';
-    const t = new Date(iso).getTime();
+    const t = typeof iso === 'number' ? iso : new Date(iso).getTime();
     if (!t) return '—';
     const dt = (Date.now() - t) / 1000;
     if (dt < 5) return 'just now';
@@ -9378,7 +9444,13 @@ window.applyConvexData = applyConvexData;
     if (dt < 3600) return Math.round(dt / 60) + 'm ago';
     if (dt < 86400) return Math.round(dt / 3600) + 'h ago';
     if (dt < 86400 * 7) return Math.round(dt / 86400) + 'd ago';
-    return new Date(iso).toLocaleDateString();
+    return new Date(t).toLocaleDateString();
+  };
+  const _fmtClock = iso => {
+    if (!iso) return '';
+    const d = new Date(typeof iso === 'number' ? iso : iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
   const _vendorClass = v => {
     if (!v) return 'unknown';
@@ -9390,8 +9462,68 @@ window.applyConvexData = applyConvexData;
   };
   const _impClass = imp => imp >= 0.6 ? '' : (imp >= 0.3 ? ' mid' : ' low');
 
+  // ----- session derivation from the bundled Convex snapshot -----
+
+  function _deriveSessions(data) {
+    if (!data || !Array.isArray(data.sessions)) return [];
+    const noteFilesByNoteId = {};
+    (data.noteFiles || []).forEach(e => {
+      (noteFilesByNoteId[e.noteId] = noteFilesByNoteId[e.noteId] || []).push(e);
+    });
+    const notesBySession = {};
+    (data.notes || []).forEach(n => {
+      if (!n.createdFromSession) return;
+      (notesBySession[n.createdFromSession] = notesBySession[n.createdFromSession] || []).push(n);
+    });
+    const injBySession = {};
+    (data.injections || []).forEach(i => {
+      if (!i.sessionId) return;
+      (injBySession[i.sessionId] = injBySession[i.sessionId] || []).push(i);
+    });
+
+    const ss = data.sessions.slice();
+    ss.sort((a, b) => {
+      const at = a.lastSeenAt || a.startedAt || '';
+      const bt = b.lastSeenAt || b.startedAt || '';
+      if (at === bt) return (b._creationTime || 0) - (a._creationTime || 0);
+      return at < bt ? 1 : -1;
+    });
+
+    return ss.map(s => {
+      const sNotes = (notesBySession[s.sessionId] || []).slice();
+      sNotes.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+      const notes = sNotes.map(n => ({
+        noteId: n.noteId,
+        symptom: n.symptom,
+        rootCause: n.rootCause,
+        correction: n.correction,
+        importance: n.importance,
+        injectCount: n.injectCount,
+        files: (noteFilesByNoteId[n.noteId] || [])
+          .slice().sort((a, b) => (b.weight || 0) - (a.weight || 0)),
+      }));
+      const sInj = (injBySession[s.sessionId] || []).slice();
+      sInj.sort((a, b) => (a.ts < b.ts ? 1 : -1));
+      return {
+        sessionId: s.sessionId,
+        agentVendor: s.agentVendor,
+        cwd: s.cwd,
+        startedAt: s.startedAt,
+        lastSeenAt: s.lastSeenAt,
+        messageCount: s.messageCount || 0,
+        lastExtractedAt: s.lastExtractedAt,
+        noteCount: notes.length,
+        notes,
+        injectionCount: sInj.length,
+        injections: sInj.slice(0, 30),
+      };
+    });
+  }
+
+  // ----- render -----
+
   function _renderNote(n) {
-    const imp = Number(n.importance ?? 0);
+    const imp = Number(n.importance || 0);
     const filesHtml = (n.files || []).map(f => `<span class="session-note-file">${_esc(f.path)}</span>`).join('');
     const injects = n.injectCount > 0 ? `× ${n.injectCount} injected` : '';
     return `
@@ -9407,6 +9539,20 @@ window.applyConvexData = applyConvexData;
       </div>`;
   }
 
+  function _renderInjection(i) {
+    const ok = i.accepted !== false;
+    const decisionLbl = ok ? 'ok' : 'filtered';
+    const decisionCls = ok ? 'ok' : 'rej';
+    return `
+      <div class="session-injection-row">
+        <span class="session-inj-ts">${_esc(_fmtClock(i.ts))}</span>
+        <span class="session-inj-tool">${_esc(i.toolName || 'tool')}</span>
+        <span class="session-inj-path" title="${_esc(i.path || '')}">${_esc(i.path || '—')}</span>
+        ${i.noteId ? `<span class="session-inj-note">${_esc(String(i.noteId).slice(0,12))}</span>` : '<span></span>'}
+        <span class="session-inj-decision ${decisionCls}" title="${_esc(i.reason || '')}">${decisionLbl}</span>
+      </div>`;
+  }
+
   function _renderCard(s) {
     const vendorCls = _vendorClass(s.agentVendor);
     const vendor = _esc(s.agentVendor || 'agent');
@@ -9416,48 +9562,71 @@ window.applyConvexData = applyConvexData;
     const lastSeen = _fmtRel(s.lastSeenAt || s.startedAt);
     const msgs = Number(s.messageCount || 0);
     const noteCount = Number(s.noteCount || 0);
-    const pillCls = noteCount === 0 ? 'session-notes-pill zero' : 'session-notes-pill';
-    const cardCls = noteCount > 0 ? 'session-card with-notes' : 'session-card';
+    const injCount = Number(s.injectionCount || 0);
+    const cardCls = (noteCount > 0 || injCount > 0) ? 'session-card with-notes' : 'session-card';
     const ctx = [];
     if (s.startedAt) ctx.push(`<div>started · <b>${_fmtRel(s.startedAt)}</b></div>`);
     if (s.lastSeenAt) ctx.push(`<div>last event · <b>${_fmtRel(s.lastSeenAt)}</b></div>`);
     if (msgs) ctx.push(`<div>messages · <b>${msgs}</b></div>`);
     if (s.cwd) ctx.push(`<div>cwd · <b>${_esc(s.cwd)}</b></div>`);
     if (s.lastExtractedAt) ctx.push(`<div>last extracted · <b>${_fmtRel(s.lastExtractedAt)}</b></div>`);
-    const notesHtml = noteCount === 0
+
+    const notesSection = noteCount === 0
       ? `<div class="session-no-notes">No notes were extracted from this session — either no hurdles fired or the Note Manager hasn't run on it yet.</div>`
       : `<div class="session-notes-list">${(s.notes || []).map(_renderNote).join('')}</div>`;
+
+    const injSection = injCount === 0
+      ? `<div class="session-inj-empty">No injections fired during this session yet.</div>`
+      : `<div class="session-injections-list">${(s.injections || []).map(_renderInjection).join('')}</div>`;
+
+    const summary = [
+      `${msgs} msg`,
+      `${lastSeen}`,
+    ].join(' · ');
+    const pillBits = [];
+    if (noteCount > 0) pillBits.push(`<span class="session-notes-pill">${noteCount} ${noteCount === 1 ? 'note' : 'notes'}</span>`);
+    else pillBits.push(`<span class="session-notes-pill zero">0 notes</span>`);
+    if (injCount > 0) pillBits.push(`<span class="session-notes-pill" style="background:rgba(124,158,255,.14);color:var(--file)">${injCount} inj</span>`);
+
     return `
       <div class="${cardCls}" data-session="${_esc(sid)}">
         <div class="session-row" role="button" tabindex="0">
           <span class="session-vendor ${vendorCls}">${vendor}</span>
           <span class="session-id" title="${_esc(sid)}"><b>${_esc(sidShort)}</b><span class="dim">${_esc(sidTail)}</span></span>
-          <span class="session-meta-bits">${msgs} msg · ${lastSeen}</span>
-          <span class="${pillCls}">${noteCount} ${noteCount === 1 ? 'note' : 'notes'}</span>
+          <span class="session-meta-bits">${summary}</span>
+          <span style="display:inline-flex;gap:6px">${pillBits.join('')}</span>
           <svg class="session-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
         <div class="session-body">
           <div class="session-context-grid">${ctx.join('')}</div>
-          ${notesHtml}
+          <div class="session-section">
+            <div class="session-section-head">notes from this session <span class="count">${noteCount}</span></div>
+            ${notesSection}
+          </div>
+          <div class="session-section">
+            <div class="session-section-head">injections during this session <span class="count">${injCount}</span></div>
+            ${injSection}
+          </div>
         </div>
       </div>`;
   }
 
-  function _render() {
+  function _renderSessions() {
     const list = document.getElementById('sessions-list');
-    if (!list || !_sessionsData) return;
-    const ss = _sessionsData.sessions || [];
-    const totals = _sessionsData.totals || {};
-    document.getElementById('sessions-count').textContent = totals.sessions ?? ss.length;
-    document.getElementById('sessions-notes-count').textContent = totals.notes ?? 0;
+    if (!list || !_everything) return;
+    const ss = _deriveSessions(_everything);
+    document.getElementById('sessions-count').textContent = ss.length;
+    document.getElementById('sessions-notes-count').textContent = ss.reduce((a, s) => a + (s.noteCount || 0), 0);
     document.getElementById('sessions-with-notes').textContent = ss.filter(s => (s.noteCount || 0) > 0).length;
-    document.getElementById('sessions-newest').textContent = _fmtRel(ss[0]?.lastSeenAt || ss[0]?.startedAt);
-    document.getElementById('sessions-stamp').textContent = 'updated ' + _fmtRel(_sessionsData.asOf);
+    const newestEl = document.getElementById('sessions-newest');
+    if (newestEl) newestEl.textContent = ss.length ? _fmtRel(ss[0].lastSeenAt || ss[0].startedAt) : '—';
+    document.getElementById('sessions-stamp').textContent = 'updated just now';
+
     if (ss.length === 0) {
       list.innerHTML = `
         <div class="sessions-empty">
           <h3>No sessions captured yet.</h3>
-          <p>Connect a coding agent via the NM MCP server. The next time it runs, a row appears here with any notes it produced and the reason each one was extracted.</p>
+          <p>Connect a coding agent via the NM MCP server. The next time it runs, a row appears here with any notes it produced and any injections that fired.</p>
         </div>`;
       return;
     }
@@ -9472,63 +9641,125 @@ window.applyConvexData = applyConvexData;
     if (firstWith) firstWith.classList.add('open');
   }
 
+  // ----- Agents tab Convex hydration -----
+
+  function _hydrateAgentsTab(data) {
+    if (!data) return;
+    if (typeof ORG_USERS === 'undefined' || typeof AGENTS === 'undefined') return;
+
+    if (Array.isArray(data.users) && data.users.length) {
+      const mapped = data.users.map(u => ({
+        id: u.userId, name: u.name, role: u.role, color: u.color,
+        initial: u.initial, handle: u.handle, email: u.email,
+      }));
+      ORG_USERS.length = 0; mapped.forEach(u => ORG_USERS.push(u));
+    }
+    if (Array.isArray(data.agents) && data.agents.length) {
+      const mapped = data.agents.map(a => ({
+        id: a.agentId, user_id: a.userId, vendor: a.vendor, label: a.label,
+      }));
+      AGENTS.length = 0; mapped.forEach(a => AGENTS.push(a));
+    }
+    if (typeof ALL_NOTES !== 'undefined' && Array.isArray(data.notes)) {
+      const mapped = data.notes.map(n => ({
+        id: n.noteId, symptom: n.symptom, root_cause: n.rootCause,
+        correction: n.correction, importance: n.importance,
+        inject_count: n.injectCount || 0, created_by: n.createdBy,
+        created_at: n.createdAt,
+      }));
+      ALL_NOTES.length = 0; mapped.forEach(n => ALL_NOTES.push(n));
+    }
+    if (typeof INJECTIONS !== 'undefined' && Array.isArray(data.injections)) {
+      const mapped = data.injections.map(i => ({
+        ts: typeof i.ts === 'string' ? new Date(i.ts).getTime() : (i.ts || 0),
+        agent_id: i.agentId, accepted: i.accepted !== false,
+        latency_ms: typeof i.latencyMs === 'number' ? i.latencyMs : 0,
+        path: i.path, note_id: i.noteId, session_id: i.sessionId,
+      }));
+      INJECTIONS.length = 0; mapped.forEach(i => INJECTIONS.push(i));
+    }
+    // Re-render Agents view if it's been initialized
+    try {
+      if (typeof renderAgents === 'function' && typeof agInited !== 'undefined' && agInited) {
+        renderAgents();
+      }
+    } catch (e) { /* swallow */ }
+  }
+
+  // ----- fetch + lifecycle -----
+
   async function _fetch(showSpinner) {
-    if (_sessionsLoading) return;
-    _sessionsLoading = true;
+    if (_loading) return;
+    _loading = true;
     const btn = document.getElementById('sessions-refresh');
     if (btn && showSpinner) btn.classList.add('spinning');
     try {
-      const url = NM_CONVEX_URL + '/dashboard/sessions-with-notes?limit=50';
+      const url = NM_CONVEX_URL + '/dashboard/everything';
       const resp = await fetch(url, { cache: 'no-store' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      _sessionsData = await resp.json();
-      _render();
+      _everything = await resp.json();
+      _renderSessions();
+      _hydrateAgentsTab(_everything);
     } catch (e) {
       const list = document.getElementById('sessions-list');
-      if (list && !_sessionsData) {
+      if (list && !_everything) {
         list.innerHTML = `
           <div class="sessions-empty">
             <h3>Couldn't reach Convex.</h3>
-            <p>Tried <code>${_esc(NM_CONVEX_URL)}/dashboard/sessions-with-notes</code> but the request failed (${_esc(e.message)}).</p>
+            <p>Tried <code>${_esc(NM_CONVEX_URL)}/dashboard/everything</code> but the request failed (${_esc(e.message)}).</p>
             <p>Set <code>window.NM_CONVEX_URL</code> in this page or verify the deployment is live.</p>
           </div>`;
       }
       const stamp = document.getElementById('sessions-stamp');
       if (stamp) stamp.textContent = 'offline · retrying soon';
     } finally {
-      _sessionsLoading = false;
+      _loading = false;
       if (btn) setTimeout(() => btn.classList.remove('spinning'), 280);
     }
   }
 
-  function _onActivate() {
+  function _onSessionsActivate() {
     _fetch(true);
     if (_sessionsPoll) clearInterval(_sessionsPoll);
     _sessionsPoll = setInterval(() => _fetch(false), 12000);
     if (_stampTicker) clearInterval(_stampTicker);
     _stampTicker = setInterval(() => {
-      if (_sessionsData?.asOf) {
-        const stamp = document.getElementById('sessions-stamp');
-        if (stamp) stamp.textContent = 'updated ' + _fmtRel(_sessionsData.asOf);
-      }
+      const stamp = document.getElementById('sessions-stamp');
+      if (stamp && _everything) stamp.textContent = 'updated just now';
     }, 5000);
   }
-  function _onDeactivate() {
+  function _onSessionsDeactivate() {
     if (_sessionsPoll) { clearInterval(_sessionsPoll); _sessionsPoll = null; }
     if (_stampTicker) { clearInterval(_stampTicker); _stampTicker = null; }
   }
+  function _onAgentsActivate() {
+    if (!_everything) _fetch(true);
+    else _hydrateAgentsTab(_everything);
+    if (_agentsPoll) clearInterval(_agentsPoll);
+    _agentsPoll = setInterval(() => _fetch(false), 18000);
+  }
+  function _onAgentsDeactivate() {
+    if (_agentsPoll) { clearInterval(_agentsPoll); _agentsPoll = null; }
+  }
 
-  // Observe the view's class to know when the user enters/leaves the tab.
-  // This avoids touching switchTab and survives any reordering of click handlers.
   function _wire() {
-    const view = document.querySelector('[data-view="sessions"]');
-    if (!view) return;
-    new MutationObserver(() => {
-      if (view.classList.contains('on')) _onActivate();
-      else _onDeactivate();
-    }).observe(view, { attributes: true, attributeFilter: ['class'] });
+    const sessionsView = document.querySelector('[data-view="sessions"]');
+    const agentsView = document.querySelector('[data-view="agents"]');
+    if (sessionsView) {
+      new MutationObserver(() => {
+        if (sessionsView.classList.contains('on')) _onSessionsActivate();
+        else _onSessionsDeactivate();
+      }).observe(sessionsView, { attributes: true, attributeFilter: ['class'] });
+      if (sessionsView.classList.contains('on')) _onSessionsActivate();
+    }
+    if (agentsView) {
+      new MutationObserver(() => {
+        if (agentsView.classList.contains('on')) _onAgentsActivate();
+        else _onAgentsDeactivate();
+      }).observe(agentsView, { attributes: true, attributeFilter: ['class'] });
+      if (agentsView.classList.contains('on')) _onAgentsActivate();
+    }
     document.getElementById('sessions-refresh')?.addEventListener('click', () => _fetch(true));
-    if (view.classList.contains('on')) _onActivate();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _wire);
   else _wire();

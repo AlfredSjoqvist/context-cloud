@@ -188,6 +188,22 @@ http.route({
     handler: wrapPublicGet(async () => ({ ok: true })),
 });
 
+// Bundled snapshot — powers Sessions tab (notes + injections per session)
+// AND Agents tab (users + agents + per-agent injection stats). One round
+// trip, client-side derives both views.
+http.route({
+    path: "/dashboard/everything",
+    method: "GET",
+    handler: wrapPublicGet(async (ctx) => {
+        return await ctx.runQuery(internal.dashboard.everything, {});
+    }),
+});
+http.route({
+    path: "/dashboard/everything",
+    method: "OPTIONS",
+    handler: wrapPublicGet(async () => ({ ok: true })),
+});
+
 http.route({
     path: "/health",
     method: "GET",
