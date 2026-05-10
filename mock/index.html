@@ -5023,7 +5023,7 @@ function normalizeRepoPath(p) {
       .filter(Boolean);
     return remappedEdges.length ? { ...n, edges: remappedEdges } : null;
   }).filter(Boolean);
-  console.log('[NM] tree filtered to', ACME_SET.size, 'acme-* repos · files=' + FILES.length, 'notes=' + NOTES.length);
+  console.log('[NM] tree filtered to', __ACME_SET.size, 'acme-* repos · files=' + FILES.length, 'notes=' + NOTES.length);  /* NM_RUNTIME_FIX_V1 */
 })();
 
 const FILE_BY_PATH = Object.fromEntries(FILES.map(f => [f.path, f]));
@@ -5136,8 +5136,11 @@ function computeRetained(n) {
   // Decay Speed slider — multiplier on age. The 30-day "full decay" window
   // shrinks to 30/decay days. decay=0 means no age penalty; decay=2 means
   // age halves relevance twice as fast as the default.
-  const decay = (typeof gcThresholds !== 'undefined' && gcThresholds.idle != null)
-    ? gcThresholds.idle : 1.0;
+  // NM_RUNTIME_FIX_V1: `gcThresholds` is `let`-declared later in the file.
+  // `typeof` of a let in TDZ still throws (only `var` is safe), so the
+  // original defensive check itself crashed. Use try/catch instead.
+  let decay = 1.0;
+  try { if (gcThresholds && gcThresholds.idle != null) decay = gcThresholds.idle; } catch (_) { decay = 1.0; }
   const ageInput = everInjected ? lastInjectDays : ageDays;
   const ageFactor = decay <= 0 ? 0 : Math.min(1, ageInput * decay / 30);
   // fresh notes keep a 0.40 floor on the no-injects branch — they haven't
