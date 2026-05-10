@@ -6519,7 +6519,10 @@ function vendorClass(vendor) { return VENDOR_KEY[vendor] || 'codex'; }
 function vendorInitial(vendor) {
   return vendor === 'Codex' ? 'CX' : vendor === 'Claude Code' ? 'CC' : 'CR';
 }
-function userOf(agentId) { return USER_BY_ID[AGENT_BY_ID[agentId].user_id]; }
+function userOf(agentId) {
+  const a = AGENT_BY_ID[agentId];
+  return a ? USER_BY_ID[a.user_id] : null;
+}
 function fmtRelTime(ts) {
   const ageMin = Math.max(0, Math.floor((NOW_TS - ts) / 60000));
   if (ageMin < 1) return 'now';
@@ -7840,14 +7843,16 @@ function drawTimeCursor() {
 function makeCaption(ev) {
   const safeUser = ev.actor === 'gc' ? null : userOf(ev.actor);
   const safeAgent = ev.actor === 'gc' ? null : AGENT_BY_ID[ev.actor];
+  const handle = safeUser ? safeUser.handle : 'someone';
+  const vendor = safeAgent ? safeAgent.vendor : 'an agent';
   if (ev.type === 'note_created') {
     const n = NOTE_BY_ID[ev.note_id];
     if (!n) return '';
-    return `<em>${safeUser.handle}</em>'s ${safeAgent.vendor} learned: <span class="mono">${ev.note_id}</span> — ${escapeHtml(n.symptom).slice(0, 70)}`;
+    return `<em>${handle}</em>'s ${vendor} learned: <span class="mono">${ev.note_id}</span> — ${escapeHtml(n.symptom).slice(0, 70)}`;
   } else if (ev.type === 'injection') {
-    return `<em>${safeUser.handle}</em>'s ${safeAgent.vendor} pulled <span class="mono">${ev.note_id}</span> for <span class="mono">${ev.file.split('/').pop()}</span>`;
+    return `<em>${handle}</em>'s ${vendor} pulled <span class="mono">${ev.note_id}</span> for <span class="mono">${(ev.file || '').split('/').pop()}</span>`;
   } else if (ev.type === 'injection_rejected') {
-    return `Guardian rejected <span class="mono">${ev.note_id}</span> for ${safeUser.handle}'s ${safeAgent.vendor}`;
+    return `Guardian rejected <span class="mono">${ev.note_id}</span> for ${handle}'s ${vendor}`;
   } else if (ev.type === 'gc_merge') {
     return `<span class="gc">GC merged</span> <span class="mono">${ev.action.source}</span> → <span class="mono">${ev.action.target}</span>`;
   } else if (ev.type === 'gc_invalidate') {
