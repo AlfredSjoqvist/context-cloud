@@ -1,140 +1,157 @@
 # Context Cloud — PRD
 
-**npm + GitHub for AI agent context.** Built on Nia.
+A shared-memory + drift-detection platform for AI coding agents, built at the **Nozomio Hackathon** (May 9, 2026) on Nia, Tensorlake, Convex, and Vercel. Submitted to the **Always-On Agents** track.
+
+> **Historical note.** The original PRD described a different product (a GitHub-shaped registry of context packs with Brain / Merge agents) that was never built. The original is preserved at [docs/history/PRD-context-cloud-aspirational-2026-05-09.md](docs/history/PRD-context-cloud-aspirational-2026-05-09.md). The original NM-half product spec is at [docs/history/NM-original-prd-2026-05-09.md](docs/history/NM-original-prd-2026-05-09.md). What shipped is the union described below.
 
 ---
 
-## Problem
+## TL;DR
 
-Agents are bottlenecked on context. Nia solved indexing — but every team still re-indexes the same React docs, Stripe API, and Postgres reference in private silos. There's no shared substrate, no fork graph, no install command. The community's collective context work doesn't compound.
+Three independent halves merged into one app:
 
-## Solution
+- **NM** (`nm_*.py`, `tensorlake/note_manager.py`, `tensorlake/gc.py`, `dashboard/`) — watches every Claude Code session via hooks, distills hurdles into compact notes attached to the files involved, and injects relevant notes back when a future session touches those files.
+- **Guardian** (`agent/`, `tensorlake/guardian_cycle.py`, `ui/`) — runs continuously over a target codebase, detects intent drift / security vulns / bugs against a structured `.md` context map, files real GitHub issues with line-precise citations, and (Plan 3) hands findings to Devin for autonomous fixing with sharpen-iteration up to 2x.
+- **docs-ingest** (`docs-ingest/`) — ingests external documentation (markdown / HTML / OpenAPI / live URL) into per-line `.md` constraints under the target repo's `.context-map/library/<lib>/`, consumed by Guardian via Nia. Streams emit events to Convex for the live UI.
 
-A GitHub-shaped registry where context is the unit. Publish a pack once, anyone can install it. Fork it, customize it, push back upstream. Stars become the quality signal. Three always-on background agents create, maintain, and compose pack content so the cloud stays useful as the world around it changes.
+Plus:
 
-## Position vs Nia
+- **mock_org/** — a synthetic ACME organization with five sub-products (`agent-gateway`, `connectors`, `control-plane`, `memory-graph`, `runtime-orchestrator`) and a `.nm/briefs/` corpus. Powers the Hindsight demo replay.
+- **mock/** — static demo-mode HTML served by Vercel for the offline demo path.
 
-Built on, not against. Nia is the indexing primitive — every pack is a Nia index. Context Cloud is the social and version-control layer on top. Every install is a new Nia API call. The platform makes Nia more valuable, not less.
-
-This framing is the first sentence of the pitch, not a footnote.
-
-## Track
-
-Submitting to **Always-On Agents** (Nia + Tensorlake). Three autonomous agents running continuously in the background, each with durable memory across runs.
-
-Rubric we're scoring against: Genuine Background Execution (30%), Statefulness (25%), Agentic Depth (20%), Demo & Presentation (10%), Judge's Personal Rating (10%).
-
-The architecture also covers Company Brain criteria (Cross-Source Synthesis, Real Work, Hyperspell Integration Depth) given the Brain agent uses Hyperspell to synthesize across Slack, Gmail, GitHub, Drive, and Notion. The track-agnostic top-6 round means strength on multiple rubrics is a hedge.
+All three share one Convex deployment (`acoustic-fish-389`) but write to disjoint table sets. Either half can run alone.
 
 ---
 
-## The atomic unit: a pack
+## Track + rubric
 
-A pack is a folder of markdown files, owned by a user or org, versioned and forkable like any GitHub repo. Forking copies the files. Editing produces commits. Stars are the quality signal. Installs make the pack's content available to your agent at runtime.
+Submitting to **Always-On Agents** (Nia + Tensorlake). Cross-track strength on **Company Brain** (Hyperspell) was a hedge but is not on the demo path.
 
-Common file types are familiar — `CLAUDE.md`, `SKILL.md`, `RULES.md`, plus whatever custom markdown the maintainer writes. A `.gc/rules.md` file accumulates over time as the GC agent learns what the maintainer cares about preserving.
+Rubric weights: Background Execution (30%), Statefulness (25%), Agentic Depth (20%), Demo & Presentation (10%), Judge's Personal Rating (10%).
 
-Manifest format is YAML:
+How the architecture earns each:
 
-```yaml
-name: "@nicolas/nextjs-16-pack"
-version: 1.4.0
-forked-from: "@vercel/nextjs-base@2.0.0"
-description: "Next.js 16 App Router patterns, opinionated"
-visibility: public
-maintainer: "@nicolas"
-freshness: 0.94
-stars: 1247
-installs: 8930
+| Rubric | How |
+|---|---|
+| Background execution | Three Tensorlake-deployed functions on different trigger types: `guardian_cycle.py` (cron every minute), `note_manager.py` (webhook from Claude Code Stop hook), `gc.py` (cron `*/15 * * * *`). Each one is observable in the live UI as it fires. |
+| Statefulness | Convex is the state of record. NM also keeps SQLite locally. The Guardian's findings table dedups by fingerprint across cycles. NM's `.gc/`-style learned rejections survive restarts. Remove either store and the demo collapses on contact. |
+| Agentic depth | Guardian's WAKE → PLAN → SCAN → ANALYZE → CRITIQUE → HANDOFF → RECONCILE loop demonstrates plan / execute / reflect / recover. The sharpen-iteration path (re-spawn Devin with a tightened prompt up to 2x) is the visible recovery moment. |
+| Demo / judge's rating | Hindsight UI: one app with Activity / Guardian / Sessions / Sources / Replay tabs, all hydrating live from Convex. Both halves' state streams in parallel without human input. |
+
+---
+
+## The three agents
+
+### 1. NM Note Manager — *learn from your team's mistakes*
+
+**Pain point.** Agent A in session 1 gets stuck on something specific to the codebase (wrong env var, deprecated internal API, project convention). User corrects it. Agent B in session 2 hits the same wall. Existing memory products (Mem0, Letta, Cursor rules, Claude memory) are per-user, per-session, or hand-authored — none capture institutional learnings across an org's agent fleet.
+
+**What it does.**
+- **Capture** — `nm_capture.py` tails Claude Code's `*.jsonl` transcripts via `UserPromptSubmit` / `PostToolUse` / `Stop` / `SubagentStop` hooks. Writes verbatim to SQLite `messages` + `content_blocks`; projects to `tool_calls` + `file_touches`.
+- **Inject** — `nm_inject.py` runs on `PreToolUse` for `Read` / `Edit` / `Write` / `MultiEdit`. Looks up notes attached to the canonicalized file path; surfaces them inline.
+- **Extract** — `nm_extract.py` runs the signal-scored hurdle detector ([docs/HURDLE_DETECTION_SPEC.md](docs/HURDLE_DETECTION_SPEC.md)) over a session and writes one note per hurdle. See [SCHEMA.md](SCHEMA.md) for the note + edge model.
+- **Sync** — every write mirrors to Convex best-effort (≤1.5s timeout, fail-open). Convex powers the Hindsight UI in `ui/` and the legacy NM dashboard in `dashboard/`.
+- **Semantic surface** — `nm_nia.py` indexes each new note in Nia and exposes `find_notes_semantic(query, limit)` as an MCP tool. Local cosine fallback if `NIA_API_KEY` is unset.
+
+Detection is intentionally deterministic. The LLM is not asked whether the agent was stuck — only to distill an already-detected window into a note. Full algorithm in [docs/HURDLE_DETECTION_SPEC.md](docs/HURDLE_DETECTION_SPEC.md).
+
+### 2. Guardian — *24/7 autonomous engineer that knows what your code is supposed to do*
+
+**Pain point.** Code drifts away from documented intent. Security advisories land. Constraints in `.md` files get violated quietly. Reviews catch some; most slip.
+
+**What it does.** Runs a cycle every minute (Tensorlake cron):
+
+```
+WAKE → PLAN → SCAN → ANALYZE → CRITIQUE → HANDOFF → RECONCILE → SLEEP
 ```
 
-Auth is GitHub OAuth. Namespace ownership ties to verified GitHub orgs — `@vercel/*` is reserved for the verified Vercel org, not squattable.
+- **PLAN** — `priorityPicks(cycleNumber, candidates, history, budget=3)` returns up to 3 file paths. Never-scanned files have `+∞` priority, then most-stale, with a `cleanScanStreak * 0.5` penalty. Plus `judgmentBudget=1` LLM-driven judgment-call pick.
+- **SCAN** — `nia.readFile(path)` for each pick. Real Nia transport at `apigcp.trynia.ai/mcp` (`nia_read` / `search` / `nia_explore`); filesystem fallback on transport error or `SKIP_NIA=1`.
+- **ANALYZE** — `package.json` runs `npm audit --json` and converts each advisory into a Finding. `*.ts` files go through a structured-output GPT-5 analyzer (or `mockAnalyzeFile` planted findings under `USE_MOCK_LLM=1`).
+- **CRITIQUE** — programmatic citation check verifies the cited code line + the cited `.md` constraint text actually exist verbatim. An optional cheaper LLM (`gpt-5-mini`) judges confidence; below 80% confidence is dropped.
+- **HANDOFF** — fingerprints the finding (`sha256([path, mdFile, mdLine, codeLine])`), dedups in Convex, files a real GitHub issue via Octokit, optionally spawns a Devin run.
+- **RECONCILE** — every cycle, walks findings in `devin_running` / `pr_open` / `verifying` and transitions them based on PR/commit events. If a re-scan finds the constraint still violated after a Devin PR merged, builds a sharpened prompt referencing the previous attempt's diff + verbatim constraint citation, spawns a second Devin run. Hard cap at 2 iterations.
+
+Original design at [docs/superpowers/specs/2026-05-09-guardian-agent-design.md](docs/superpowers/specs/2026-05-09-guardian-agent-design.md).
+
+### 3. GC — *long-term hygiene*
+
+Runs on Tensorlake cron `*/15 * * * *`. Three passes per run:
+
+1. **Decay** — exponential, half-life 7 days from `last_injected_at` (or `created_at`).
+2. **Merge** — Jaccard ≥ 0.6 over file sets AND cosine ≥ 0.5 over correction text → keep higher-importance, invalidate the loser with `action='merge'`.
+3. **Prune** — importance < 0.10 → invalidate with `action='prune'`.
+
+Every action writes one row to local `gc_actions` AND mirrors to Convex → live UI updates. Knobs are constants at the top of `nm_gc.py`.
 
 ---
 
-## The platform
+## docs-ingest (offline)
 
-Five pages, GitHub-shaped throughout.
+Pipeline at `docs-ingest/`. See [docs-ingest/README.md](docs-ingest/README.md) for the full reference.
 
-**Home** is the entry point. Single discovery feed showing trending, new, and recently updated packs. No type-filter taxonomy — file names inside the pack (CLAUDE.md, SKILL.md, RULES.md) tell users what kind of pack it is. The Recommendations panel sits on this page and is user-triggered.
+**Inputs verified end-to-end:**
 
-**Pack page** is the centerpiece. Header shows `@user/pack@1.4.0` with stars, forks, freshness score, and an Install button. Tabs for README, Files (the MD files in the pack with a tree view), Pull Requests (where GC and Merge post their findings alongside human PRs), Versions, Forks, and Activity (live feed of agent and human edits). This is where the demo lives.
+| Format | Source kind | Example fixture | Chunks | Rules | Linked files |
+|---|---|---|---|---|---|
+| Markdown | `markdown_dir` | `fixtures/lodash/security-advisories.md` (lodash GHSA) | 4 | 7 | `src/lib/db.ts` |
+| HTML | `html_url` (`file://` or HTTP) | `fixtures/express/security-best-practices.html` | 6 | 13 | 6 demo-target files |
+| OpenAPI | `openapi_spec` (YAML/JSON) | `fixtures/openapi/payments.yaml` | 3 | 22 | 6 demo-target files |
+| Live URL | `--from-url` ad hoc | any GHSA / markdown / HTML URL | — | — | scoped via `applies_to` |
 
-**Profile** is the user's packs, stars, and forks — same shape as a GitHub profile.
+Each emitted leaf has a numbered body where every line stands alone as a complete imperative — Guardian's `verifyConstraintCite(mdFile, line, text)` accepts byte-identical citations.
 
-**Installed** is the consumer dashboard. Shows packs the user has added, the merged bundle they compose into, and the file path Merge writes to (`CLAUDE.md` or `.context/merged.md`).
-
-**Publish** is an inline markdown editor for now. Paste or write the files, fill in the manifest fields, ship. Importing existing GitHub repos as packs is a follow-up.
-
----
-
-## The agents
-
-Three real autonomous agents maintain the cloud. All three share the same PR review surface and the same confidence-tier output pattern. All three run in Tensorlake sandboxes, store state in Convex, re-index via Nia, and read maintainer prefs from Hyperspell.
-
-**Brain** synthesizes a company's tribal knowledge into pack content. Reads Slack, Gmail, GitHub, Drive, and Notion via Hyperspell, identifies recurring patterns (coding conventions, architecture decisions, onboarding info, brand voice), and proposes them as MD content in a private company pack. Triggers on a schedule, on Hyperspell webhooks (new Slack message in a marked channel), or on-demand. Spec: [`agents/brain-agent.md`](agents/brain-agent.md)m
-
-**GC** ([`agents/garbage-collection-agent.md`](agents/garbage-collection-agent.md)) reads each pack's markdown line by line and prunes content that no longer earns its place — completed TODOs, references to deprecated dependencies, stale WIP notes. Cross-references other docs in the pack and the underlying git repo to judge what's still alive. High-confidence findings auto-commit; lower-confidence findings open as PRs. Learns from rejections via `.gc/rules.md` inside the pack. Triggers nightly and on-publish.
-
-**Merge** ([`agents/merge-agent.md`](agents/merge-agent.md)) has two jobs. When a fork's parent ships a new version, Merge proposes the upstream changes into the fork as a section-level PR. When a user installs multiple packs, Merge clusters overlapping content and resolves contradictions, writing a clean merged bundle to the agent's workspace at install time. Triggers on parent version bumps and install events.
-
-The three are complementary. Brain creates pack content from external data, GC keeps it pruned, Merge keeps multiple packs coherent at install. Brain generates, GC maintains, Merge composes.
-
----
-
-## Recommendations
-
-When a user notices their agent gave a wrong answer or low-confidence response, they click "find me help" on Context Cloud. The platform takes the failed prompt as the query, runs a Nia search over the registry, ranks matches by freshness and stars, and surfaces the top results in a Recommendations panel. The user installs from there.
-
-User-triggered, not automatic. Reliable for the demo and avoids needing an integration hook into the agent runtime.
-
-This is the demand-side closing the loop. Brain creates packs from your company's data, GC and Merge keep them healthy, Recommendations surfaces them when an agent needs help.
-
----
-
-## Demo arc (3 minutes)
-
-1. **0:00–0:20** — Open Context Cloud's home feed. Setup: "A registry of context packs maintained by three always-on agents. Here's how it stays alive."
-2. **0:20–0:50** — Open a pack page. Activity feed shows GC's auto-commits from the last hour ("pruned 12 completed TODOs"). Open `.gc/rules.md` — show two learned rules from past maintainer rejections. Background execution + statefulness in 30 seconds.
-3. **0:50–1:30** — Switch to a private company pack. Trigger Brain on a connected Slack workspace. Watch it scan a recent decision thread and propose a PR with new MD content. Show the multi-source reasoning ("synthesized from 4 Slack messages + 1 GitHub PR comment + 2 Notion docs").
-4. **1:30–2:00** — Simulate an upstream version bump on `@vercel/nextjs`. Merge spawns a Tensorlake job, produces a section-level diff PR with conflict annotations. Show the 3-way merge handling.
-5. **2:00–2:40** — Payoff: Codex agent fails on a Next.js 16 question (hallucinates Pages Router). User clicks "find me help" on Context Cloud, Recommendations surfaces `@vercel/nextjs-16`. One-click install. Merge composes the bundle, writes to `.context/merged.md`. Same question, correct answer with citations.
-6. **2:40–3:00** — Pitch line: *"Three always-on agents. Brain creates. GC maintains. Merge composes. Built on Nia. Your context, finally compounding."*
+When `CONVEX_URL` is set, every emit streams a row to the `docsIngestRuns` table; the UI subscribes and updates live.
 
 ---
 
 ## Sponsor stack
 
-Six sponsors integrated. Detail in [`agents/sponsor-stack.md`](agents/sponsor-stack.md).
+| Sponsor | Role |
+|---|---|
+| **Nia** | Indexing + semantic search MCP. Every retrievable source goes through Nia (`nia_read`, `search`, `nia_explore`). Filesystem fallback for offline demo. |
+| **Tensorlake** | Hosts `guardian_cycle.py` (cron), `note_manager.py` (webhook), `gc.py` (cron). Three trigger types is a deliberate rubric play. |
+| **Convex** | State of record (Guardian: `cycles / findings / devinRuns / events / docsIngestRuns / fileScanHistory`; NM: `sessions / notes / files / noteFiles / hurdles / injections / gcActions`; UI: `agentEvents / dashboard / libraries / seed / users`). Reactive subscriptions power the UI. |
+| **Vercel** | Hosts `ui/` (Hindsight) and `dashboard/` (legacy NM dashboard). The static `mock/` is the offline demo fallback. Submission requires a deployed URL — localhost is not valid. |
+| **Codex / OpenAI** | NM extractor (`nm_extract.py`) and Guardian analyzer (GPT-5) + critique (`gpt-5-mini`). |
 
-Track sponsors (heaviest weight): **Nia** (title sponsor; every pack is a Nia index, every Recommendations search hits Nia), **Tensorlake** (track co-sponsor; runs all three agents in microVM sandboxes — schedule-driven, webhook-driven, event-driven).
+Not used / cut for scope: **Hyperspell**, **InsForge**, **Aside**, **Reacher**.
 
-Core: **Convex** (registry state, reactive PR threads, activity feed), **Hyperspell** (Brain's data layer plus per-user maintainer prefs).
+---
 
-Surface: **Vercel** (dashboard hosting and demo agent runtime), **Codex** (the demo agent itself).
+## Demo arc (3 minutes)
 
-Not used: InsForge (overlaps with Convex, different layer), Devin (cut for scope), Aside, Reacher.
+A split-screen of NM and Guardian running live, narrated as Hindsight.
+
+| Time | What's on screen |
+|---|---|
+| 0:00–0:30 | Setup: "Coding agents in your team keep making the same mistake. Plus their codebase keeps drifting from intent. Hindsight covers both." Open the Hindsight UI on the ACME mock_org. |
+| 0:30–1:15 | Open Sessions tab. A captured session shows the hurdle → note pipeline live. Replay tab scrubs through the events that produced the note. |
+| 1:15–2:00 | Switch to Guardian tab. Cycle ticks (cron). PLAN picks a file. SCAN via Nia. ANALYZE flags a violation. CRITIQUE passes. HANDOFF files a GitHub issue with citation. Devin spawned. |
+| 2:00–2:45 | GC tick fires. Activity feed shows decay → merge → prune stats. Devin PR opens. RECONCILE catches it. Re-scan confirms resolution. |
+| 2:45–3:00 | Pitch: *"Three always-on agents on Tensorlake. NM learns from your team's mistakes. Guardian keeps your code aligned with its intent. GC keeps the graph clean. Built on Nia. Your coding agents finally remember."* |
 
 ---
 
 ## Real risks
 
-**LLM non-determinism breaks the demo arc.** The Codex agent has to reliably hallucinate Pages Router APIs cold and reliably produce the correct App Router answer with the pack installed. Pre-test the exact prompt 50+ times across temperatures. Lock the prompt that works in both directions.
+- **LLM non-determinism breaks the demo arc.** The NM "without us" failure must reproduce. Pre-test exact prompts 50+ times. Lock the prompt that works in both directions.
+- **Background execution must be visible.** Don't just describe schedules — schedule a real cycle/cron during the demo and let judges see it fire. A live cron tick with a visible activity-feed entry beats any slide.
+- **Statefulness has to be load-bearing.** The rubric explicitly tests whether removing memory breaks the demo. Demonstrable: reject a GC suggestion, run GC again, watch it skip; restart the agent, see findings still dedup.
+- **Agentic depth means recovery, not just multi-step.** The Guardian sharpen-iteration is the visible recovery; show it.
+- **Operators look like decoration without metrics.** Each agent needs one on-stage stat with a real number behind it. NM: "47 injections in last 15 min." GC: "23 notes pruned, 47 retained, average injection 280B." Guardian: cycle count + open findings.
+- **Dual-stack fragility.** Two languages, two dashboards, one Convex. Pre-warm everything before the demo. Either half can run alone, but the split-screen narrative needs both up.
+- **Privacy from judges.** Org-scoped, runs in their own MCP server / Tensorlake account, nothing leaves the boundary.
 
-**The override has to be visibly load-bearing.** If a judge mentally substitutes "just point Nia at nextjs.org/docs" and gets the same outcome, Context Cloud is decoration. The failure case must be one where naive indexing pulls deprecated Pages Router content that contradicts App Router, and the curated pack succeeds because of an explicit override or curated content. Show the override on screen during the install.
+---
 
-**Operators look like decoration without metrics.** GC and Merge each need one on-stage stat. GC: "47 dead lines pruned across 12 packs in the last hour." Merge: "3 overlaps resolved between installed packs in 200ms." Real numbers, seeded if needed.
+## What did not ship
 
-**"Why won't Nia ship this themselves next quarter?"** Q&A gut-shot. The answer is the operators, not the registry. Tensorlake-hosted agents + Hyperspell per-user feedback loop + the `.gc/rules.md` learning pattern is a stack Nia would have to rebuild. Practice this answer until reflex.
-
-**Namespace abuse.** Don't publish `@vercel/nextjs-16` at a Vercel-sponsored event without it being from Vercel. Use `@nicolas/...` or `@contextcloud/...` for anything we actually push. GitHub-org-verified namespace ownership is a slide bullet that pre-empts the question.
-
-**File-injection assumes agents re-read workspace files between turns.** True for Codex, Claude Code, Cursor. Verify the demo agent picks up the new `.context/merged.md` on the prompt after install.
-
-**Pitch consistency.** Original one-pager said three operators (GC, Merge, Discovery). We're shipping three (GC, Merge, Brain) plus a Recommendations feature. The agent count holds, the names shifted. If asked, frame Brain as the more useful third agent we landed on.
-
-**Always-On rubric requires demonstrable background execution.** Don't just describe schedules — schedule a real GC or Brain run during the demo and let judges see it fire. A live cron tick with a visible activity-feed entry beats any slide.
-
-**Statefulness has to be load-bearing, not bolted-on.** The rubric explicitly tests whether removing memory breaks the demo. The `.gc/rules.md` learning loop is the answer — show it in action by having a maintainer reject a PR, then run GC again and watch it skip the previously-rejected suggestion.
-
-**Agentic depth means recovery, not just multi-step.** Score 5 wants "full agentic loop: plans, executes, reflects, recovers, improves autonomously." Make sure at least one demoed agent run includes a visible recovery — a Merge job that hits a conflict, replans, and ships a PR with annotations.
+- Notes-to-notes edges (clusters / supersedes / references) in NM — bipartite-only for v1.
+- Multi-org NM — single-org demo (the synthetic ACME org).
+- Auth / SSO on the dashboards — public read-only for v1.
+- Hyperspell integration — cut for time.
+- Symbol-level file keying for notes — v1 uses canonical file paths only.
+- Public registry of notes / packs — the "Context Cloud registry" framing in the original PRD was never built.
+- Guardian against multi-repo targets — single demo target (`NewCoder3294/demo-target`).
+- GitHub App / OAuth for Guardian (uses a PAT with a swap path).

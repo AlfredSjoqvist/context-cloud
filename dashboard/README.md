@@ -7,8 +7,8 @@ Live dashboard reading from the Convex deployment. Replaces `nm_dashboard.py` fo
 ```bash
 cd dashboard
 npm install
-cp .env.example .env.local
-# Set NEXT_PUBLIC_CONVEX_URL to the Convex .convex.cloud URL (NOT .convex.site).
+echo 'NEXT_PUBLIC_CONVEX_URL=https://<your-deployment>.convex.cloud' > .env.local
+# Note the .convex.cloud (reactive) endpoint — NOT .convex.site (HTTP actions, used by Python sync).
 npm run dev
 ```
 

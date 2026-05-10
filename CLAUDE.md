@@ -4,96 +4,99 @@ Operating notes for Claude Code working in this repo. Read this first, every ses
 
 ## What this is
 
-Hackathon project at **Nozomio (May 9, 2026)**. Submissions close **6:00pm**, in-person judging starts 6:10pm, top-6 finals at 7:30pm. Authoritative project doc is [PRD.md](PRD.md) — read it before writing code. The hackathon brief is [Nozomio Hackathon Guide.md](Nozomio%20Hackathon%20Guide.md).
+Context Cloud — a post-hackathon merged tree with three halves on `main`:
 
-Primary track: **Always-On Agents** (Nia + Tensorlake). The rubric explicitly tests whether removing background execution or statefulness breaks the demo. Cross-track strength on **Company Brain** (Hyperspell) is a hedge — the top-6 round is track-agnostic.
+- **Guardian agent** (TypeScript) under `agent/`, `convex/`, `ui/`
+- **NM session capture** (Python) under `nm_*.py`, `tensorlake/{note_manager,gc}.py`, `dashboard/`
+- **docs-ingest pipeline** (TypeScript) under `docs-ingest/`
 
-## What "winning" code looks like here
+Plus the **mock_org/** synthetic ACME organization that drives the Hindsight demo. All halves share one Convex deployment (`acoustic-fish-389`) with disjoint write tables. Either side can run alone.
 
-Optimize for **judges seeing the thing work**, not for code you'd defend in a code review.
+Product spec: [PRD.md](PRD.md). Repo orientation + quickstart: [README.md](README.md). Pre-merge per-half PRDs, the original Guardian handoff, and the NM sponsor-integration snapshot are preserved under [docs/history/](docs/history/) — useful context, not ground truth.
 
-- A scheduled job that **fires live during the demo** beats a slide describing a scheduler.
-- A state file that **changes visibly** between two runs beats a paragraph about durable memory.
-- An agent that **hits a real error and recovers on screen** beats one that only succeeds.
-- One real number on screen ("47 dead lines pruned in the last hour") beats a UI panel of zeros.
-- Seeded real-looking data is fine when it stands in for a slow path. Mark seeds clearly so we don't ship them past the demo.
+## Where to look first
 
-If you find yourself adding a feature that won't appear in the 3-minute demo, stop and confirm.
-
-## Demo invariants — do not break these without asking
-
-These are the things the demo arc depends on. If a change would alter any of them, surface it before merging.
-
-1. **Background execution is observable.** Activity feed / log tail / event stream that updates without a human prompt during the demo window.
-2. **State persists across runs and is inspectable.** A maintainer/judge can open a file or table and see what the agent learned last time.
-3. **Each always-on agent has at least one on-stage metric** with a real number behind it.
-4. **At least one agent run shows recovery** — hits a conflict or failure, replans, and ships output.
-5. **The "without our thing" failure case is reproducible.** The contrast (broken without us, correct with us) is what wins. Don't break the broken side.
-
-The full list of risks (LLM non-determinism, namespace abuse, file-injection assumptions, etc.) is in [PRD.md](PRD.md#real-risks). Re-read it before any change to the demo path.
-
-## Sponsor stack — what to reach for
-
-Free credits and access for today. Prefer these over generic alternatives even when generics would be marginally simpler — each integration is rubric points.
-
-- **Nia** (title sponsor) — indexing + semantic search MCP. Every retrievable source goes through Nia. Don't add a second vector DB.
-- **Tensorlake** — runs background/scheduled/webhook-triggered agents in stateful microVM sandboxes. This is where every agent process lives. Free access today only.
-- **Convex** — TypeScript backend, reactive queries, real-time UI. State of record for registry/PR/activity-feed data. Free deployments, no card.
-- **Hyperspell** — ingestion + search over Slack / Gmail / GitHub / Drive / Notion. The Brain agent's data layer. Free access today only.
-- **Vercel** — dashboard hosting + demo agent runtime. Submission must be a public deployed URL — **localhost is not valid**.
-- **Codex / OpenAI** — the demo agent we're proving context against. $50 credits today.
-
-If a task could be solved by a sponsor tool we're already using, use it. If it would require introducing a non-sponsor service, flag it first.
+| Need | File |
+|---|---|
+| Repo overview + quickstart | [README.md](README.md) |
+| Unified product spec | [PRD.md](PRD.md) |
+| Guardian design (canonical) | [docs/superpowers/specs/2026-05-09-guardian-agent-design.md](docs/superpowers/specs/2026-05-09-guardian-agent-design.md) |
+| NM SQLite schema | [SCHEMA.md](SCHEMA.md) |
+| NM hurdle detection algorithm | [docs/HURDLE_DETECTION_SPEC.md](docs/HURDLE_DETECTION_SPEC.md) |
+| Tensorlake deploy | [tensorlake/README.md](tensorlake/README.md) |
+| docs-ingest reference | [docs-ingest/README.md](docs-ingest/README.md) |
+| Hackathon brief | [docs/Nozomio Hackathon Guide.md](docs/Nozomio%20Hackathon%20Guide.md) |
+| Convex AI usage rules | follow [AGENTS.md](AGENTS.md) before writing Convex code |
 
 ## How to work in this repo
 
-- **Read [PRD.md](PRD.md) before any non-trivial change.** It's the source of truth for scope, demo arc, and known risks. If your change contradicts it, say so explicitly and propose updating the PRD.
-- **Edit existing files** instead of creating new ones whenever possible. No scratch docs, no plan-of-the-plan files.
-- **No speculative abstraction.** Three near-duplicate lines beat a premature helper. Hackathon code lives or dies in the next 8 hours.
-- **No half-finished implementations.** If you stub something, make it loudly visible (throw, log, banner) so it can't silently make the demo look real when it isn't.
+- **Edit existing files** instead of creating new ones whenever possible. No scratch docs.
+- **No speculative abstraction.** Three near-duplicate lines beat a premature helper.
+- **No half-finished implementations.** If you stub something, make it loudly visible (throw, log, banner) so it can't silently make the system look real when it isn't.
 - **Comments only when the WHY is non-obvious.** Don't narrate code.
 - **Trust internal code.** Validate at boundaries (user input, third-party APIs, agent outputs that hit storage). Skip defensive checks elsewhere.
-- **Small commits with messages that say why.** Future-you in 4 hours needs to bisect fast.
+- **Small commits with messages that say why.** Conventional prefixes (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`).
+- **Always `git fetch` and check `origin/<branch>` before committing.** Both halves push to `main`; divergence is constant. Pull (or rebase) before you push.
+- **Don't push without explicit approval.** Don't run `git merge` / `git rebase` against shared branches without explicit approval.
+- **Don't deploy.** No `tensorlake deploy`, `vercel deploy`, `convex deploy` without explicit approval — these have cost and side effects.
 
-## Communication
+## Cross-half boundaries
 
-- Be terse. The user is shipping under a deadline; long preambles cost minutes.
-- State results, not process. "Brain agent now triggers on Hyperspell webhook; tested with X" — not "I'll now write the handler, then..."
-- When something is broken, say what's broken before what you'll do about it.
-- If the user asks an exploratory question, give the recommendation + main tradeoff in 2-3 sentences. Don't implement until they agree.
-- If you're about to do something hard to reverse (drop a Convex table, force-push, delete a Tensorlake sandbox), confirm first.
+Two languages, two dashboards, one shared Convex deployment. To avoid stepping on the other half:
 
-## Environment
+- **Convex schema is union.** Adding a table on either side is fine. Renaming or dropping a table that the other side reads requires coordination.
+- **Disjoint write tables.**
+  - Guardian writes: `cycles`, `findings`, `devinRuns`, `events`, `docsIngestRuns`, `fileScanHistory`.
+  - NM writes: `sessions`, `notes`, `files`, `noteFiles`, `hurdles`, `injections`, `gcActions`.
+  - UI/seed: `agentEvents`, `dashboard`, `libraries`, `seed`, `users`.
+- **Guardian env keys** start with `GUARDIAN_*` / `OPENAI_*` / `GITHUB_*` / `DEVIN_*` / `NIA_*` / `USE_MOCK_*` / `SKIP_NIA` / `DEMO_REPO_LOCAL_PATH`.
+- **NM env keys** start with `NM_*` and reuse `OPENAI_API_KEY` / `NIA_API_KEY` / `CONVEX_URL`.
+- **Reactive UI vs HTTP actions.** Dashboards read from `*.convex.cloud`; Python sync writes to `*.convex.site`. Same deployment, two endpoints.
 
-- Windows / PowerShell. Use PowerShell syntax in shell commands (`$env:VAR`, not `$VAR`; `;` not `&&` for chaining in PS 5.1; `$null` not `/dev/null`). Bash tool is also available for POSIX scripts when easier.
-- Working directory `c:\Users\Alfred\Desktop\nozomio`. Treat it as the project root.
-- Not currently a git repo at the root. If we start tracking history, ask before `git init` — there may be reasons it's not initialized yet.
+## Architectural invariants
+
+If you're about to change one of these, surface it first.
+
+1. **NM hurdle detection is signal-scored, not LLM-judged.** Don't add "ask the LLM if the user is stuck" — see [docs/HURDLE_DETECTION_SPEC.md](docs/HURDLE_DETECTION_SPEC.md). Add a new signal in `nm_signals.py` and tune the weighted threshold.
+2. **SQLite is the source of truth for NM capture-layer writes.** Convex is a best-effort mirror. The inline hooks (`nm_inject.py`, `nm_capture.py`) must never block on a network call.
+3. **Guardian citations are line-precise and verified.** `agent/analyze/citation.ts` checks both the code line and the `.md` constraint text against the actual files before HANDOFF. Don't relax this.
+4. **Guardian's findings table is the dedup gate.** Fingerprint = `sha256([path, mdFile, mdLine, codeLine])`. Don't file an issue from anywhere else.
+5. **Path canonicalization** runs through `nm_db.canonical_path` on every path landing in v2 NM tables. If you touch path handling, update [SCHEMA.md](SCHEMA.md) and verify `TEST.md` still collapses correctly.
+
+## Test seams
+
+Use these to run the system without burning sponsor credits:
+
+| Flag | Effect |
+|---|---|
+| `USE_MOCK_LLM=1` | Guardian uses `mockAnalyzeFile` (planted findings; files real GH issues). |
+| `SKIP_NIA=1` | Bypass Nia MCP; read from local filesystem; `searchContext` returns `[]`. |
+| `USE_MOCK_DEVIN=1` | Stub Devin handoff. |
+| `NM_SYNC_DISABLE=1` | Disable NM's Convex sync. |
+| `NM_NIA_DISABLE=1` | Force NM into local cosine fallback. |
 
 ## Asking vs. shipping
 
-Default to shipping the smallest working version. Ask the user when:
+Default to shipping the smallest working version. Ask before:
 
-- The change touches a **demo invariant** above.
-- The choice is between two paths that take >30 min each.
-- A sponsor integration would be replaced or removed.
-- You'd be installing a new dependency that overlaps with one we already use.
+- Pushing, force-pushing, merging, rebasing, or otherwise changing branch state.
+- Deploying anything (Tensorlake / Vercel / Convex).
+- Renaming or dropping a Convex table that the other half might read.
+- Installing a new dependency that overlaps with one we already use.
+- Touching `.mcp.json`, `.env.example`, `.gitignore`, root `package.json`, `requirements.txt`, `schema.sql`, `vercel.json`.
 
-Don't ask for permission to read files, run searches, run typechecks, or fix obvious bugs in code you just wrote.
+Don't ask for permission to read files, run searches, run typechecks / tests, or fix obvious bugs in code you just wrote.
 
-## When in doubt
+## Communication
 
-The demo runs for **3 minutes**, in front of judges, on a **deployed URL**, scored against **Background Execution (30%) + Statefulness (25%) + Agentic Depth (20%) + Demo (10%) + Judge's rating (10%)**. Every decision should make at least one of those numbers go up.
+- Be terse. State results, not process.
+- When something is broken, say what's broken before what you'll do about it.
+- For exploratory questions, give the recommendation + main tradeoff in 2–3 sentences. Don't implement until the user agrees.
+- If you're about to do something hard to reverse (drop a Convex table, force-push, delete a Tensorlake sandbox), confirm first.
 
-<!-- convex-ai-start -->
+## Environment notes
 
-This project uses [Convex](https://convex.dev) as its backend.
-
-When working on Convex code, **always read
-`convex/_generated/ai/guidelines.md` first** for important guidelines on
-how to correctly use Convex APIs and patterns. The file contains rules that
-override what you may have learned about Convex from training data.
-
-Convex agent skills for common tasks can be installed by running
-`npx convex ai-files install`.
-
-<!-- convex-ai-end -->
+- Repo works on macOS / Linux. Some pre-merge config carries Windows artifacts:
+  - `.mcp.json` references `C:\Users\Alfred\Desktop\nozomio\nm_server.py` — adjust locally before running NM hooks.
+- Node 20+ at the root and in `ui/`, `dashboard/`, `docs-ingest/`. Python 3.10+ for the NM scripts.
+- Convex deployment is `acoustic-fish-389`. Don't link to a different deployment without coordinating — the other half will lose its data.
