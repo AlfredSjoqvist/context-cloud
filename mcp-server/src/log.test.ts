@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { log, safe } from "./log.js";
+import { log, safe, describeError } from "./log.js";
 
 let stderr: string;
 let writeSpy: ReturnType<typeof vi.spyOn>;
@@ -87,5 +87,40 @@ describe("safe", () => {
     expect(out.content[0].text).toContain("tool.timeout after 50ms");
     expect(stderr).toContain("tool.fail");
     delete process.env.HINDSIGHT_TOOL_TIMEOUT_MS;
+  });
+});
+
+describe("describeError", () => {
+  it("prefers a non-empty .message", () => {
+    expect(describeError(new Error("boom"))).toBe("boom");
+  });
+
+  it("falls back to .code when .message is empty (e.g. DNS / network errors)", () => {
+    const err = Object.assign(new Error(""), { code: "ENOTFOUND" });
+    expect(describeError(err)).toBe("ENOTFOUND");
+  });
+
+  it("falls back to .name when both .message and .code are empty", () => {
+    const err = Object.assign(new Error(""), { name: "AbortError" });
+    expect(describeError(err)).toBe("AbortError");
+  });
+
+  it("handles plain strings", () => {
+    expect(describeError("bad")).toBe("bad");
+  });
+
+  it("returns '(unknown error)' for null / undefined / empty string", () => {
+    expect(describeError(null)).toBe("(unknown error)");
+    expect(describeError(undefined)).toBe("(unknown error)");
+    expect(describeError("")).toBe("(unknown error)");
+  });
+
+  it("returns '(unknown error)' for an empty plain object (avoids '[object Object]')", () => {
+    expect(describeError({})).toBe("(unknown error)");
+  });
+
+  it("falls through to String() for numbers / booleans", () => {
+    expect(describeError(42)).toBe("42");
+    expect(describeError(false)).toBe("false");
   });
 });

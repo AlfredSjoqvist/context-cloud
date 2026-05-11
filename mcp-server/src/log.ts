@@ -49,6 +49,36 @@ export type CallResult = {
   isError?: boolean;
 };
 
+/**
+ * Squeeze the most useful string out of an unknown thrown value. Falls back through:
+ *   - non-empty .message
+ *   - .code (e.g. ENOTFOUND, ECONNREFUSED)
+ *   - .name (e.g. AbortError)
+ *   - String(err)
+ *   - "(unknown error)" as a last resort, so we never return "" to the user.
+ *
+ * Tested separately; covers the case where Convex's HTTP client throws an Error
+ * with empty .message on DNS failure for an unreachable deployment.
+ */
+export function describeError(err: unknown): string {
+  if (err === null || err === undefined) return "(unknown error)";
+  if (typeof err === "string") return err || "(unknown error)";
+  if (typeof err === "object") {
+    const e = err as { message?: unknown; code?: unknown; name?: unknown; cause?: unknown };
+    if (typeof e.message === "string" && e.message.length > 0) return e.message;
+    if (typeof e.code === "string" && e.code.length > 0) return e.code;
+    // Try unwrapping a chained cause (Node sets .cause on wrapped errors).
+    if (e.cause !== undefined && e.cause !== null) {
+      const causeMsg = describeError(e.cause);
+      if (causeMsg !== "(unknown error)" && causeMsg !== "Error") return causeMsg;
+    }
+    if (typeof e.name === "string" && e.name.length > 0 && e.name !== "Error") return e.name;
+  }
+  const s = String(err);
+  if (s && s !== "[object Object]") return s;
+  return "(unknown error)";
+}
+
 function toolTimeoutMs(): number {
   const raw = process.env.HINDSIGHT_TOOL_TIMEOUT_MS;
   if (!raw) return 15_000;
@@ -85,7 +115,7 @@ export async function safe(
     log.info("tool.ok", { name, ms: Date.now() - t0 });
     return out;
   } catch (err) {
-    const msg = (err as Error).message ?? String(err);
+    const msg = describeError(err);
     log.error("tool.fail", { name, ms: Date.now() - t0, error: msg });
     return {
       content: [{ type: "text", text: `error calling ${name}: ${msg}` }],

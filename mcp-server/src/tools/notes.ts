@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getConvexClient, Q } from "../convex.js";
+import { Q, runQuery } from "../convex.js";
 import { safe } from "../log.js";
 
 export type Note = {
@@ -51,8 +51,7 @@ export function registerNotesTools(server: McpServer): void {
     },
     async ({ limit }) =>
       safe("list_notes", { limit }, async () => {
-        const client = getConvexClient();
-        const rows = (await client.query(Q.notesListActive as never, { limit: limit ?? 50 } as never)) as Note[];
+        const rows = await runQuery<Note[]>(Q.notesListActive, { limit: limit ?? 50 });
         return {
           content: [
             { type: "text", text: formatNotes(rows) },
@@ -75,8 +74,7 @@ export function registerNotesTools(server: McpServer): void {
     },
     async ({ path }) =>
       safe("get_notes_for_file", { path }, async () => {
-        const client = getConvexClient();
-        const edges = (await client.query(Q.notesListEdgesForPath as never, { path } as never)) as NoteEdge[];
+        const edges = await runQuery<NoteEdge[]>(Q.notesListEdgesForPath, { path });
         if (edges.length === 0) {
           return { content: [{ type: "text", text: `No NM notes attached to ${path}.` }] };
         }
@@ -84,10 +82,7 @@ export function registerNotesTools(server: McpServer): void {
         // could miss notes for the file. The cap is reported in the response so the
         // caller can tell when a re-query with a higher limit is needed.
         const ACTIVE_SCAN_LIMIT = 500;
-        const allActive = (await client.query(
-          Q.notesListActive as never,
-          { limit: ACTIVE_SCAN_LIMIT } as never,
-        )) as Note[];
+        const allActive = await runQuery<Note[]>(Q.notesListActive, { limit: ACTIVE_SCAN_LIMIT });
         const byId = new Map<string, Note>();
         for (const n of allActive) byId.set(n.noteId ?? n._id, n);
         const matched = edges

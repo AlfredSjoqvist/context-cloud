@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getConvexClient, Q } from "../convex.js";
+import { Q, runQuery } from "../convex.js";
 import { safe } from "../log.js";
 
 const FindingStatus = z.enum([
@@ -57,8 +57,7 @@ export function registerFindingsTools(server: McpServer): void {
     },
     async ({ status, limit }) =>
       safe("list_findings", { status, limit }, async () => {
-        const client = getConvexClient();
-        const rows = (await client.query(Q.findingsByStatus as never, { status } as never)) as Finding[];
+        const rows = await runQuery<Finding[]>(Q.findingsByStatus, { status });
         const slice = rows.slice(0, limit ?? 50);
         return {
           content: [
@@ -85,11 +84,10 @@ export function registerFindingsTools(server: McpServer): void {
     },
     async ({ path }) =>
       safe("get_findings_for_file", { path }, async () => {
-        const client = getConvexClient();
         const active = (
           await Promise.all(
             (["detected", "devin_running", "pr_open", "verifying", "reopened_sharpened"] as const).map((s) =>
-              client.query(Q.findingsByStatus as never, { status: s } as never) as Promise<Finding[]>,
+              runQuery<Finding[]>(Q.findingsByStatus, { status: s }),
             ),
           )
         ).flat();

@@ -45,6 +45,24 @@ export function getConvexClient(): ConvexHttpClient {
 }
 
 /**
+ * Run a Convex query and rewrite the error to name (a) which query failed and
+ * (b) the configured Convex URL. The raw convex client error often has an empty
+ * .message on network failures, so a naked `error: ` bubbles up to the MCP
+ * caller. This wrapper guarantees an actionable diagnostic string.
+ */
+export async function runQuery<T>(ref: string, args: Record<string, unknown>): Promise<T> {
+  const client = getConvexClient();
+  const { url } = resolveConvexUrl();
+  try {
+    return (await client.query(ref as never, args as never)) as T;
+  } catch (err) {
+    const original = err as { message?: string; code?: string; name?: string };
+    const inner = original.message || original.code || original.name || "(no detail)";
+    throw new Error(`convex query '${ref}' failed against ${url}: ${inner}`);
+  }
+}
+
+/**
  * Convex function references are strings in the form "module:export". The deployed
  * functions we read here are owned by the Convex/backend agent — we are a downstream
  * consumer. If a name drifts, every tool call below will surface a clear server error
