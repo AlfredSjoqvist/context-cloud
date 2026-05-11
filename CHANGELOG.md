@@ -7,7 +7,7 @@ change set; granular commits are visible in `git log`.
 
 ### Added — constraint library
 
-24 hand-authored seed leaves under `.context-map/library/`, ~140 rules
+25 hand-authored seed leaves under `.context-map/library/`, ~150 rules
 total. Each rule is a single line, byte-citable by Guardian's
 `verifyConstraintCite`, and currently violated by at least one file
 under `mock_org/` (where applicable — `frontend-security` and
@@ -39,6 +39,7 @@ under `mock_org/` (where applicable — `frontend-security` and
 | pii | 6 | `agent-gateway/src/api/user.ts` exposes `/user/<sequential-int>/profile` (rule 5 fires) |
 | feature-flags | 6 | universal: explicit off-default, kill-switch, no synchronous-fetch in hot path |
 | crypto | 6 | universal: no DIY primitives, no MD5/SHA-1, KDF for passwords, AEAD, KMS-managed keys |
+| ai-agent | 7 | universal: prompt-injection delimiters, schema-validate tool outputs, token ceilings, no secrets in prompts, structured-output mode |
 
 The seed is mirrored into every `mock_org/<sub-org>/.context-map/library/`
 via [`seed-context-map.sh`](seed-context-map.sh); a drift eval

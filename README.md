@@ -166,7 +166,7 @@ mutating the source under test, it is a placebo and gets deleted.
 
 ### Constraint library
 
-Guardian enforces 24 constraint families seeded under
+Guardian enforces 25 constraint families seeded under
 [`.context-map/library/`](.context-map/library/). Every leaf is a
 markdown file with line-precise rules; Guardian's findings cite a
 specific line in a specific leaf, byte-equal to the file content.
@@ -197,6 +197,7 @@ specific line in a specific leaf, byte-equal to the file content.
 | [pii](.context-map/library/pii/minimisation-and-deletion.md) | minimisation-and-deletion | `src/api/user*`, `src/db/users*` |
 | [feature-flags](.context-map/library/feature-flags/rollout-and-killswitch.md) | rollout-and-killswitch | `src/api/`, `src/lib/flags*/feature*` |
 | [crypto](.context-map/library/crypto/primitives-and-keys.md) | primitives-and-keys | `src/api/`, `src/lib/crypto*/hash*/sign*/encrypt*/password*` |
+| [ai-agent](.context-map/library/ai-agent/llm-trust-boundaries.md) | llm-trust-boundaries | `src/api/`, `src/lib/llm*/openai*/agent*/prompt*`, `agent/` |
 
 Wire the seed into a demo target with
 [`bash seed-context-map.sh`](seed-context-map.sh) (mirrors to every
