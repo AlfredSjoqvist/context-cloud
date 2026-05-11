@@ -1,6 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Idempotent on devinRunId (Devin's external unique run identifier). If
+// the agent's request to spawn-and-record races a retry — common when
+// Devin's API returns a 5xx mid-call — both retries see the same final
+// devinRunId and we patch rather than insert a duplicate row.
 export const recordRun = mutation({
   args: {
     findingId: v.id("findings"),
@@ -9,6 +13,20 @@ export const recordRun = mutation({
     iteration: v.number(),
   },
   handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("devinRuns")
+      .withIndex("by_devin_run_id", (q) => q.eq("devinRunId", args.devinRunId))
+      .first();
+    if (existing) {
+      // Re-spawning a sharpened iteration: bump the iteration count and
+      // refresh the prompt. Don't reset spawnedAt — keep the first-spawn
+      // timestamp so the dashboard timeline stays accurate.
+      await ctx.db.patch(existing._id, {
+        promptUsed: args.promptUsed,
+        iteration: args.iteration,
+      });
+      return existing._id;
+    }
     return await ctx.db.insert("devinRuns", {
       findingId: args.findingId,
       devinRunId: args.devinRunId,

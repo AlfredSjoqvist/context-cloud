@@ -106,7 +106,9 @@ export default defineSchema({
     prUrl: v.optional(v.string()),
     prMergedAt: v.optional(v.number()),
     outcome: v.optional(v.string()),
-  }).index("by_finding", ["findingId"]),
+  })
+    .index("by_finding", ["findingId"])
+    .index("by_devin_run_id", ["devinRunId"]),
 
   events: defineTable({
     cycleNumber: v.optional(v.number()),
