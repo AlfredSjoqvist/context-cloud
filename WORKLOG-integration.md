@@ -129,3 +129,32 @@ saved-feedback memory. Iteration commits, in order:
 **Cumulative editors supported by install CLI:** cursor / claude-code (user) / claude-code-project / codex (print-only TOML snippet).
 
 **Cumulative tools exposed by MCP server:** `list_findings`, `get_findings_for_file`, `list_notes`, `get_notes_for_file`, `get_status`.
+
+---
+
+## Iterations 19–26 — compact log
+
+| # | SHA      | What |
+|---|----------|------|
+| 19 | `2f39b80` | MCP resources surface — 7 finding-status resources + 1 active-notes resource under `hindsight://findings/...` and `hindsight://notes/active`. Same plain-text formatters as the tools; structured `resource.ok` / `resource.fail` stderr breadcrumbs. |
+| 20 | `be56400` | Audit fix: `filter(Boolean)` in get_status was eating an intentional blank-line separator. Switched to null-only filter. |
+| 21 | `f0245c6` | `--with-nm` flag: install CLI now wires both Hindsight (Node) and NM (Python `nm_server.py`) MCP servers in one command. Absolute path for user-scope; relative for project-scope; appends TOML block for Codex. |
+| 22 | `8f90239` | Real UX fix: Convex network failures used to surface as "error calling list_findings: " (empty msg). Added `runQuery<T>()` wrapper that catches and rethrows with context (which query, which URL, inner detail); added `describeError()` that falls through .message → .code → .cause → .name → String() to never produce empty output. |
+| 23 | `eb28407` | First CI workflow in the repo: `.github/workflows/mcp-server-ci.yml`. Triggers on pushes / PRs touching mcp-server/, nm_capture.py, nm_inject.py, .claude/settings.json. Runs typecheck + build + 64 tests + install-CLI smoke. Scoped via path filters so other agents' work doesn't trigger it. |
+| 24 | `31b7d54` | `get_status` now surfaces the Guardian cycle line. Live deployment shows cycle #51 has been "running" since 2026-05-09 — independent corroboration of backend agent's NEEDS-NICOLAS "always-on agents idle on dev" issue. |
+| 25 | `b69d471` | `pretest = npm run build` + `prepack = npm run build` — prevents the "tests passed on stale dist" footgun in the subprocess e2e test. |
+
+**Final cumulative counts at iteration 26:**
+
+| Surface | Count |
+|---|---|
+| MCP tools | 5 (list_findings, get_findings_for_file, list_notes, get_notes_for_file, get_status) |
+| MCP resources | 8 (7 finding statuses + active notes) |
+| Bins | 3 (hindsight-mcp, hindsight-mcp-install, hindsight-mcp-verify) |
+| Install CLI editors | 4 (cursor, claude-code user, claude-code-project, codex) |
+| Install CLI flags | --with-hooks, --with-nm, --convex-url, --server-path, --hindsight-root, --print |
+| Unit tests | 60 (install + log + convex + format + settingsPaths) |
+| E2e tests | 4 (server protocol, run by default) |
+| Opt-in live tests | 1 (gated on HINDSIGHT_LIVE_CONVEX_URL) |
+| CI workflows | 1 (mcp-server gate on every relevant PR) |
+| Files in scope touched by other agents (left untouched by me): convex/*.ts, dashboard/*, mock/*, docs/*, evals/*, README.md, etc.
