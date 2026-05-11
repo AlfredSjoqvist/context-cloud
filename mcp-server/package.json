@@ -17,7 +17,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/index.js', 0o755); require('node:fs').chmodSync('dist/install.js', 0o755); require('node:fs').chmodSync('dist/verify.js', 0o755);\"",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
