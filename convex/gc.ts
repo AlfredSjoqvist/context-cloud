@@ -1,5 +1,41 @@
-import { query, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+
+// Public: agent calls this to record a GC pass at the run level.
+// Idempotent on `runId` — if the agent restarts and re-submits the
+// summary for the same run, we patch instead of duplicating the row.
+//
+// Each per-note action GC took during this run is recorded separately
+// via /sync/gc → gc.recordWithMaybeInvalidate.
+export const recordRun = mutation({
+    args: {
+        runId: v.string(),
+        ts: v.string(),
+        durationMs: v.optional(v.number()),
+        activeAfter: v.optional(v.number()),
+        invalidatedAfter: v.optional(v.number()),
+        edgesAfter: v.optional(v.number()),
+    },
+    handler: async (ctx, a) => {
+        const existing = await ctx.db
+            .query("gcRuns")
+            .withIndex("by_run_id", (q) => q.eq("runId", a.runId))
+            .first();
+        const fields = {
+            runId: a.runId,
+            ts: a.ts,
+            durationMs: a.durationMs,
+            activeAfter: a.activeAfter,
+            invalidatedAfter: a.invalidatedAfter,
+            edgesAfter: a.edgesAfter,
+        };
+        if (existing) {
+            await ctx.db.patch(existing._id, fields);
+            return existing._id;
+        }
+        return await ctx.db.insert("gcRuns", fields);
+    },
+});
 
 export const recordAction = internalMutation({
     args: {
