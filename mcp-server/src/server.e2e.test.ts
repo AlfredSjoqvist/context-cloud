@@ -105,12 +105,18 @@ describe("mcp protocol e2e", () => {
     expect(result.protocolVersion).toBe("2024-11-05");
   });
 
-  it("lists all four tools with input schemas", async () => {
+  it("lists all five tools with input schemas", async () => {
     const r = await harness.call("tools/list");
     expect(r.error).toBeUndefined();
     const tools = (r.result as { tools?: { name: string; description?: string; inputSchema?: unknown }[] }).tools ?? [];
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(["get_findings_for_file", "get_notes_for_file", "list_findings", "list_notes"]);
+    expect(names).toEqual([
+      "get_findings_for_file",
+      "get_notes_for_file",
+      "get_status",
+      "list_findings",
+      "list_notes",
+    ]);
     for (const t of tools) {
       expect(typeof t.description).toBe("string");
       expect(t.description!.length).toBeGreaterThan(20);

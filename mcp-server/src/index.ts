@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerFindingsTools } from "./tools/findings.js";
 import { registerNotesTools } from "./tools/notes.js";
+import { registerStatusTool } from "./tools/status.js";
 import { log } from "./log.js";
 
 const SERVER_NAME = "hindsight";
@@ -11,6 +12,7 @@ const SERVER_VERSION = "0.1.0";
 const INSTRUCTIONS = `Hindsight surfaces an org's coding-agent memory to editors.
 
 Tools:
+- get_status(): one-shot health + summary (Convex URL + finding + note counts)
 - list_findings(status, limit?): Guardian findings by lifecycle status
 - get_findings_for_file(path): active Guardian findings on a file
 - list_notes(limit?): active Note-Manager notes (lessons distilled from past sessions)
@@ -31,7 +33,8 @@ async function main(): Promise<void> {
 
   registerFindingsTools(server);
   registerNotesTools(server);
-  log.debug("tools.registered", { count: 4 });
+  registerStatusTool(server);
+  log.debug("tools.registered", { count: 5 });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
