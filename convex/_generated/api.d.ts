@@ -9,6 +9,7 @@
  */
 
 import type * as agentEvents from "../agentEvents.js";
+import type * as crons from "../crons.js";
 import type * as cycles from "../cycles.js";
 import type * as dashboard from "../dashboard.js";
 import type * as devinRuns from "../devinRuns.js";
@@ -34,6 +35,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agentEvents: typeof agentEvents;
+  crons: typeof crons;
   cycles: typeof cycles;
   dashboard: typeof dashboard;
   devinRuns: typeof devinRuns;

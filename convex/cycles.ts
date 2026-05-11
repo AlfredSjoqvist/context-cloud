@@ -137,7 +137,9 @@ export const detail = query({
         .take(500),
       ctx.db
         .query("findings")
-        .filter((q) => q.eq(q.field("cycleDetected"), args.cycleNumber))
+        .withIndex("by_cycle_detected", (q) =>
+          q.eq("cycleDetected", args.cycleNumber),
+        )
         .collect(),
     ]);
     return { cycle, events, findings };

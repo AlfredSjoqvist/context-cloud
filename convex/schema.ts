@@ -94,7 +94,8 @@ export default defineSchema({
     })),
   })
     .index("by_fingerprint", ["fingerprint"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_cycle_detected", ["cycleDetected"]),
 
   devinRuns: defineTable({
     findingId: v.id("findings"),
