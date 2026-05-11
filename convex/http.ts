@@ -139,8 +139,10 @@ http.route({
     path: "/sync/agent-event",
     method: "POST",
     handler: wrap(async (ctx, body) => {
-        // body shape matches agentEvents.append validator
-        const id = await ctx.runMutation(internal.agentEvents.append, body);
+        // Atomic event insert + session upsert (or messageCount bump).
+        // Optional fields agentVendor/cwd/projectRoot only populate the
+        // session row on first-touch — repeat sends never overwrite them.
+        const id = await ctx.runMutation(internal.agentEvents.appendWithSessionTouch, body);
         return { id };
     }),
 });

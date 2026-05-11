@@ -23,6 +23,74 @@ export const append = internalMutation({
     handler: async (ctx, a) => ctx.db.insert("agentEvents", a),
 });
 
+// Atomic event-append + session-touch. Previously /sync/agent-event
+// inserted into agentEvents without ever creating/refreshing the
+// corresponding sessions row, so the V1+V2 Sessions tabs never showed
+// remote sessions until someone separately POSTed /sync/session. With
+// this mutation a remote MCP install can come online with a single
+// /sync/agent-event call and the session shows up immediately in the
+// dashboard, lastSeenAt up to date.
+export const appendWithSessionTouch = internalMutation({
+    args: {
+        ts: v.string(),
+        sessionId: v.string(),
+        installationId: v.optional(v.string()),
+        kind: v.string(),
+        text: v.optional(v.string()),
+        toolName: v.optional(v.string()),
+        filePath: v.optional(v.string()),
+        isError: v.optional(v.boolean()),
+        payload: v.optional(v.any()),
+        // Optional session metadata to populate on first-touch.
+        agentVendor: v.optional(v.string()),
+        cwd: v.optional(v.string()),
+        projectRoot: v.optional(v.string()),
+    },
+    handler: async (ctx, a) => {
+        // ---- event ----
+        const eventId = await ctx.db.insert("agentEvents", {
+            ts: a.ts,
+            sessionId: a.sessionId,
+            installationId: a.installationId,
+            kind: a.kind,
+            text: a.text,
+            toolName: a.toolName,
+            filePath: a.filePath,
+            isError: a.isError,
+            payload: a.payload,
+        });
+
+        // ---- session upsert ----
+        const existing = await ctx.db
+            .query("sessions")
+            .withIndex("by_session", (q) => q.eq("sessionId", a.sessionId))
+            .first();
+
+        if (existing) {
+            // Bump messageCount + lastSeenAt only — never overwrite
+            // identity fields (agentVendor/cwd/projectRoot/startedAt)
+            // once they're set, in case the agent sends them
+            // inconsistently across calls.
+            await ctx.db.patch(existing._id, {
+                lastSeenAt: a.ts,
+                messageCount: (existing.messageCount ?? 0) + 1,
+            });
+        } else {
+            await ctx.db.insert("sessions", {
+                sessionId: a.sessionId,
+                agentVendor: a.agentVendor,
+                cwd: a.cwd,
+                projectRoot: a.projectRoot,
+                startedAt: a.ts,
+                lastSeenAt: a.ts,
+                messageCount: 1,
+            });
+        }
+
+        return eventId;
+    },
+});
+
 export const recentForSession = query({
     args: {
         sessionId: v.string(),
