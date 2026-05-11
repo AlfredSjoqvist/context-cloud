@@ -7,35 +7,47 @@ describe("formatFindings", () => {
     expect(formatFindings([])).toBe("No findings.");
   });
 
-  it("renders a single finding with path:line, severity, title, citation, status, id", () => {
+  it("renders a fully populated finding with nested code/constraint citations", () => {
     const f: Finding = {
       _id: "abc123",
       status: "detected",
       path: "agent/main.ts",
-      codeLine: 42,
+      codeCite: { line: 42, excerpt: "process.env.API_KEY" },
       severity: "high",
-      title: "leaks API key",
-      mdFile: "context/auth.md",
-      mdLine: 17,
+      category: "secrets",
+      reasoning: "leaks API key",
+      constraintCite: { mdFile: "context/auth.md", line: 17, text: "..." },
+      githubIssueNumber: 42,
     };
     const out = formatFindings([f]);
-    expect(out).toBe("- agent/main.ts:42 [high] leaks API key (cites context/auth.md:17) — status=detected, id=abc123");
+    expect(out).toBe(
+      "- agent/main.ts:42 [high] secrets — leaks API key (cites context/auth.md:17) — status=detected issue=#42, id=abc123",
+    );
   });
 
   it("handles missing optional fields gracefully", () => {
     const f: Finding = { _id: "x", status: "pr_open" };
     const out = formatFindings([f]);
-    expect(out).toBe("- ? (untitled) — status=pr_open, id=x");
+    expect(out).toBe("- ? — (no reasoning) — status=pr_open, id=x");
   });
 
   it("joins multiple findings with newlines", () => {
     const out = formatFindings([
-      { _id: "a", status: "detected", path: "a.ts", codeLine: 1, title: "first" },
-      { _id: "b", status: "detected", path: "b.ts", codeLine: 2, title: "second" },
+      { _id: "a", status: "detected", path: "a.ts", codeCite: { line: 1 }, reasoning: "first issue" },
+      { _id: "b", status: "detected", path: "b.ts", codeCite: { line: 2 }, reasoning: "second issue" },
     ]);
     expect(out.split("\n")).toHaveLength(2);
-    expect(out).toContain("first");
-    expect(out).toContain("second");
+    expect(out).toContain("first issue");
+    expect(out).toContain("second issue");
+  });
+
+  it("truncates long reasoning at 140 chars", () => {
+    const long = "x".repeat(200);
+    const out = formatFindings([{ _id: "z", status: "detected", path: "p.ts", reasoning: long }]);
+    // 200 chars of x → truncated to 139 chars + ellipsis = 140 chars total
+    const reasoning = out.match(/— (x+…)/)?.[1];
+    expect(reasoning).toBeDefined();
+    expect(reasoning!.length).toBe(140);
   });
 });
 

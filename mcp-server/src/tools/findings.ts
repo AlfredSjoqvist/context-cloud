@@ -13,29 +13,48 @@ const FindingStatus = z.enum([
   "escalated",
 ]);
 
+/**
+ * Finding shape per convex/schema.ts. Citations are nested objects, not flat
+ * fields — earlier versions of this type had them flat and the renderer
+ * silently produced "(untitled)" for every real finding.
+ */
 export type Finding = {
   _id: string;
   status: string;
-  path?: string;
-  mdFile?: string;
-  mdLine?: number;
-  codeLine?: number;
-  severity?: string;
-  title?: string;
-  rationale?: string;
   fingerprint?: string;
-  createdAt?: number;
+  cycleDetected?: number;
+  severity?: string;
+  category?: string;
+  path?: string;
+  codeCite?: { line: number; excerpt?: string };
+  constraintCite?: { mdFile: string; line: number; text?: string };
+  reasoning?: string;
+  suggestedFixDirection?: string;
+  githubIssueNumber?: number;
+  sharpenIterations?: number;
 };
+
+function truncate(s: string | undefined, n: number): string {
+  if (!s) return "";
+  if (s.length <= n) return s;
+  return s.slice(0, n - 1) + "…";
+}
 
 export function formatFindings(findings: Finding[]): string {
   if (findings.length === 0) return "No findings.";
   return findings
     .map((f) => {
-      const loc = f.path && f.codeLine ? `${f.path}:${f.codeLine}` : f.path ?? "?";
-      const cite = f.mdFile && f.mdLine ? ` (cites ${f.mdFile}:${f.mdLine})` : "";
+      const codeLine = f.codeCite?.line;
+      const loc = f.path && codeLine ? `${f.path}:${codeLine}` : f.path ?? "?";
+      const cite = f.constraintCite
+        ? ` (cites ${f.constraintCite.mdFile}:${f.constraintCite.line})`
+        : "";
       const sev = f.severity ? ` [${f.severity}]` : "";
-      const title = f.title ?? "(untitled)";
-      return `- ${loc}${sev} ${title}${cite} — status=${f.status}, id=${f._id}`;
+      const cat = f.category ? ` ${f.category}` : "";
+      // No title field in the schema — show the reasoning (truncated) instead.
+      const summary = truncate(f.reasoning, 140) || "(no reasoning)";
+      const issue = f.githubIssueNumber ? ` issue=#${f.githubIssueNumber}` : "";
+      return `- ${loc}${sev}${cat} — ${summary}${cite} — status=${f.status}${issue}, id=${f._id}`;
     })
     .join("\n");
 }
