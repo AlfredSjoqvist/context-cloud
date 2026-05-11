@@ -79,3 +79,31 @@ export const recentStats = query({
         };
     },
 });
+
+// Internal mutation called from convex/crons.ts daily. Prunes
+// injections older than `retentionDays`. The dashboard.everything
+// take(500) already caps the response, but the underlying table
+// grows unbounded — every NM context injection (multiple per second
+// when agents are active) writes a row.
+//
+// injections.ts stores ISO-string `ts`, so the cutoff is an ISO
+// string filtered through the by_ts index.
+export const pruneOlderThan = internalMutation({
+    args: {
+        retentionDays: v.number(),
+        maxDelete: v.optional(v.number()),
+    },
+    handler: async (ctx, a) => {
+        const cap = a.maxDelete ?? 1000;
+        const cutoffMs = Date.now() - a.retentionDays * 24 * 60 * 60 * 1000;
+        const cutoffIso = new Date(cutoffMs).toISOString();
+        const rows = await ctx.db
+            .query("injections")
+            .withIndex("by_ts", (q) => q.lt("ts", cutoffIso))
+            .take(cap);
+        for (const r of rows) {
+            await ctx.db.delete(r._id);
+        }
+        return { deleted: rows.length, hitCap: rows.length === cap, cutoffIso };
+    },
+});

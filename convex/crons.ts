@@ -43,4 +43,19 @@ crons.daily(
     },
 );
 
+// injections: also high-volume (multiple per second once NM is firing).
+// dashboard/everything take(500) already caps the API response, but
+// the underlying table grows unbounded. injections.recentStats only
+// cares about the last 15 minutes, so 30 days retention is generous.
+// Daily at 05:00 UTC.
+crons.daily(
+    "prune-old-injections",
+    { hourUTC: 5, minuteUTC: 0 },
+    internal.injections.pruneOlderThan,
+    {
+        retentionDays: 30,
+        maxDelete: 5000,
+    },
+);
+
 export default crons;
