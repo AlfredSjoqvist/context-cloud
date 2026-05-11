@@ -164,7 +164,7 @@ mutating the source under test, it is a placebo and gets deleted.
 
 ### Constraint library
 
-Guardian enforces 18 constraint families seeded under
+Guardian enforces 24 constraint families seeded under
 [`.context-map/library/`](.context-map/library/). Every leaf is a
 markdown file with line-precise rules; Guardian's findings cite a
 specific line in a specific leaf, byte-equal to the file content.
@@ -189,6 +189,12 @@ specific line in a specific leaf, byte-equal to the file content.
 | [accessibility](.context-map/library/accessibility/semantic-and-keyboard.md) | semantic-and-keyboard | `components/*.tsx`, app routes, pages |
 | [i18n](.context-map/library/i18n/locale-and-formatting.md) | locale-and-formatting | `components/*.tsx`, `lib/format*/i18n*/intl*` |
 | [caching](.context-map/library/caching/ttl-and-invalidation.md) | ttl-and-invalidation | `src/api/`, `src/lib/cache*/redis*/memo*` |
+| [file-uploads](.context-map/library/file-uploads/size-mime-and-paths.md) | size-mime-and-paths | `src/api/upload*`, `src/lib/upload*/storage*/file*` |
+| [email](.context-map/library/email/transactional-deliverability.md) | transactional-deliverability | `src/api/email*`, `src/lib/email*/mail*/notify*` |
+| [payments](.context-map/library/payments/idempotency-and-money.md) | idempotency-and-money | `src/api/payment*`, `src/lib/stripe*/billing*` |
+| [pii](.context-map/library/pii/minimisation-and-deletion.md) | minimisation-and-deletion | `src/api/user*`, `src/db/users*` |
+| [feature-flags](.context-map/library/feature-flags/rollout-and-killswitch.md) | rollout-and-killswitch | `src/api/`, `src/lib/flags*/feature*` |
+| [crypto](.context-map/library/crypto/primitives-and-keys.md) | primitives-and-keys | `src/api/`, `src/lib/crypto*/hash*/sign*/encrypt*/password*` |
 
 Wire the seed into a demo target with
 [`bash seed-context-map.sh`](seed-context-map.sh) (mirrors to every

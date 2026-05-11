@@ -7,7 +7,7 @@ change set; granular commits are visible in `git log`.
 
 ### Added — constraint library
 
-18 hand-authored seed leaves under `.context-map/library/`, ~104 rules
+24 hand-authored seed leaves under `.context-map/library/`, ~140 rules
 total. Each rule is a single line, byte-citable by Guardian's
 `verifyConstraintCite`, and currently violated by at least one file
 under `mock_org/` (where applicable — `frontend-security` and
@@ -33,6 +33,12 @@ under `mock_org/` (where applicable — `frontend-security` and
 | accessibility | 7 | `control-plane/components/*.tsx` — semantic HTML, keyboard, ARIA, focus, contrast, motion |
 | i18n | 6 | universal: no concatenated translations, CLDR plurals, Intl.* formatting, RTL, Unicode inputs |
 | caching | 6 | universal: TTL on every entry, no auth/anon mixing, write-time invalidation, stampede protection |
+| file-uploads | 6 | `agent-gateway/src/api/upload.ts` joins client-supplied filename into local path (rule 3 fires) |
+| email | 6 | `agent-gateway/src/lib/email.ts` includes new password in the body (rule 2 fires) |
+| payments | 6 | `agent-gateway/src/api/payment.ts` uses `amount: number` (float) and a raw `cardNumber` field |
+| pii | 6 | `agent-gateway/src/api/user.ts` exposes `/user/<sequential-int>/profile` (rule 5 fires) |
+| feature-flags | 6 | universal: explicit off-default, kill-switch, no synchronous-fetch in hot path |
+| crypto | 6 | universal: no DIY primitives, no MD5/SHA-1, KDF for passwords, AEAD, KMS-managed keys |
 
 The seed is mirrored into every `mock_org/<sub-org>/.context-map/library/`
 via [`seed-context-map.sh`](seed-context-map.sh); a drift eval
