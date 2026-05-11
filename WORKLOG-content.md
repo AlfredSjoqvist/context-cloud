@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 13 (current) — mirror helper + cover all sub-orgs
+## Iteration 14 (current) — README expansion + CHANGELOG.md
+
+**Goal**: Make the surface area visible from the front page. README's
+Evals section was 4 evals when there are 6, and there was no
+constraint library table. Plus a single CHANGELOG.md so a sponsor
+doesn't have to read git log.
+
+**Plan**:
+1. README — extend Evals list to 6 entries, add a "Constraint library"
+   sub-table with per-leaf links + target file family.
+2. CHANGELOG.md — consolidates 11 leaves, 6 evals, 3 docs, the
+   wiring helper. Includes per-leaf demo-target violation examples
+   so a sponsor can verify claims by hand.
+3. Commit each as its own topic.
+
+---
+
+## Iteration 13 — mirror helper + cover all sub-orgs
 
 **Goal**: Replace the manual `mkdir && cp -R` from SETUP step 4 with a
 single helper command, and bootstrap the seed library into every
@@ -259,6 +276,25 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 14
+
+- **48fb766** `docs(readme): expand Evals section with full eval list + constraint library table`
+- **8bb6063** `docs(changelog): add CHANGELOG.md consolidating Agent 4 demo/content/evals work`
+- A reviewer landing on the README now sees: SETUP/DEMO/PITCH-OUTLINE
+  links → Evals coverage (6 evals named, each with self-test) →
+  Constraint library table (11 leaves with target file families) →
+  CHANGELOG with violation examples. No spelunking required.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV — pre-flight, T-0:30, T+0:00:
+   are commands cut-paste-able? Are env vars in the same shell?
+2. Add a `Makefile` with `make seed`, `make eval`, `make demo`
+   recipes wrapping the existing scripts.
+3. Q&A practice run — read PITCH-OUTLINE.md cold, answer each
+   question out loud, rewrite anything that requires a footnote.
+4. Add a leaf for `concurrency` (locks, race conditions, async vs sync,
+   await-in-loop pitfalls).
 
 ### 2026-05-10 — Iteration 13
 
