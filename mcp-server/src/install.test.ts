@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   mergeMcpServer,
+  removeMcpServer,
   buildEntry,
   buildNmEntry,
   buildClaudeCodeHooks,
   mergeClaudeCodeHooks,
+  removeClaudeCodeHooks,
   isHindsightCommand,
   findScriptRoot,
   renderCodexToml,
@@ -203,6 +205,52 @@ describe("mergeClaudeCodeHooks", () => {
     const once = mergeClaudeCodeHooks({});
     const twice = mergeClaudeCodeHooks(once);
     expect(twice).toEqual(once);
+  });
+});
+
+describe("removeMcpServer", () => {
+  it("no-ops when the named entry is absent", () => {
+    const base = { mcpServers: { other: { command: "x", args: [] } } };
+    const out = removeMcpServer(base, "hindsight");
+    expect(out.mcpServers).toEqual({ other: { command: "x", args: [] } });
+  });
+  it("removes the named entry, preserving others", () => {
+    const base = {
+      mcpServers: {
+        hindsight: { command: "node", args: ["x.js"] },
+        other: { command: "y", args: [] },
+      },
+    };
+    const out = removeMcpServer(base, "hindsight");
+    expect(out.mcpServers).toEqual({ other: { command: "y", args: [] } });
+  });
+  it("no-ops when mcpServers is absent or non-object", () => {
+    expect(removeMcpServer({}, "hindsight")).toEqual({});
+    expect(removeMcpServer({ mcpServers: "garbage" }, "hindsight")).toEqual({ mcpServers: "garbage" });
+  });
+});
+
+describe("removeClaudeCodeHooks", () => {
+  it("strips every entry that references nm scripts, preserves unrelated ones", () => {
+    const base = {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "dippy" }] },
+          { matcher: "Read|Edit", hooks: [{ type: "command", command: NM_INJECT_CMD }] },
+        ],
+        PostToolUse: [{ hooks: [{ type: "command", command: NM_CAPTURE_CMD }] }],
+      },
+    };
+    const out = removeClaudeCodeHooks(base) as { hooks: Record<string, unknown> };
+    // PreToolUse: dippy survives, nm stripped
+    expect((out.hooks.PreToolUse as { hooks: { command: string }[] }[]).length).toBe(1);
+    expect((out.hooks.PreToolUse as { hooks: { command: string }[] }[])[0].hooks[0].command).toBe("dippy");
+    // PostToolUse: only nm was there → key fully removed
+    expect(out.hooks.PostToolUse).toBeUndefined();
+  });
+  it("no-ops when hooks is absent or non-object", () => {
+    expect(removeClaudeCodeHooks({})).toEqual({});
+    expect(removeClaudeCodeHooks({ hooks: null })).toEqual({ hooks: null });
   });
 });
 

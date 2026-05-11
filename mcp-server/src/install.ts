@@ -21,6 +21,8 @@ import {
   buildNmEntry,
   mergeMcpServer,
   mergeClaudeCodeHooks,
+  removeMcpServer,
+  removeClaudeCodeHooks,
   findScriptRoot,
   renderCodexToml,
 } from "./installLib.js";
@@ -34,6 +36,7 @@ type ParsedArgs = {
   hindsightRoot: string | null;
   withHooks: boolean;
   withNm: boolean;
+  uninstall: boolean;
   print: boolean;
   help: boolean;
 };
@@ -46,6 +49,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     hindsightRoot: null,
     withHooks: false,
     withNm: false,
+    uninstall: false,
     print: false,
     help: false,
   };
@@ -53,6 +57,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     const a = argv[i];
     if (a === "--help" || a === "-h") out.help = true;
     else if (a === "--print") out.print = true;
+    else if (a === "--uninstall") out.uninstall = true;
     else if (a === "--with-hooks") out.withHooks = true;
     else if (a === "--with-nm") out.withNm = true;
     else if (a === "--editor") out.editor = argv[++i] as EditorKey;
@@ -125,6 +130,9 @@ Options:
   --hindsight-root <p>   Override the context-cloud root used for absolute hook paths.
                          Only relevant for --editor claude-code (user-scope). Auto-detected
                          by default by walking up from this install's location.
+  --uninstall            Strip the hindsight MCP entry + any hindsight-managed hooks
+                         from the target config. Combine with --with-nm to also remove nm.
+                         Not supported for codex (it's a manual TOML edit).
   --print                Dry-run: print the merged JSON to stdout instead of writing.
   --help                 Show this help.
 
@@ -168,6 +176,32 @@ function runInstall(): void {
       `error: --with-hooks is only supported for claude-code and claude-code-project. ${args.editor} has no equivalent hook surface.\n`,
     );
     process.exit(2);
+  }
+
+  // Uninstall path: strip hindsight (+ nm) MCP entries and any hindsight-managed
+  // hooks from the editor's config. Idempotent; runs without writes when --print.
+  if (args.uninstall) {
+    if (args.editor === "codex") {
+      process.stderr.write(
+        "error: --uninstall is not supported for codex (we never auto-wrote a TOML block in the first place).\n" +
+          "Remove [mcp_servers.hindsight] and any [mcp_servers.hindsight.env] / [mcp_servers.nm] block from ~/.codex/config.toml by hand.\n",
+      );
+      process.exit(2);
+    }
+    const mcpTarget = mcpConfigPathFor(args.editor);
+    let mcp = readJsonOrEmpty(mcpTarget);
+    mcp = removeMcpServer(mcp, "hindsight");
+    if (args.withNm) mcp = removeMcpServer(mcp, "nm");
+    writeOrPrint(mcpTarget, mcp, args.print, "MCP server config (uninstall)");
+
+    const hooksTarget = hooksConfigPathFor(args.editor);
+    if (hooksTarget) {
+      const hooks = readJsonOrEmpty(hooksTarget);
+      const cleaned = removeClaudeCodeHooks(hooks);
+      writeOrPrint(hooksTarget, cleaned, args.print, "Claude Code hooks (uninstall)");
+    }
+    if (!args.print) process.stdout.write(`\nRestart your editor so the changes take effect.\n`);
+    return;
   }
 
   const serverPath = args.serverPath ?? defaultServerPath();

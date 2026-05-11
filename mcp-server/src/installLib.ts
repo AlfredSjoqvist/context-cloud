@@ -67,6 +67,32 @@ export function mergeMcpServer(
   return next;
 }
 
+/** Remove an mcpServers entry by name. Idempotent (no-op if missing). */
+export function removeMcpServer(config: Record<string, unknown>, name: string): Record<string, unknown> {
+  if (!config.mcpServers || typeof config.mcpServers !== "object") return config;
+  const next = { ...config };
+  const existing = { ...(next.mcpServers as Record<string, unknown>) };
+  delete existing[name];
+  next.mcpServers = existing;
+  return next;
+}
+
+/** Strip every Hindsight-managed hook entry, leaving unrelated entries intact. */
+export function removeClaudeCodeHooks(config: Record<string, unknown>): Record<string, unknown> {
+  if (!config.hooks || typeof config.hooks !== "object") return config;
+  const next = { ...config };
+  const existing = { ...(next.hooks as Record<string, unknown>) };
+  for (const event of Object.keys(existing)) {
+    const entries = existing[event];
+    if (!Array.isArray(entries)) continue;
+    const cleaned = entries.filter((e) => !entryReferencesHindsight(e));
+    if (cleaned.length === 0) delete existing[event];
+    else existing[event] = cleaned;
+  }
+  next.hooks = existing;
+  return next;
+}
+
 // ---------- Claude Code hooks ----------
 
 export type HookCommand = { type: "command"; command: string; timeout?: number };
