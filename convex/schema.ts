@@ -121,7 +121,9 @@ export default defineSchema({
     ),
     message: v.string(),
     metadata: v.optional(v.any()),
-  }).index("by_timestamp", ["timestamp"]),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_cycle_timestamp", ["cycleNumber", "timestamp"]),
 
   // -------- DOCS INGEST --------
   // One row per emitted leaf (hari's pattern). `runId` groups leaves

@@ -36,3 +36,21 @@ export const listRecent = query({
     return rows.reverse();
   },
 });
+
+// All events for a specific cycle, ascending. Used by the Replay tab so
+// the user can step through what Guardian did during a single run.
+// Uses the by_cycle_timestamp compound index so it doesn't full-scan
+// the events table.
+export const forCycle = query({
+  args: {
+    cycleNumber: v.number(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 500;
+    return await ctx.db
+      .query("events")
+      .withIndex("by_cycle_timestamp", (q) => q.eq("cycleNumber", args.cycleNumber))
+      .take(limit);
+  },
+});
