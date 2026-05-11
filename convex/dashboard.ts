@@ -37,15 +37,26 @@ export const everything = internalQuery({
             ctx.db.query("agentEvents").withIndex("by_ts").order("desc").take(100),
         ]);
         const libraries = await ctx.db.query("libraries").collect();
+        // Project lastIngestedAt onto docsIngestRuns rows from _creationTime.
+        // The schema doesn't store a separate ingestion timestamp on this
+        // table (one row per emitted leaf, immutable), and mock/v2.js sorts
+        // and counts these rows by `lastIngestedAt`. Aliasing here avoids a
+        // schema migration + backfill.
+        const docsIngestRunsWithTs = docsIngestRuns.map((r) => ({
+            ...r,
+            lastIngestedAt: r._creationTime,
+        }));
         return {
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
             cycles, findings, devinRuns, guardianEvents,
-            // V2 canonical name (matches schema table name).
-            docsIngestRuns,
+            // V2 canonical name (matches schema table name). Each row carries
+            // lastIngestedAt projected from _creationTime so the V2 dashboard
+            // can sort and age-tag without further computation.
+            docsIngestRuns: docsIngestRunsWithTs,
             // V1 alias — kept for backward compat with mock/index.html. Will be
             // removed once V1 is decommissioned. See WORKLOG-backend.md.
-            docsLeaves: docsIngestRuns,
+            docsLeaves: docsIngestRunsWithTs,
             libraries,
             sessions, agentEvents,
         };
