@@ -61,6 +61,21 @@ export const recent = query({
     },
 });
 
+// Injections targeting a specific file path. Uses the by_path_ts
+// compound index — naturally ordered desc by ts within a path slice.
+// Powers the Files detail panel ("what notes have been injected into
+// this file recently").
+export const byPath = query({
+    args: { path: v.string(), limit: v.optional(v.number()) },
+    handler: async (ctx, a) => {
+        return await ctx.db
+            .query("injections")
+            .withIndex("by_path_ts", (q) => q.eq("path", a.path))
+            .order("desc")
+            .take(a.limit ?? 50);
+    },
+});
+
 // Injections recorded for a specific agent. Uses the by_agent index.
 // Powers the Agents detail panel ("what did this agent inject lately").
 export const byAgent = query({
