@@ -61,7 +61,8 @@ All `/sync/*` return `{ "ok": true, "result": ... }` on success or `{ "error": "
 |---|---|---|
 | `createIfAbsent(...)` | mutation | idempotent on `fingerprint`. Returns `{ id, created }` |
 | `setStatus(findingId, status, githubIssueNumber?)` | mutation | status ∈ detected/devin_running/pr_open/verifying/resolved/reopened_sharpened/escalated |
-| `incrementSharpen(findingId)` | mutation | bumps `sharpenIterations` by 1 |
+| `incrementSharpen(findingId)` | mutation | bumps `sharpenIterations` by 1 (NOT idempotent — prefer `setSharpenIterations`) |
+| `setSharpenIterations(findingId, iterations)` | mutation | **idempotent-by-value** — preferred for retry-safe writes |
 | `byStatus(status)` | query | indexed lookup |
 
 ### `api.devinRuns`

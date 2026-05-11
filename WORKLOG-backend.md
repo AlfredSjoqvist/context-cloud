@@ -143,3 +143,83 @@ Crash between calls left the note's `injectCount` / `invalidatedAt` out of sync 
 - **Dev `acoustic-fish-389`:** Up to date with `main` HEAD. All nine iterations live.
 - **Prod `colorless-porcupine-926`:** STILL ON OLD CODE. See `NEEDS-NICOLAS.md`.
 
+---
+
+## Iteration 10 — `/dashboard/health` public endpoint (`a624827`)
+
+Lightweight system-health snapshot. Per-stream freshness timestamps + 24h
+counts. Replaces ad-hoc client-side recencyOf() computations. CORS-enabled,
+no auth, ~10KB payload. Public Convex query `dashboard.health`. New HTTP
+route `GET /dashboard/health`.
+
+## Iteration 11 — `/sync/agent-event` auto-creates sessions (`ca11847`)
+
+Previously the handler inserted the event and required a separate
+`/sync/session` POST for the session row to appear. Now
+`agentEvents.appendWithSessionTouch` is one atomic mutation that inserts
+the event AND (on first event from a sessionId) creates the session row,
+or bumps `messageCount` + `lastSeenAt` on subsequent calls. Never
+overwrites identity fields after first-touch.
+
+## Iteration 12 — `cycles.setPhase` mutation (`c8144a2`)
+
+The schema's `cycles.currentPhase` field was dead — set by seed.ts but
+never updated during a live cycle, because no mutation exposed it. Added
+public mutation `cycles.setPhase({cycleId, phase})` with the eight-phase
+union validator (WAKE/PLAN/SCAN/ANALYZE/CRITIQUE/HANDOFF/RECONCILE/SLEEP).
+Verified end-to-end: spawned cycle 53 → setPhase("SCAN") → dashboard.
+everything shows `cycle 53 currentPhase=SCAN`.
+
+## Iteration 13 — `docsIngestRuns.recordRun` idempotent on leafPath (`85fbad7`)
+
+`docs-ingest/src/emit/convex-recorder.ts` calls this for every leaf. Old
+behavior: unconditional insert. New behavior: upsert keyed on `leafPath`
+(schema's "one row per emitted leaf" comment). Re-extracting a leaf now
+patches, not duplicates. Public signature unchanged.
+
+## Iteration 14 — `devinRuns.recordRun` idempotent on devinRunId (`b805bc4`)
+
+Added `devinRuns.by_devin_run_id` index. Mutation now upserts: found →
+patch `promptUsed` + `iteration` (so sharpened re-spawns update the
+iteration count), preserving original `spawnedAt`. Missing → insert.
+Two retried calls with same devinRunId verify single row.
+
+## Iteration 15 — `events.forCycle` query + index (`32f08ea`)
+
+V2 dashboard's Replay tab will step through events from a single cycle.
+Added compound `events.by_cycle_timestamp` index and public query
+`events.forCycle({cycleNumber, limit})`. Avoids the client-side filter
+on a global event stream. Verified by querying `cycleNumber=51` and
+getting 3 cycle-scoped events back in order.
+
+## Iteration 16 — Parallelize `libraries` in `dashboard.everything` (`1cd07c4`)
+
+Was a sequential await after the 16-query Promise.all. Moved into the
+parallel block — one round-trip latency, not two. Response shape
+unchanged.
+
+## Iteration 17 — `convex/CONTRACT.md` public API doc (`ef54b0a`)
+
+Documents every stable HTTP endpoint, public Convex function, atomicity
+guarantee, and index for the integration + frontend agents to read.
+Anything not in CONTRACT.md is internal. Includes the full
+`/dashboard/everything` and `/dashboard/health` response shapes.
+
+## Iteration 18 — `findings.setSharpenIterations` idempotent alt (`9e1776a`)
+
+`findings.incrementSharpen` reads-then-writes, so retries double-bump.
+Added `setSharpenIterations({findingId, iterations})` that patches the
+target value directly — retry-safe. `incrementSharpen` stays for back-
+compat with a comment flagging the racy semantics. Two consecutive
+calls with the same target = no double-bump, verified on dev.
+
+---
+
+## DEPLOY STATE (as of iteration 18):
+
+- **Dev `acoustic-fish-389`:** all 18 iterations live, deploy-verified
+  end-to-end via curl on each.
+- **Prod `colorless-porcupine-926`:** still on pre-iter-1 code. Same
+  blocker as before — see `NEEDS-NICOLAS.md`. User has said
+  "the prod stuff does not matter" so I'm staying on dev.
+
