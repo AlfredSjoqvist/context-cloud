@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 8 (current) — webhooks + sandbox leaves (broaden coverage)
+## Iteration 9 (current) — README evals section + metadata-consistency eval
+
+**Goal**: Surface evals to anyone who lands on the repo (README link),
+and add a structural-integrity eval that catches the most common
+hand-authoring mistakes in `.context-map/library/` (copy-paste library,
+mismatched rule counts, stale chunk_id).
+
+**Plan**:
+1. README.md — add SETUP/DEMO/PITCH-OUTLINE links to "Where to look"
+   table; add an "Evals" section between "Tests" and "Branches".
+2. `evals/test_leaf_metadata_consistency.py` — 4 structural checks:
+   library matches parent dir, chunk_id format + segments, rule count
+   match, source_uri contains library+topic.
+3. Verify suite stays green; self-test with library mismatch.
+
+---
+
+## Iteration 8 — webhooks + sandbox leaves (broaden coverage)
 
 **Goal**: Cover `mock_org/connectors/` and `mock_org/runtime-orchestrator/`
 so Guardian doesn't only fire on `agent-gateway`. Both target real bugs
@@ -170,6 +187,32 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 9
+
+- **b19c307** `docs(readme): link DEMO/SETUP/PITCH-OUTLINE and add Evals section`
+- **45bbe68** `test(evals): add metadata-consistency eval for library leaves`
+  - 4 tests; self-test verified (library mismatch → 3 of 4 fail).
+- Eval suite: 5 evals, 30 tests. README now points reviewers at both
+  the unit tests AND the eval suite from the front page.
+
+**Surprise**: a single library typo trips three independent tests
+(library, chunk_id segment, source_uri); that's the "defense in
+depth" pattern working — multiple checks of the same invariant
+catch each other's blind spots.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV: tighten any beat that
+   reads as "you have to know X" (e.g. T+2:00 still assumes the
+   IDE is wired to NM MCP — call out the prereq earlier).
+2. Cover `memory-graph/` and `control-plane/` sub-orgs with at
+   least one constraint each.
+3. Code-shape eval — for each leaf, grep at least one keyword from
+   each rule body against the resolved applies_to files. Catches a
+   leaf whose globs resolve but whose rules describe code shapes
+   that don't exist there.
+4. Add a leaf for `validation` (Zod / Pydantic schema-validation
+   patterns); mock_org/agent-gateway has zod as a dep but doesn't use it.
 
 ### 2026-05-10 — Iteration 8
 
