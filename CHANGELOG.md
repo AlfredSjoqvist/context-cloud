@@ -7,10 +7,11 @@ change set; granular commits are visible in `git log`.
 
 ### Added — constraint library
 
-11 hand-authored seed leaves under `.context-map/library/`, 60 rules
+15 hand-authored seed leaves under `.context-map/library/`, ~85 rules
 total. Each rule is a single line, byte-citable by Guardian's
 `verifyConstraintCite`, and currently violated by at least one file
-under `mock_org/`.
+under `mock_org/` (where applicable — `frontend-security` and
+`supply-chain` are universal).
 
 | Library | Rules | Demo target violation example |
 |---|---:|---|
@@ -25,6 +26,10 @@ under `mock_org/`.
 | sandbox | 6 | `runtime-orchestrator/src/runtime/job_runner.py` validates upper bound only |
 | supply-chain | 7 | universal: lockfile in same commit, `npm ci` in CI, no `curl \| bash` |
 | state | 6 | `runtime-orchestrator/src/runtime/state_store.py` calls `write_text` non-atomically |
+| concurrency | 6 | universal: distributed-lock TTL, finally-release, no serial await, idempotent handlers |
+| time | 6 | universal: UTC + ISO 8601, monotonic clocks for elapsed, calendar-aware date math |
+| network | 6 | universal: TLS verify on, min TLS 1.2, SSRF allow-list, both timeouts, no cross-origin auth follow |
+| frontend-security | 7 | `control-plane/components/*.tsx` — XSS, CSRF, CSP, cookies, iframes, open redirect |
 
 The seed is mirrored into every `mock_org/<sub-org>/.context-map/library/`
 via [`seed-context-map.sh`](seed-context-map.sh); a drift eval
