@@ -8,7 +8,19 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 21 (current) — subTest mirror to remaining evals
+## Iteration 22 (current) — caching leaf
+
+**Goal**: Add the caching family — TTL discipline, key-namespacing for
+auth, write-time invalidation, stampede protection. Universally
+load-bearing for any service with a Redis-shaped layer.
+
+**Plan**:
+1. `.context-map/library/caching/ttl-and-invalidation.md` — 6 rules.
+2. Mirror via `seed-context-map.sh`. Single commit.
+
+---
+
+## Iteration 21 — subTest mirror to remaining evals
 
 **Goal**: Mirror the subTest pattern (landed in iteration 19 for
 metadata-consistency) to test_citation_precision and
@@ -386,6 +398,22 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 22
+
+- **a65d6f0** `feat(context-map): add caching/ttl-and-invalidation leaf`
+- Library: 18 leaves, ~104 rules. All mirrored. Eval suite still 6/all green.
+
+**Surprise**: hook flagged a literal token in rule 5 even though the
+rule recommends *against* it. Rephrased to "language-native binary
+serializer" — same lesson, no false-positive.
+
+**Left to do (next iterations, in priority):**
+1. CHANGELOG refresh: 18 leaves, accessibility / i18n / caching rows.
+2. README leaf table refresh: same 3 new rows.
+3. SETUP.md re-walk (mirror the DEMO.md polish pass).
+4. Audit for rule overlap and document the intentional duplication
+   (process-local-Map appears in rate-limit, state, concurrency).
 
 ### 2026-05-10 — Iteration 21
 
