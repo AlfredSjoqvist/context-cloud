@@ -73,4 +73,5 @@ export const Q = {
   notesListActive: "notes:listActive",
   notesListEdgesForPath: "notes:listEdgesForPath",
   notesListEdgesForNote: "notes:listEdgesForNote",
+  cyclesLatest: "cycles:latestCycle",
 } as const;

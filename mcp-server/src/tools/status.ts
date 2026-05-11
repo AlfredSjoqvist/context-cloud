@@ -53,6 +53,25 @@ export function registerStatusTool(server: McpServer): void {
           // but here we already swallowed it to keep partial status useful.
         }
 
+        // Guardian cycle — latest only. If the agent runtime isn't firing, this stays
+        // null; the status renders "no cycles recorded yet" so the user can tell the
+        // backend has data but the agent loop isn't running.
+        let cycleLine = "guardian last cycle: (no cycles recorded yet)";
+        try {
+          const latest = (await client.query(Q.cyclesLatest as never, {} as never)) as
+            | { cycleNumber?: number; startedAt?: number; finishedAt?: number; status?: string }
+            | null;
+          if (latest) {
+            const num = latest.cycleNumber ?? "?";
+            const started = latest.startedAt ? new Date(latest.startedAt).toISOString() : "?";
+            const finished = latest.finishedAt ? new Date(latest.finishedAt).toISOString() : "in-progress";
+            const st = latest.status ?? "?";
+            cycleLine = `guardian last cycle: #${num} ${st}  started=${started}  finished=${finished}`;
+          }
+        } catch {
+          cycleLine = "guardian last cycle: ERR";
+        }
+
         const truncationFlag = typeof noteCount === "number" && noteCount >= 500 ? " (scan limit)" : "";
         // Build the lines as an array of (string | null), then filter only null. Empty
         // strings are intentional blank-line separators; filter(Boolean) would drop them.
@@ -60,6 +79,8 @@ export function registerStatusTool(server: McpServer): void {
           `hindsight-mcp v${SERVER_VERSION}`,
           `  convex: ${url}  (source=${source})`,
           source === "default" ? `  ⚠️  reading the project's demo deployment — set HINDSIGHT_CONVEX_URL to override.` : null,
+          ``,
+          cycleLine,
           ``,
           `active notes:    ${noteCount}${truncationFlag}`,
           `findings:`,
