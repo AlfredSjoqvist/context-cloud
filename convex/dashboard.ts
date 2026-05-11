@@ -22,7 +22,9 @@ export const everything = internalQuery({
             ctx.db.query("files").collect(),
             ctx.db.query("notes").collect(),
             ctx.db.query("noteFiles").collect(),
-            ctx.db.query("prunedEdges").collect(),
+            // Capped at 500 — prunedEdges grows monotonically once GC is
+            // firing and the Replay timeline only needs the recent slice.
+            ctx.db.query("prunedEdges").withIndex("by_pruned_at").order("desc").take(500),
             ctx.db.query("injections").order("desc").take(500),
             ctx.db.query("gcRuns").order("desc").take(50),
             ctx.db.query("gcActions").order("desc").take(200),
