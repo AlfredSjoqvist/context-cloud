@@ -144,22 +144,22 @@ Returns an object with exactly these keys:
 {
   users:           User[]
   agents:          Agent[]
-  files:           FileRow[]
-  notes:           Note[]
-  noteFiles:       NoteFile[]
-  prunedEdges:     PrunedEdge[]
-  injections:      Injection[]          // last 500
-  gcRuns:          GcRun[]              // last 50
-  gcActions:       GcAction[]           // last 200
-  cycles:          Cycle[]              // last 50
-  findings:        Finding[]
-  devinRuns:       DevinRun[]           // last 100
-  guardianEvents:  Event[]              // last 200 (alias of events table)
-  docsIngestRuns:  DocsLeaf[]           // each row has lastIngestedAt projected from _creationTime
-  docsLeaves:      DocsLeaf[]           // V1 alias of docsIngestRuns — deprecated, will be removed
+  files:           FileRow[]             // last 2000
+  notes:           Note[]                // last 2000 (newest by _creationTime)
+  noteFiles:       NoteFile[]            // last 5000
+  prunedEdges:     PrunedEdge[]          // last 500
+  injections:      Injection[]           // last 500
+  gcRuns:          GcRun[]               // last 50
+  gcActions:       GcAction[]            // last 200
+  cycles:          Cycle[]               // last 50
+  findings:        Finding[]             // last 2000 (newest by _creationTime)
+  devinRuns:       DevinRun[]            // last 100
+  guardianEvents:  Event[]               // last 200 (alias of events table)
+  docsIngestRuns:  DocsLeaf[]            // last 1000; each row has lastIngestedAt projected from _creationTime
+  docsLeaves:      DocsLeaf[]            // V1 alias of docsIngestRuns — deprecated, will be removed
   libraries:       Library[]
-  sessions:        Session[]            // last 50
-  agentEvents:     AgentEvent[]         // last 100, ordered by ts desc
+  sessions:        Session[]             // last 50
+  agentEvents:     AgentEvent[]          // last 100, ordered by ts desc
 }
 ```
 
@@ -223,10 +223,10 @@ correctly day-to-day.
 ## Indexes that consumers can rely on
 
 - `cycles.by_cycle_number`
-- `findings.by_fingerprint`, `findings.by_status`
+- `findings.by_fingerprint`, `findings.by_status`, `findings.by_cycle_detected`
 - `devinRuns.by_finding`, `devinRuns.by_devin_run_id`
 - `notes.by_note_id`, `notes.by_active_importance`, `notes.by_created_from_session`
-- `noteFiles.by_note`, `noteFiles.by_path`
+- `noteFiles.by_note`, `noteFiles.by_path`, `noteFiles.by_note_path` (compound — use this for `(noteId, path)` point lookups)
 - `injections.by_ts`, `injections.by_note`, `injections.by_path_ts`, `injections.by_agent`
 - `gcActions.by_ts`
 - `agentEvents.by_session_ts`, `agentEvents.by_ts`
