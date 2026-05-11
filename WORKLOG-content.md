@@ -8,7 +8,27 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 11 (current) — supply-chain + state leaves
+## Iteration 12 (current) — wire seed library to demo target + drift eval
+
+**Goal**: CRITICAL gap discovered — Guardian reads constraints from
+`<DEMO_REPO_LOCAL_PATH>/.context-map/library/`, not from the repo root.
+The seed library at the repo root has been invisible to the demo.
+Fix this with explicit wiring + a drift eval that refuses silent
+divergence.
+
+**Plan**:
+1. SETUP.md step 4 — `cp -R .context-map/library mock_org/agent-gateway/.context-map/`.
+   Renumber subsequent steps.
+2. DEMO.md prereqs — link to SETUP step 4.
+3. `evals/test_seed_library_mirror.py` — verify any bootstrapped
+   mirror is byte-identical to the canonical seed. Skips when no
+   mirror exists.
+4. Bootstrap and commit `mock_org/agent-gateway/.context-map/library/`
+   so a fresh clone runs Guardian end-to-end without manual setup.
+
+---
+
+## Iteration 11 — supply-chain + state leaves
 
 **Goal**: Two more universally-load-bearing categories: supply-chain
 (lockfile, install, bootstrap, container) and durable-state
@@ -221,6 +241,30 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 12
+
+- **53d349c** `docs(setup,demo): wire seed library into demo target so Guardian reads it`
+- **231f3db** `test(evals): add seed-library mirror eval`
+- **f88f373** `chore(demo): commit bootstrapped seed-library mirror under agent-gateway`
+- 6 evals, 31 tests (mirror skip → 0 tests → fired test once mirror exists).
+
+**Surprise — load-bearing**: I shipped 11 leaves over 4 iterations
+without realising Guardian wouldn't read any of them. The seed
+library at `<root>/.context-map/library/` is read by the canonical
+suite (citation, applies_to, metadata) but Guardian's `filesystemRoot`
+is `DEMO_REPO_LOCAL_PATH`, which is `mock_org/agent-gateway`. The
+mirror eval now refuses to merge silent drift.
+
+**Left to do (next iterations, in priority):**
+1. Code-shape eval — for each leaf, grep at least one keyword from
+   each rule body against the resolved applies_to files.
+2. Mirror to other sub-orgs (`connectors/`, `runtime-orchestrator/`,
+   `memory-graph/`, `control-plane/`) so Guardian fires on all of them
+   regardless of which `DEMO_REPO_LOCAL_PATH` is set.
+3. Add a Makefile or npm script `seed:mirror` that re-runs SETUP step 4
+   (one command instead of `mkdir -p && cp -R`).
+4. README — surface the new wiring step in the "Where to look" table.
 
 ### 2026-05-10 — Iteration 11
 
