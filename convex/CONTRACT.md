@@ -31,7 +31,7 @@ Base URLs:
 | `POST` | `/sync/note` | `{ note: NoteFields, edges?: EdgeFields[] }` — atomic |
 | `POST` | `/sync/injection` | injection fields. Auto-bumps note.injectCount when `accepted: true` and `noteId` set. Atomic. |
 | `POST` | `/sync/hurdle` | hurdle fields. Upsert on `hurdleId`. |
-| `POST` | `/sync/gc` | gc fields. Atomically invalidates note when `action ∈ {prune, invalidate}` and `noteId` set. |
+| `POST` | `/sync/gc` | gc fields: `{ ts, action, noteId?, details?, runId?, targetNote?, targetFile?, sourceNote?, reason?, edgeWeight? }`. Atomically invalidates note when `action ∈ {prune, invalidate}` and `noteId` set. Additionally writes a `prunedEdges` row when `action='prune'` AND both `noteId` and `targetFile` set. |
 | `POST` | `/sync/session` | session fields. Upsert on `sessionId`. |
 | `POST` | `/sync/agent-event` | event fields. Atomically auto-creates / touches session row. |
 | `POST` | `/sync/mark-extracted` | `{ sessionId, atTs, lastEventTs? }`. Patches session.lastExtractedAt. |
