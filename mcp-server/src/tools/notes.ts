@@ -3,13 +3,23 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Q, runQuery } from "../convex.js";
 import { safe } from "../log.js";
 
+/**
+ * NM note shape per convex/notes.ts upsertNote. The agent runtime distills each
+ * hurdle into (symptom, rootCause, correction) — those are the fields we render.
+ * body / summary are kept as legacy fallbacks in case an older row predates the
+ * symptom/rootCause/correction migration.
+ */
 export type Note = {
   _id: string;
   noteId?: string;
+  symptom?: string;
+  rootCause?: string;
+  correction?: string;
   body?: string;
   summary?: string;
-  createdAt?: number;
-  invalidatedAt?: number;
+  importance?: number;
+  createdAt?: string | number;
+  invalidatedAt?: string | number;
   injectCount?: number;
 };
 
@@ -25,14 +35,28 @@ export function truncate(s: string | undefined, n: number): string {
   return s.slice(0, n - 1) + "…";
 }
 
+function noteBody(n: Note): string {
+  // Prefer the canonical (symptom / rootCause / correction) trio; fall back to
+  // legacy fields if none of them are populated.
+  if (n.symptom || n.rootCause || n.correction) {
+    const parts: string[] = [];
+    if (n.symptom) parts.push(`symptom: ${n.symptom}`);
+    if (n.rootCause) parts.push(`cause: ${n.rootCause}`);
+    if (n.correction) parts.push(`fix: ${n.correction}`);
+    return parts.join("; ");
+  }
+  return n.summary ?? n.body ?? "";
+}
+
 export function formatNotes(notes: Note[]): string {
   if (notes.length === 0) return "No notes.";
   return notes
     .map((n) => {
       const id = n.noteId ?? n._id;
-      const body = truncate(n.summary ?? n.body, 200);
+      const body = truncate(noteBody(n), 200);
+      const importance = n.importance !== undefined ? ` importance=${n.importance.toFixed(2)}` : "";
       const injects = n.injectCount !== undefined ? ` injects=${n.injectCount}` : "";
-      return `- ${id}${injects}: ${body}`;
+      return `- ${id}${importance}${injects}: ${body}`;
     })
     .join("\n");
 }
