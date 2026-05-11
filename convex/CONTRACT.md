@@ -117,7 +117,15 @@ All `/sync/*` return `{ "ok": true, "result": ... }` on success or `{ "error": "
 
 `upsertLibrary`, `list`, `refresh` (demo seam — flagged in source).
 
-### `api.injections` / `api.gc` / `api.hurdles` / `api.sessions` / `api.agentEvents`
+### `api.gc`
+
+| Function | Type | Notes |
+|---|---|---|
+| `recordRun(runId, ts, durationMs?, activeAfter?, invalidatedAfter?, edgesAfter?)` | mutation | **idempotent on runId** — run-level GC summary |
+| `recent(limit?)` | query | recent gcActions |
+| `recentStats(sinceMinutes?)` | query | rolled-up counts by action over a window |
+
+### `api.injections` / `api.hurdles` / `api.sessions` / `api.agentEvents`
 
 Only the read paths are public (`recent`, `recentStats`, `recentForSession`, `sessionsToExtract`). All write paths are `internalMutation` and reachable only through the HTTP routes above.
 
