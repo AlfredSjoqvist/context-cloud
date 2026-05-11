@@ -158,3 +158,32 @@ saved-feedback memory. Iteration commits, in order:
 | Opt-in live tests | 1 (gated on HINDSIGHT_LIVE_CONVEX_URL) |
 | CI workflows | 1 (mcp-server gate on every relevant PR) |
 | Files in scope touched by other agents (left untouched by me): convex/*.ts, dashboard/*, mock/*, docs/*, evals/*, README.md, etc.
+
+---
+
+## Iterations 27–32 — compact log
+
+| # | SHA      | What |
+|---|----------|------|
+| 27 | `dae9002` | OpenAI Agents SDK example (`mcp-server/examples/openai-agents.ts`) + README section. Closes the last unaddressed editor in the /loop scope. |
+| 28 | `40012ea` | Install CLI emits a "Next: verify with ..." pointer after a real write. --print stays silent. |
+| 29 | `a2e8483` | `--uninstall` — clean removal of the hindsight (and optionally nm) MCP entry plus every hindsight-managed hook. Idempotent. Codex rejected with exit 2 (manual edit). 5 new tests (`removeMcpServer`, `removeClaudeCodeHooks`). |
+| 30 | `9aa7993` | README catch-up — Resources table for the 8 hindsight:// URIs, full flag matrix for install, exit-code contract. |
+| 31 | `f5f574a` | `package.json` script shortcuts: `npm run verify`, `npm run install:cursor` / `install:claude-code` / `install:claude-code-project` / `install:codex`, `npm run test:live`. |
+
+**Updated cumulative counts at iteration 32:**
+
+| Surface | Count |
+|---|---|
+| MCP tools | 5 |
+| MCP resources | 8 |
+| Bins | 3 |
+| Install CLI editors | 4 |
+| Install CLI flags | 7 (with `--uninstall` added) |
+| Unit tests | 65 |
+| E2e tests | 4 |
+| Opt-in live tests | 1 |
+| CI workflows | 1 |
+| Examples | 1 (OpenAI Agents SDK) |
+
+**Scope coverage:** every item in the /loop scope statement is now shipped — `agent/` audited (no integration bugs), `mcp-server/` complete, hook scripts for Claude Code fixed and tested, install CLI for Cursor / Claude Code (user + project) / Codex + an OpenAI Agents SDK recipe, manifests + CI in place.
