@@ -246,7 +246,8 @@ export default defineSchema({
     hyperspellEnrichedAt: v.optional(v.string()),
   })
     .index("by_note_id", ["noteId"])
-    .index("by_active_importance", ["invalidatedAt", "importance"]),
+    .index("by_active_importance", ["invalidatedAt", "importance"])
+    .index("by_created_from_session", ["createdFromSession"]),
 
   files: defineTable({
     path: v.string(),                   // canonical, project-relative

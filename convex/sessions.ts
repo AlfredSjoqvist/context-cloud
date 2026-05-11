@@ -53,9 +53,16 @@ export const listWithNotes = internalQuery({
 
         const out = [];
         for (const s of trimmed) {
+            // Use the by_created_from_session index instead of a full-table
+            // .filter() scan. Critical: the V2 dashboard polls /dashboard/
+            // sessions-with-notes every 60s; the O(sessions × notes) scan
+            // was dominating query time once the notes table grew past a
+            // few hundred rows.
             const notes = await ctx.db
                 .query("notes")
-                .filter((q) => q.eq(q.field("createdFromSession"), s.sessionId))
+                .withIndex("by_created_from_session", (q) =>
+                    q.eq("createdFromSession", s.sessionId),
+                )
                 .collect();
             // Newest-first within a session.
             notes.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
