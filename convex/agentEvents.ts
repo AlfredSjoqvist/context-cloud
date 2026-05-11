@@ -159,3 +159,32 @@ export const recent = query({
             .take(a.limit ?? 100);
     },
 });
+
+// Internal mutation called from convex/crons.ts daily. Prunes
+// agentEvents older than `retentionDays`. The hurdle-detection
+// algorithm only looks back ~10 events (PRECONTEXT_EVENTS) and forward
+// ~16 events (RESOLUTION_LOOKAHEAD), so anything older than the
+// retention window is safe to drop — events past that point are no
+// longer feeding any active analysis.
+//
+// agentEvents.ts uses ISO-string `ts` (not the number that events.ts
+// uses), so we filter against an ISO cutoff string via the by_ts index.
+export const pruneOlderThan = internalMutation({
+    args: {
+        retentionDays: v.number(),
+        maxDelete: v.optional(v.number()),
+    },
+    handler: async (ctx, a) => {
+        const cap = a.maxDelete ?? 1000;
+        const cutoffMs = Date.now() - a.retentionDays * 24 * 60 * 60 * 1000;
+        const cutoffIso = new Date(cutoffMs).toISOString();
+        const rows = await ctx.db
+            .query("agentEvents")
+            .withIndex("by_ts", (q) => q.lt("ts", cutoffIso))
+            .take(cap);
+        for (const r of rows) {
+            await ctx.db.delete(r._id);
+        }
+        return { deleted: rows.length, hitCap: rows.length === cap, cutoffIso };
+    },
+});

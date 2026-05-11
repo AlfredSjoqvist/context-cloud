@@ -29,4 +29,18 @@ crons.daily(
     },
 );
 
+// agentEvents: high-volume (every user_msg/agent_msg/tool_call from
+// remote MCP installs). Hurdle detection only looks back ~10 events
+// and forward ~16 events, so 14 days is more than enough headroom.
+// Daily at 04:30 UTC (after events prune, low traffic).
+crons.daily(
+    "prune-old-agent-events",
+    { hourUTC: 4, minuteUTC: 30 },
+    internal.agentEvents.pruneOlderThan,
+    {
+        retentionDays: 14,
+        maxDelete: 5000,
+    },
+);
+
 export default crons;
