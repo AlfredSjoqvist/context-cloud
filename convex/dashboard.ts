@@ -19,9 +19,13 @@ export const everything = internalQuery({
         ] = await Promise.all([
             ctx.db.query("users").collect(),
             ctx.db.query("agents").collect(),
-            ctx.db.query("files").collect(),
+            // files / noteFiles are bounded by the codebase size in
+            // practice (one row per indexed file path), but cap defensively
+            // to avoid runaway payloads if the agent ever scans a giant
+            // monorepo into a single Convex deployment.
+            ctx.db.query("files").take(2000),
             ctx.db.query("notes").collect(),
-            ctx.db.query("noteFiles").collect(),
+            ctx.db.query("noteFiles").take(5000),
             // Capped at 500 — prunedEdges grows monotonically once GC is
             // firing and the Replay timeline only needs the recent slice.
             ctx.db.query("prunedEdges").withIndex("by_pruned_at").order("desc").take(500),
