@@ -97,12 +97,10 @@ http.route({
     path: "/sync/injection",
     method: "POST",
     handler: wrap(async (ctx, body) => {
-        const id = await ctx.runMutation(internal.injections.recordInjection, body);
-        if (body.noteId && body.accepted) {
-            await ctx.runMutation(internal.notes.bumpInjectCount, {
-                noteId: body.noteId, at: body.ts,
-            });
-        }
+        // Single atomic mutation: record the injection and, if it was
+        // accepted against a known note, bump that note's injectCount and
+        // lastInjectedAt in the same Convex transaction.
+        const id = await ctx.runMutation(internal.injections.recordWithBump, body);
         return { id };
     }),
 });
@@ -120,12 +118,10 @@ http.route({
     path: "/sync/gc",
     method: "POST",
     handler: wrap(async (ctx, body) => {
-        const id = await ctx.runMutation(internal.gc.recordAction, body);
-        if (body.action === "prune" && body.noteId) {
-            await ctx.runMutation(internal.notes.invalidateNote, {
-                noteId: body.noteId, at: body.ts,
-            });
-        }
+        // Single atomic mutation: record the GC action and, if the action
+        // is a terminal one for the note (prune/invalidate), set the
+        // note's invalidatedAt in the same Convex transaction.
+        const id = await ctx.runMutation(internal.gc.recordWithMaybeInvalidate, body);
         return { id };
     }),
 });
