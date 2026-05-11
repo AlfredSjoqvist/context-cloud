@@ -90,6 +90,9 @@ Writes `<sibling demo-target>/.context-map/library/lodash/security-advisories.md
 
 | You want to … | Read |
 |---|---|
+| Set up from a clean clone (5 min) | [SETUP.md](SETUP.md) |
+| Run the 3-minute demo | [DEMO.md](DEMO.md) |
+| Pitch this in 90 seconds or 5 minutes | [PITCH-OUTLINE.md](PITCH-OUTLINE.md) |
 | Understand what shipped | [PRD.md](PRD.md) |
 | Operate Claude Code in this repo | [CLAUDE.md](CLAUDE.md) |
 | The NM SQLite schema | [SCHEMA.md](SCHEMA.md) |
@@ -133,6 +136,29 @@ A complete `.env.example` is at the root. Per-subsystem env vars:
 npm test                         # vitest at the repo root (Guardian + Convex helpers)
 cd docs-ingest && npm test       # vitest for the ingestion pipeline
 ```
+
+---
+
+## Evals
+
+A stdlib-only Python suite under [`evals/`](evals/) verifies behaviour on
+top of the unit tests. Every eval has a known-failing self-test
+documented at the top of its file (mutate the named source line → eval
+turns red).
+
+```bash
+bash evals/run_all.sh            # all evals; nonzero exit on any failure
+```
+
+Currently covers:
+- **NM hurdle scoring** — `HURDLE_THRESHOLD`, `SIGNAL_CLUSTER_GAP`, score-as-sum invariants in `nm_extract.expand_windows`.
+- **Guardian citation precision** — every numbered rule in `.context-map/library/**/*.md` is single-line and byte-citable by `verifyConstraintCite`.
+- **Library `applies_to` reachability** — every leaf has at least one glob that resolves under `mock_org/`; catches dead leaves Guardian would silently skip.
+- **NM GC** — decay → merge → prune cycle on a synthetic SQLite DB; covers `nm_gc.run_once` end to end.
+
+Add a new eval by following [`evals/README.md`](evals/README.md). The
+quality bar is non-negotiable: if you cannot make the eval fail by
+mutating the source under test, it is a placebo and gets deleted.
 
 ---
 
