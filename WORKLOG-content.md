@@ -8,7 +8,18 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 27 (current) — feature-flags + crypto leaves
+## Iteration 28 (current) — README + CHANGELOG refresh (24 leaves)
+
+**Goal**: Sync README leaf table and CHANGELOG count to reflect the
+six leaves added since the last refresh: file-uploads, email,
+payments, pii, feature-flags, crypto.
+
+**Plan**: One commit covering both docs. CHANGELOG count: 18 → 24,
+~104 → ~140 rules. README table gains 6 rows.
+
+---
+
+## Iteration 27 — feature-flags + crypto leaves
 
 **Goal**: Two more universally-applicable leaves: feature flags
 (default off, kill-switch, hot-path latency) and crypto (no DIY
@@ -483,6 +494,29 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 28
+
+- **035e822** `docs(readme,changelog): refresh leaf table to 24 leaves / ~140 rules`
+
+**Status snapshot at iteration 28**:
+- 24 hand-authored seed leaves under `.context-map/library/`,
+  ~140 rules total. Mirrored to 4 sub-orgs.
+- 6 stdlib-only Python evals (31 tests when bootstrapped). Each has
+  a documented self-test that proves it bites on the right mutation.
+- Three docs polished: SETUP.md, DEMO.md (3-min runbook),
+  PITCH-OUTLINE.md (90s/5min/Q&A). README and CHANGELOG synced.
+- One helper script (`seed-context-map.sh`) and one Makefile with
+  `eval / seed / agent / ui / demo / setup-check / clean-mirrors`.
+- All commits land on `main` after rebase. Workflow proven across
+  28 iterations, ~120 commits.
+
+**Left to do (next iterations, in priority):**
+1. Verify `make demo` end-to-end actually completes a Guardian cycle
+   without LLM keys (will surface real issues if any).
+2. Audit `make help` output against actual targets (drift check).
+3. Add an `evals/test_makefile_targets_resolve.py` that asserts every
+   target named in `make help` exists as a recipe.
 
 ### 2026-05-10 — Iteration 27
 
