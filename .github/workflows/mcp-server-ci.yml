@@ -37,14 +37,5 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Build
-        run: npm run build
-
-      - name: Unit + e2e tests (excludes live Convex test, which is opt-in)
-        run: npm test
-
-      - name: Install CLI smoke - codex print
-        run: node dist/install.js --editor codex --convex-url https://x.convex.cloud
-
-      - name: Install CLI smoke - claude-code-project hooks print
-        run: node dist/install.js --editor claude-code-project --with-hooks --print
+      - name: Functional check (build + tests + protocol smoke + install round-trip + Python hooks)
+        run: bash scripts/functional-check.sh
