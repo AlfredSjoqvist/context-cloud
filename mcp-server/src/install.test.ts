@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   mergeMcpServer,
   buildEntry,
+  buildNmEntry,
   buildClaudeCodeHooks,
   mergeClaudeCodeHooks,
   isHindsightCommand,
@@ -202,6 +203,27 @@ describe("mergeClaudeCodeHooks", () => {
     const once = mergeClaudeCodeHooks({});
     const twice = mergeClaudeCodeHooks(once);
     expect(twice).toEqual(once);
+  });
+});
+
+describe("buildNmEntry", () => {
+  it("uses a relative path when scriptRoot is null", () => {
+    expect(buildNmEntry(null)).toEqual({
+      command: "python3",
+      args: ["nm_server.py"],
+    });
+  });
+  it("uses an absolute path when scriptRoot is set", () => {
+    expect(buildNmEntry("/opt/hindsight")).toEqual({
+      command: "python3",
+      args: ["/opt/hindsight/nm_server.py"],
+    });
+  });
+  it("trims a trailing slash on scriptRoot", () => {
+    expect(buildNmEntry("/opt/hindsight/")).toEqual({
+      command: "python3",
+      args: ["/opt/hindsight/nm_server.py"],
+    });
   });
 });
 

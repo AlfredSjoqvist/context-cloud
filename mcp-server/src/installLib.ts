@@ -40,6 +40,19 @@ export function buildEntry(serverPath: string, convexUrl: string | null): Server
   };
 }
 
+/**
+ * Build an MCP server entry for the NM Python server. scriptRoot must be the
+ * absolute path to the context-cloud root (the directory containing
+ * nm_server.py). Project-scoped configs can pass null to use a relative path.
+ */
+export function buildNmEntry(scriptRoot: string | null): ServerEntry {
+  const target = scriptRoot ? `${scriptRoot.replace(/\/$/, "")}/nm_server.py` : "nm_server.py";
+  return {
+    command: "python3",
+    args: [target],
+  };
+}
+
 export function mergeMcpServer(
   config: Record<string, unknown>,
   name: string,

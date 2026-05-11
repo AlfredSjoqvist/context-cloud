@@ -16,7 +16,14 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntry, mergeMcpServer, mergeClaudeCodeHooks, findScriptRoot, renderCodexToml } from "./installLib.js";
+import {
+  buildEntry,
+  buildNmEntry,
+  mergeMcpServer,
+  mergeClaudeCodeHooks,
+  findScriptRoot,
+  renderCodexToml,
+} from "./installLib.js";
 
 type EditorKey = "cursor" | "claude-code" | "claude-code-project" | "codex";
 
@@ -26,6 +33,7 @@ type ParsedArgs = {
   serverPath: string | null;
   hindsightRoot: string | null;
   withHooks: boolean;
+  withNm: boolean;
   print: boolean;
   help: boolean;
 };
@@ -37,6 +45,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     serverPath: null,
     hindsightRoot: null,
     withHooks: false,
+    withNm: false,
     print: false,
     help: false,
   };
@@ -45,6 +54,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (a === "--help" || a === "-h") out.help = true;
     else if (a === "--print") out.print = true;
     else if (a === "--with-hooks") out.withHooks = true;
+    else if (a === "--with-nm") out.withNm = true;
     else if (a === "--editor") out.editor = argv[++i] as EditorKey;
     else if (a === "--convex-url") out.convexUrl = argv[++i] ?? null;
     else if (a === "--server-path") out.serverPath = argv[++i] ?? null;
@@ -111,6 +121,7 @@ Options:
   --convex-url <url>     Set HINDSIGHT_CONVEX_URL env on the MCP server entry.
   --server-path <path>   Override path to dist/index.js (defaults to this install's dist/index.js).
   --with-hooks           Also write Claude Code hooks (PreToolUse + PostToolUse + ...). Claude Code only.
+  --with-nm              Also wire the NM Python MCP server (nm_server.py) into the same config.
   --hindsight-root <p>   Override the context-cloud root used for absolute hook paths.
                          Only relevant for --editor claude-code (user-scope). Auto-detected
                          by default by walking up from this install's location.
@@ -169,6 +180,19 @@ function runInstall(): void {
     const snippet = renderCodexToml(serverPath, args.convexUrl);
     const target = mcpConfigPathFor(args.editor);
     process.stdout.write(`# Codex MCP entry — append to ${target}\n${snippet}`);
+    if (args.withNm) {
+      const nmRoot = args.hindsightRoot ?? findScriptRoot(dirname(fileURLToPath(import.meta.url)));
+      if (!nmRoot) {
+        process.stderr.write(
+          "error: --with-nm needs an absolute path to nm_server.py for Codex (user-scoped TOML).\n" +
+            "Pass --hindsight-root /absolute/path/to/context-cloud\n",
+        );
+        process.exit(3);
+      }
+      process.stdout.write(
+        `\n[mcp_servers.nm]\ncommand = "python3"\nargs = ["${nmRoot.replace(/\/$/, "")}/nm_server.py"]\n`,
+      );
+    }
     return;
   }
 
@@ -176,7 +200,25 @@ function runInstall(): void {
 
   const mcpTarget = mcpConfigPathFor(args.editor);
   const mcpCurrent = readJsonOrEmpty(mcpTarget);
-  const mcpMerged = mergeMcpServer(mcpCurrent, "hindsight", entry);
+  let mcpMerged = mergeMcpServer(mcpCurrent, "hindsight", entry);
+
+  if (args.withNm) {
+    // User-scoped configs need an absolute path; project-scope uses cwd-relative.
+    let nmRoot: string | null = null;
+    if (args.editor === "cursor" || args.editor === "claude-code") {
+      nmRoot = args.hindsightRoot ?? findScriptRoot(dirname(fileURLToPath(import.meta.url)));
+      if (!nmRoot) {
+        process.stderr.write(
+          "error: --with-nm against a user-scoped editor needs an absolute path to nm_server.py.\n" +
+            "Could not auto-detect the context-cloud root from this install location.\n" +
+            "Pass --hindsight-root /absolute/path/to/context-cloud\n",
+        );
+        process.exit(3);
+      }
+    }
+    mcpMerged = mergeMcpServer(mcpMerged, "nm", buildNmEntry(nmRoot));
+  }
+
   writeOrPrint(mcpTarget, mcpMerged, args.print, "MCP server config");
 
   if (args.withHooks) {
