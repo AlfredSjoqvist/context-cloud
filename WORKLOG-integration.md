@@ -45,7 +45,31 @@ Scope: `agent/`, `mcp-server/`, hook scripts, install CLI, related manifests.
 
 ---
 
-## Iteration 3 — planned
+## Iteration 3 — SHIPPED (commit `a836fc8`, pushed)
+
+**What shipped:** Fixed the Windows-only hardcoded paths in `.claude/settings.json`. The committed file had `python C:/Users/Alfred/Desktop/nozomio/nm_*.py` everywhere, so on macOS/Linux every hook silently no-op'd (Claude Code swallows the resulting file-not-found, and so does the script itself). Replaced with relative `python3 nm_capture.py` and `python3 nm_inject.py`. Hooks run with cwd=project root, so this resolves correctly.
+
+Also added `hooks/claude-code/README.md` documenting the hook contract (cwd, JSON-on-stdin, swallowed errors, Windows python alias).
+
+**Verification:**
+- `python3 --version` → 3.13.5
+- `echo '{"transcript_path":"/tmp/x.jsonl","tool_input":{"file_path":"agent/main.ts"}}' | python3 nm_inject.py` → exit 0
+- `echo '{"transcript_path":"/tmp/x.jsonl"}' | python3 nm_capture.py` → exit 0
+- `grep -E "python|C:/" .claude/settings.json` shows zero Windows paths.
+
+**Left in head:**
+- The install CLI doesn't yet write hooks. `hindsight-mcp-install --editor claude-code-project --with-hooks` would be the natural extension.
+- Cursor hooks: Cursor doesn't have the same PreToolUse/PostToolUse mechanism. It has `~/.cursor/rules/` and MCP. Worth thinking about whether NM-style injection makes sense via MCP `resources` instead of hooks.
+- Codex (OpenAI Codex CLI) hooks/config: not investigated yet.
+- The settings.json edit lights up NM capture for my own current session. Side effect: `nm.db` will start populating during this loop. Acceptable — fail-open by design, gitignored.
+
+**Surprising:** the entire NM capture/inject pipeline has been silently dead for any non-Windows developer since the original commit. The bug is invisible because Claude Code swallows hook errors and the scripts themselves swallow errors. Worth a permanent unit test that asserts the `.claude/settings.json` paths actually exist on disk — would have caught this years ago. Tracking as a follow-up.
+
+---
+
+## Iteration 4 — planned
+
+**Goal:** Extend the install CLI with a `--with-hooks` mode that generates the cross-platform Claude Code hooks block (the same one I just hand-committed) into a chosen `.claude/settings.json`. Idempotent: preserves any unrelated existing hooks; replaces only the NM-owned commands. Add unit tests for the merge + a `--print` path. Stretch: add a `lint-settings` mode that scans an existing `.claude/settings.json` for absolute-path commands and warns. Plus the permanent test asserting paths in the committed `.claude/settings.json` exist on disk.
 
 **Goal:** Hook scripts (PreToolUse / PostToolUse) for Claude Code + Cursor that fire NM capture and Guardian-finding injection at the right moments. Start with Claude Code since the repo already has `nm_capture.py` + `nm_inject.py` as the proven baseline — wrap them in tiny shell entrypoints so Claude Code's `settings.json` hooks point at something stable across machines. Then wire the new MCP server's tools into the injection flow.
 
@@ -72,3 +96,36 @@ Plan to surface a clean cross-platform path (no hardcoded `C:\Users\Alfred\...` 
 - Dirty working tree from other agents in `dashboard/`, `docs/`, `scripts/`, `package-lock.json` — left untouched; my commits scope only to in-scope files.
 - `.mcp.json` currently references a Windows path (`C:\\Users\\Alfred\\...`); known issue per `CLAUDE.md`. Will not edit `.mcp.json` this iteration (touches root config — needs Nicolas approval per CLAUDE.md).
 - Existing MCP server: `nm_server.py` (Python, FastMCP, NM-only). New server is complementary, not a replacement.
+
+---
+
+## Iterations 4–18 — compact log (continuous-mode after user said "lock in")
+
+User asked me to drop ScheduleWakeup and just keep shipping. Recorded as
+saved-feedback memory. Iteration commits, in order:
+
+| # | SHA      | What |
+|---|----------|------|
+| 4 | `c1bccb7` | `--with-hooks` for Claude Code (user-scope + project-scope); `settingsPaths.test.ts` regression guard scanning committed `.claude/settings.json` for .py paths that must exist on disk; pure helpers split into `installLib.ts`. |
+| 5 | `7655c49` | `hindsight-mcp-verify` bin — read-only ping of each Convex function reference the MCP server depends on. Catches backend schema drift. Verified live: findings:byStatus 243ms, notes:listActive 169ms. |
+| 6 | `b4f120e` | Real bug fix: user-scope `--with-hooks` was emitting relative paths but Claude Code runs user-scoped hooks with cwd=whatever-project-the-user-opened. Now auto-detects context-cloud root via `findScriptRoot`; `--hindsight-root` override. |
+| 7 | `4b44de2` | Stderr structured logger + `safe()` tool wrapper. boot / tool.ok / tool.fail breadcrumbs; HINDSIGHT_LOG=off|debug|info|warn|error. On throw returns `isError:true` content instead of opaque transport error. |
+| 8 | `dad1281` | Codex CLI support — `renderCodexToml()` emits a paste-ready `[mcp_servers.hindsight]` snippet (no auto-merge to avoid lossy TOML round-trip). `--with-hooks` against codex/cursor rejected with exit 2. |
+| 9 | `6ab47bb` | Two audit fixes: (a) `convex.ts` silently fell through to project demo deployment — now logs `warn convex.fallback_to_demo` on first client construction; (b) `get_notes_for_file` silently truncated at limit=500 — now appends a WARNING line when the cap is hit. |
+| 10 | `4de980b` | `server.e2e.test.ts` — subprocess MCP protocol test. initialize / tools/list / unknown-method shapes. 3 tests, ~213ms. Catches SDK upgrade regressions. |
+| 11 | `96de05e` | README — codex install example, environment-variables table covering `HINDSIGHT_CONVEX_URL` / `CONVEX_URL` / `HINDSIGHT_LOG`. |
+| 12 | `cbd1c0e` | Graceful error on malformed target JSON in install CLI. Exit codes documented: 0/1/2/3/4. |
+| 13 | `dc61acc` | NEEDS-NICOLAS — flagged that root `.mcp.json` still has the same Windows-path bug class I fixed for `.claude/settings.json` in `a836fc8`. CLAUDE.md lists `.mcp.json` in the ask-before-touching set, so it's deferred. |
+| 14 | `061b5f0` | `get_status` MCP tool — one-shot server-identity + active note count + findings broken down across all 7 statuses. Live test: 137 active notes, 6 findings. |
+| 15 | `e003461` | Per-tool timeout. `HINDSIGHT_TOOL_TIMEOUT_MS` (default 15s). `safe()` races handler against timer; on expiry returns `isError` with `tool.timeout`. Always clears handle in finally. |
+| 16 | `7b194de` | Format-helper tests (formatFindings / formatNotes / truncate). 12 new tests, 52/52 total. |
+| 17 | `15a1397` | Partial-failure tolerance in get_status. `Promise.allSettled` for per-status queries + try/catch for note query — a single slow/missing query renders as "ERR" instead of black-holing the whole status. |
+| 18 | `e4f8a47` | `server.live.test.ts` — gated on `HINDSIGHT_LIVE_CONVEX_URL`. Boots the server, runs initialize + `tools/call get_status`, asserts on server-identity line, deployment URL appearing, all 7 finding rows, "active notes" line. Skip when env unset (CI-safe). Live run passes in 692ms.
+
+**Cumulative test count:** 52 mcp-server unit tests, 3 e2e protocol tests, 1 opt-in live e2e test. 39 vitest passes per default run.
+
+**Cumulative bins:** `hindsight-mcp`, `hindsight-mcp-install`, `hindsight-mcp-verify` (all in `mcp-server/package.json`).
+
+**Cumulative editors supported by install CLI:** cursor / claude-code (user) / claude-code-project / codex (print-only TOML snippet).
+
+**Cumulative tools exposed by MCP server:** `list_findings`, `get_findings_for_file`, `list_notes`, `get_notes_for_file`, `get_status`.
