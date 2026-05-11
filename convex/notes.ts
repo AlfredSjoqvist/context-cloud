@@ -44,8 +44,9 @@ export const upsertEdge = internalMutation({
     handler: async (ctx, a) => {
         const existing = await ctx.db
             .query("noteFiles")
-            .withIndex("by_note", (q) => q.eq("noteId", a.noteId))
-            .filter((q) => q.eq(q.field("path"), a.path))
+            .withIndex("by_note_path", (q) =>
+                q.eq("noteId", a.noteId).eq("path", a.path),
+            )
             .first();
         if (existing) {
             await ctx.db.patch(existing._id, { weight: a.weight });
@@ -197,8 +198,9 @@ export const upsertNoteWithEdges = internalMutation({
             // noteFiles edge
             const existingEdge = await ctx.db
                 .query("noteFiles")
-                .withIndex("by_note", (q) => q.eq("noteId", a.note.noteId))
-                .filter((q) => q.eq(q.field("path"), e.path))
+                .withIndex("by_note_path", (q) =>
+                    q.eq("noteId", a.note.noteId).eq("path", e.path),
+                )
                 .first();
             const weight = e.weight ?? 1.0;
             if (existingEdge) {

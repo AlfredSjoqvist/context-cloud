@@ -267,7 +267,8 @@ export default defineSchema({
     weight: v.number(),
   })
     .index("by_note", ["noteId"])
-    .index("by_path", ["path"]),
+    .index("by_path", ["path"])
+    .index("by_note_path", ["noteId", "path"]),
 
   // historical edges that were pruned by GC — visualized on the Replay timeline
   prunedEdges: defineTable({
