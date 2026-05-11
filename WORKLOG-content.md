@@ -8,7 +8,22 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 33 (current) — re-audit + harden doc-link eval
+## Iteration 34 (current) — ai-agent leaf
+
+**Goal**: Add the LLM-trust-boundaries leaf — directly applicable to
+Hindsight's own Guardian / NM agents and to any LLM-using service.
+This is the leaf the project itself most needs to enforce.
+
+**Plan**:
+1. `.context-map/library/ai-agent/llm-trust-boundaries.md` — 7 rules
+   (prompt-injection delimiters, tool-output validation, token
+   ceilings, side-effect confirmation, structured-output mode,
+   trace logging, no secrets in prompts).
+2. README + CHANGELOG row updates: 25 leaves / ~150 rules.
+
+---
+
+## Iteration 33 — re-audit + harden doc-link eval
 
 **Goal**: Re-audit recent commits for any breakage. Discovered
 the doc-link eval (added iteration 32) false-positived on its own
@@ -567,6 +582,12 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 34
+
+- **e74e9b5** `feat(context-map): add ai-agent/llm-trust-boundaries leaf`
+- **bc6a862** `docs(readme,changelog): include ai-agent leaf — 25 leaves / ~150 rules`
+- Library: 25 leaves, ~150 rules. Mirror eval green across all 4 sub-orgs.
 
 ### 2026-05-10 — Iteration 33
 
