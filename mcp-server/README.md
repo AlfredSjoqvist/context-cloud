@@ -52,6 +52,9 @@ node dist/install.js --editor claude-code --with-hooks \
 # Claude Code (project-scope), MCP + hooks, dry-run first
 node dist/install.js --editor claude-code-project --with-hooks --print
 node dist/install.js --editor claude-code-project --with-hooks
+
+# Codex (TOML — prints a snippet to append to ~/.codex/config.toml)
+node dist/install.js --editor codex --convex-url https://your-deployment.convex.cloud
 ```
 
 The install is idempotent. For Claude Code, `--with-hooks` writes the
@@ -83,6 +86,16 @@ all 2 check(s) passed.
 
 Exits non-zero if a Convex query reference has drifted (i.e. the backend
 renamed a function) — usable from CI.
+
+## Environment
+
+| Variable | Effect |
+|---|---|
+| `HINDSIGHT_CONVEX_URL` | Preferred. Points at the `*.convex.cloud` deployment to read from. |
+| `CONVEX_URL` | Fallback if `HINDSIGHT_CONVEX_URL` is unset (convenience for projects with an existing Convex env). |
+| `HINDSIGHT_LOG` | `off` \| `debug` \| `info` (default) \| `warn` \| `error`. Controls stderr logging — stdout is reserved for JSON-RPC. |
+
+If neither Convex env var is set, the server falls back to the project's own demo deployment and logs a loud warning on first tool call. Set `HINDSIGHT_CONVEX_URL` so you stop reading the demo's data.
 
 ## Manual config
 
