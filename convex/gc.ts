@@ -136,6 +136,19 @@ export const recent = query({
     },
 });
 
+// Recent run summaries (gcRuns, not gcActions). Powers the GC tab's
+// "history" timeline showing the past N GC passes with their stats.
+export const recentRuns = query({
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, { limit }) => {
+        return await ctx.db
+            .query("gcRuns")
+            .withIndex("by_ts")
+            .order("desc")
+            .take(limit ?? 30);
+    },
+});
+
 // All gcActions for a specific GC run, ordered by ts ascending. Lets
 // the Replay timeline step through the actions GC took during one
 // sweep without filtering a global feed client-side.
