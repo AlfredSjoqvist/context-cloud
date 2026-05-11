@@ -8,7 +8,25 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 12 (current) — wire seed library to demo target + drift eval
+## Iteration 13 (current) — mirror helper + cover all sub-orgs
+
+**Goal**: Replace the manual `mkdir && cp -R` from SETUP step 4 with a
+single helper command, and bootstrap the seed library into every
+`mock_org/` sub-org so Guardian fires regardless of which sub-org is
+set as `DEMO_REPO_LOCAL_PATH`.
+
+**Plan**:
+1. `seed-context-map.sh` — root-level shell helper. `bash seed-context-map.sh`
+   mirrors to all sub-orgs with a `src/` dir; `bash seed-context-map.sh <name>`
+   targets one.
+2. SETUP.md + DEMO.md — replace the `mkdir && cp -R` snippet with the helper.
+3. Run the helper, commit the new mirrors for connectors,
+   memory-graph, runtime-orchestrator.
+4. Verify mirror eval passes across all four sub-orgs.
+
+---
+
+## Iteration 12 — wire seed library to demo target + drift eval
 
 **Goal**: CRITICAL gap discovered — Guardian reads constraints from
 `<DEMO_REPO_LOCAL_PATH>/.context-map/library/`, not from the repo root.
@@ -241,6 +259,24 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 13
+
+- **0d6882d** `feat(demo): add seed-context-map.sh helper + reference it from SETUP/DEMO`
+- **dd883d4** `chore(demo): mirror seed library to remaining mock_org sub-orgs`
+  (connectors, memory-graph, runtime-orchestrator)
+- All 4 sub-orgs now have a mirrored `.context-map/library/` matching
+  the canonical seed. Eval suite still 6 evals all green.
+
+**Left to do (next iterations, in priority):**
+1. Code-shape eval — for each leaf, grep at least one keyword from
+   each rule body against the resolved applies_to files.
+2. README — link the mirror script + the new wiring step in
+   "Where to look" or "Quickstart".
+3. CHANGELOG.md / RELEASE-NOTES.md so a sponsor can see what shipped
+   without reading commits (root-level, in scope).
+4. Q&A practice run — read PITCH-OUTLINE.md cold and answer each
+   question out loud; rewrite anything that requires a footnote.
 
 ### 2026-05-10 — Iteration 12
 
