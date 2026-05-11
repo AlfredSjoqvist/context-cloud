@@ -5,7 +5,8 @@
   "description": "Hindsight MCP server — exposes Guardian findings + NM notes to editors (Cursor / Claude Code / Codex).",
   "type": "module",
   "bin": {
-    "hindsight-mcp": "./dist/index.js"
+    "hindsight-mcp": "./dist/index.js",
+    "hindsight-mcp-install": "./dist/install.js"
   },
   "files": [
     "dist",
