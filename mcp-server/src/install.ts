@@ -227,6 +227,7 @@ function runInstall(): void {
         `\n[mcp_servers.nm]\ncommand = "python3"\nargs = ["${nmRoot.replace(/\/$/, "")}/nm_server.py"]\n`,
       );
     }
+    process.stderr.write(`\nPaste the block(s) above into ${target}, then restart Codex.\n`);
     return;
   }
 
