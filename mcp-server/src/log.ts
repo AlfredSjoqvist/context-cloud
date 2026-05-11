@@ -49,10 +49,21 @@ export type CallResult = {
   isError?: boolean;
 };
 
+function toolTimeoutMs(): number {
+  const raw = process.env.HINDSIGHT_TOOL_TIMEOUT_MS;
+  if (!raw) return 15_000;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 15_000;
+}
+
 /**
  * Wrap an MCP tool handler with timing + structured error capture. On throw, returns a
  * tool result with `isError: true` and the message — the editor sees the failure rather
  * than an opaque transport error, and the cause lands on stderr for debugging.
+ *
+ * Also enforces a per-call timeout (HINDSIGHT_TOOL_TIMEOUT_MS, default 15s). A slow
+ * Convex query won't hang the editor indefinitely — instead it returns isError with
+ * "tool.timeout" so the agent / user can retry or move on.
  */
 export async function safe(
   name: string,
@@ -61,8 +72,16 @@ export async function safe(
 ): Promise<CallResult> {
   const t0 = Date.now();
   log.debug("tool.call", { name, args });
+  const timeoutMs = toolTimeoutMs();
+  let timeoutHandle: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(
+      () => reject(new Error(`tool.timeout after ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+  });
   try {
-    const out = await fn();
+    const out = await Promise.race([fn(), timeoutPromise]);
     log.info("tool.ok", { name, ms: Date.now() - t0 });
     return out;
   } catch (err) {
@@ -72,5 +91,7 @@ export async function safe(
       content: [{ type: "text", text: `error calling ${name}: ${msg}` }],
       isError: true,
     };
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
   }
 }

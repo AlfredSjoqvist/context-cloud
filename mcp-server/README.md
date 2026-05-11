@@ -94,6 +94,7 @@ renamed a function) — usable from CI.
 | `HINDSIGHT_CONVEX_URL` | Preferred. Points at the `*.convex.cloud` deployment to read from. |
 | `CONVEX_URL` | Fallback if `HINDSIGHT_CONVEX_URL` is unset (convenience for projects with an existing Convex env). |
 | `HINDSIGHT_LOG` | `off` \| `debug` \| `info` (default) \| `warn` \| `error`. Controls stderr logging — stdout is reserved for JSON-RPC. |
+| `HINDSIGHT_TOOL_TIMEOUT_MS` | Per-tool-call timeout in ms. Default `15000`. A slow Convex query returns `isError` with `tool.timeout` instead of hanging the editor. |
 
 If neither Convex env var is set, the server falls back to the project's own demo deployment and logs a loud warning on first tool call. Set `HINDSIGHT_CONVEX_URL` so you stop reading the demo's data.
 

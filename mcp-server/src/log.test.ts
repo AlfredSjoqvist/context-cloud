@@ -76,4 +76,16 @@ describe("safe", () => {
     await safe("t", {}, async () => ({ content: [{ type: "text" as const, text: "ok" }] }));
     expect(stderr).toMatch(/ms=\d+/);
   });
+
+  it("times out a slow handler and returns isError", async () => {
+    process.env.HINDSIGHT_TOOL_TIMEOUT_MS = "50";
+    const out = await safe("slow_tool", {}, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return { content: [{ type: "text" as const, text: "should not reach" }] };
+    });
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toContain("tool.timeout after 50ms");
+    expect(stderr).toContain("tool.fail");
+    delete process.env.HINDSIGHT_TOOL_TIMEOUT_MS;
+  });
 });
