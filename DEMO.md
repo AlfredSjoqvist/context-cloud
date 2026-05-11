@@ -42,6 +42,10 @@ the demo gods turn against you.
   - Mock-mode flags in env: `USE_MOCK_LLM=1 USE_MOCK_DEVIN=1 SKIP_NIA=1`
 - `DEMO_REPO_LOCAL_PATH=$(pwd)/mock_org/agent-gateway` so Guardian scans the
   in-repo demo target instead of an external clone.
+- The seed constraint library copied into the demo target (Guardian reads
+  `<DEMO_REPO_LOCAL_PATH>/.context-map/library/`, not the repo root):
+  `mkdir -p mock_org/agent-gateway/.context-map && cp -R .context-map/library mock_org/agent-gateway/.context-map/`.
+  See [SETUP.md step 4](SETUP.md#4-wire-the-seed-constraint-library-into-the-demo-target).
 - **For the T+2:00 NM beat**: Claude Code wired to the NM MCP per
   [README.md](README.md#nm-session-capture-python-half). If you don't have
   this set up, that beat falls back to the legacy NM dashboard (commands

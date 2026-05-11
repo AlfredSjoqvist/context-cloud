@@ -67,15 +67,32 @@ If this passes, your local checkout is structurally healthy:
 bash evals/run_all.sh
 ```
 
-Expected: `evals: passed=2 failed=0` (17 tests across two files).
-
-If it fails on `test_citation_precision`, a `.context-map/library/` leaf
-got into a state Guardian can't cite. Open the failing leaf and fix the
-line the eval names; do not silence the test.
+Expected: `evals: passed=N failed=0`. If it fails on
+`test_citation_precision`, a `.context-map/library/` leaf got into a
+state Guardian can't cite. Open the failing leaf and fix the line the
+eval names; do not silence the test.
 
 ---
 
-## 4. First Guardian cycle
+## 4. Wire the seed constraint library into the demo target
+
+Guardian reads constraint markdown from inside its `DEMO_REPO_LOCAL_PATH`
+(see [`agent/main.ts`](agent/main.ts) → `filesystemRoot`). The canonical
+seed library lives at the repo root; this step copies it into the demo
+target so Guardian can find it on the next cycle.
+
+```bash
+mkdir -p mock_org/agent-gateway/.context-map
+cp -R .context-map/library mock_org/agent-gateway/.context-map/
+```
+
+Re-run `bash evals/run_all.sh` after the copy — both copies must remain
+in sync for the eval suite to keep passing. (If you edit one, re-run this
+step to mirror.)
+
+---
+
+## 5. First Guardian cycle
 
 ```bash
 DEMO_REPO_LOCAL_PATH="$(pwd)/mock_org/agent-gateway" \
@@ -106,18 +123,18 @@ If you see `convex: connection refused`, terminal-1 stopped running
 
 ---
 
-## 5. Optional — Hindsight UI
+## 6. Optional — Hindsight UI
 
 ```bash
 cd ui && npm run dev        # → http://localhost:3000
 ```
 
-Open the URL, click **Activity** to see the cycle from step 4 reflected
+Open the URL, click **Activity** to see the cycle from step 5 reflected
 live (Convex push). For the demo flow, follow [DEMO.md](DEMO.md).
 
 ---
 
-## 6. Optional — NM (Python half)
+## 7. Optional — NM (Python half)
 
 NM only matters if you want the "inject on file touch" beat from
 [DEMO.md](DEMO.md#t200--nm-half--inject-on-file-touch). It requires
@@ -128,16 +145,20 @@ the project end-to-end.
 
 ---
 
-## What to do if step 4 still fails
+## What to do if step 5 still fails
 
 1. `bash evals/run_all.sh` — does the eval suite still pass? If no, your
    working tree is dirty in a way that breaks Guardian's contract; fix
    the named leaf before chasing a Guardian error.
-2. `git status` — uncommitted changes outside `convex/`, `agent/`, etc.
+2. Confirm step 4 ran and the demo target now has the seed library:
+   `ls mock_org/agent-gateway/.context-map/library` should list the
+   leaves (auth, secrets, rate-limit, db, observability, errors,
+   webhooks, sandbox, validation, supply-chain, state).
+3. `git status` — uncommitted changes outside `convex/`, `agent/`, etc.
    can break the build; stash and retry.
-3. `git log --oneline -5` — confirm you're on a recent `origin/main`.
-4. Open an issue at <https://github.com/AlfredSjoqvist/context-cloud/issues>
-   with the full output of step 4 and the `node --version` / `python3
+4. `git log --oneline -5` — confirm you're on a recent `origin/main`.
+5. Open an issue at <https://github.com/AlfredSjoqvist/context-cloud/issues>
+   with the full output of step 5 and the `node --version` / `python3
    --version` from step 0.
 
-After step 4 succeeds, move to [DEMO.md](DEMO.md) for the pitch flow.
+After step 5 succeeds, move to [DEMO.md](DEMO.md) for the pitch flow.
