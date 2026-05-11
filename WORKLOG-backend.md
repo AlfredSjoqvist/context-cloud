@@ -20,3 +20,16 @@ Scope: `convex/` (schema, queries, mutations, actions, http.ts, crons.ts, _gener
 **CONTRACT CHANGE (for frontend agents):**
 - ADDED field: `docsIngestRuns` (array of docsIngestRuns rows). Same data as `docsLeaves`.
 - DEPRECATED field: `docsLeaves` — keeps working for backward compat with V1 mock dashboard. Will be removed once V1 is decommissioned or migrated to the canonical name. No removal date set.
+
+**Outcome:** Code shipped to `main` at commit `4d0c6c0`. Convex prod deploy to `colorless-porcupine-926` is BLOCKED — see `NEEDS-NICOLAS.md` for the auth/deploy-path question. V2 dashboard will continue to render "No ingestion runs yet" until prod has my change.
+
+**Verification status:**
+- Pre-deploy: confirmed bug by curling `https://colorless-porcupine-926.convex.site/dashboard/everything` — returned keys did NOT include `docsIngestRuns`, only `docsLeaves`.
+- Post-deploy: NOT YET RUN (blocked). Re-curl needed once deploy lands.
+
+**Next iteration candidates (in priority):**
+1. Audit `/dashboard/everything` for other contract drift the V2 dashboard expects but the backend doesn't return. Cross-reference every field read in `mock/v2.js` against `convex/dashboard.ts` return shape.
+2. Verify `convex/crons.ts` exists and registers cron jobs for Guardian (60s) + GC (15min). If missing, that's why the always-on loop isn't firing — propose schedule.
+3. Inventory external integrations: which Convex actions actually call OpenAI / Nia / GitHub / Devin? Are credentials present and the calls real? Audit for stub paths that silently return fake data.
+4. Schema review: are there indexes missing for the hot reads in `dashboard.everything`?
+
