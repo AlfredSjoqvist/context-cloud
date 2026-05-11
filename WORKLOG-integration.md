@@ -222,3 +222,39 @@ saved-feedback memory. Iteration commits, in order:
 | Opt-in live tests | 1 |
 | CI workflows | 1 |
 | Examples | 1 |
+
+---
+
+## Iterations 44–53 — functional verification + cleanup
+
+User directive: "free reign … make sure that this is fully functional."
+
+| # | SHA       | What |
+|---|-----------|------|
+| 44 | `60c6bfa` | get_status surfaces rejected sub-query reasons via `log.warn`. |
+| 45 | `3b00109` | Guard against undefined `finalOutput` in OAI Agents recipe. |
+| 46 | `63c145b` | --uninstall on empty dir doesn't create stub files. |
+| 47 | `c34717c` | Integration tests for install ↔ uninstall round-trip (3 tests). |
+| 48 | `fc9728f` | settingsPaths test skips gracefully when standalone (no parent .claude/). |
+| 49 | `d154a6c` | --uninstall cleans up empty leftover files (deletes empty .mcp.json and .claude/). |
+| 50 | `f26e609` | postbuild chmod so dist/*.js are directly executable. |
+| 51 | `ded3e5c` | `scripts/functional-check.sh` — 8-step end-to-end smoke (build, tests, protocol, install round-trip, hooks). |
+| 52 | `6bde613` | CI workflow uses functional-check.sh instead of ad-hoc inline smoke steps. |
+| 53 | _(this commit)_ | Worklog refresh. |
+
+**Verified functional end-to-end against the live deployment:**
+
+```
+$ HINDSIGHT_CONVEX_URL=https://colorless-porcupine-926.convex.cloud bash scripts/functional-check.sh
+PASS: build + chmod
+PASS: tests (Tests 72 passed)
+PASS: server protocol (1 server, 5 tools, 8 resources)
+PASS: live get_status against https://colorless-porcupine-926.convex.cloud
+PASS: install --print for 3 editors
+PASS: install → uninstall round-trip (no leftovers)
+PASS: verify CLI (4/4 checks green)
+PASS: Python hooks (nm_capture.py, nm_inject.py) run cleanly
+All checks passed.
+```
+
+Same script with `HINDSIGHT_CONVEX_URL` unset: 6 PASS + 2 SKIP. CI-safe.
