@@ -20,10 +20,11 @@ export function registerStatusTool(server: McpServer): void {
     {
       title: "Hindsight server + data status",
       description:
-        "One-shot health + summary. Returns the Convex URL the server is reading from, " +
-        "whether it's the default demo deployment, server version, and total counts of " +
-        "active notes + findings by lifecycle status. Cheap (one query per status); a fast " +
-        "way for an agent to ask 'is Hindsight live and what does it know?'",
+        "One-shot health + summary. Returns the Convex URL the server is reading from " +
+        "(and whether it's the default demo deployment), the server version, the latest " +
+        "Guardian cycle, the active-note count, and findings broken down across all 7 " +
+        "lifecycle statuses. Cheap (≈10 parallel queries with allSettled — a single " +
+        "slow query degrades to 'ERR' instead of black-holing the whole status).",
       inputSchema: {},
     },
     async () =>
