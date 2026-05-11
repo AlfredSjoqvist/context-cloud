@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 19 (current) — re-audit recent commits
+## Iteration 20 (current) — DEMO.md stranger re-walk
+
+**Goal**: Read DEMO.md cold, find every "you have to know X to follow
+this" and fix it. Five fixes shipped in one commit.
+
+**Findings**:
+1. Pre-flight didn't tell you the expected pass count (now `passed=6`).
+2. `<repo>` placeholder appeared without explanation.
+3. T+0:00 buried `make agent` behind the env-prefixed line.
+4. T+1:30 said "open in your editor" with no concrete command.
+5. "Things that go wrong" missed the seed-mirror failure modes.
+6. Path B told you to `git grep` for a Vercel URL that doesn't exist
+   anywhere in the repo.
+7. "Verifying this runbook" claimed 2 evals — actually 6.
+
+---
+
+## Iteration 19 — re-audit recent commits
 
 **Goal**: Per loop instructions priority 1, "re-audit your own recent
 commits — find a bug, a weak test, a missing edge case." Hunt
@@ -354,6 +371,19 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 20
+
+- **d475818** `docs(demo): five fixes from a stranger-readability re-walk`
+- Seven runbook fixes consolidated into one commit (atomic for the
+  reader: it's all DEMO.md polish, no behavior change).
+
+**Left to do (next iterations, in priority):**
+1. Mirror the subTest pattern to test_citation_precision +
+   test_applies_to_globs_resolve so they too report all bad leaves.
+2. caching leaf + CHANGELOG refresh.
+3. Audit for rule overlap and document the intentional duplication.
+4. SETUP.md re-walk.
 
 ### 2026-05-10 — Iteration 19
 
