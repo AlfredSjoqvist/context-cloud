@@ -61,7 +61,7 @@ consolidating.
 
 ### Added — eval suite
 
-6 stdlib-only Python evals under [`evals/`](evals/), 31 tests when the
+7 stdlib-only Python evals under [`evals/`](evals/), 34 tests when the
 mirror is bootstrapped (one suite skips when no mirror exists). Every
 eval has a documented self-test that breaks the source under verification.
 
@@ -73,6 +73,7 @@ eval has a documented self-test that breaks the source under verification.
 | `test_leaf_metadata_consistency.py` | library == parent dir, chunk_id format, rule count match, source_uri | library mismatch → 3 of 4 fail |
 | `test_gc_pruning.py` | NM GC: decay → merge → prune cascade on synthetic SQLite | PRUNE_THRESHOLD = 0.0 → fail |
 | `test_seed_library_mirror.py` | every bootstrapped mirror is byte-identical to canonical | append a line → fail |
+| `test_makefile_targets_resolve.py` | every help-listed target exists, every recipe is documented | add ghost help line → fail |
 
 ```bash
 bash evals/run_all.sh                # nonzero exit on any failure

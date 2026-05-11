@@ -150,13 +150,14 @@ turns red).
 bash evals/run_all.sh            # all evals; nonzero exit on any failure
 ```
 
-Currently covers:
+Currently covers (7 evals, 34 tests when bootstrapped):
 - **NM hurdle scoring** — `HURDLE_THRESHOLD`, `SIGNAL_CLUSTER_GAP`, score-as-sum invariants in `nm_extract.expand_windows`.
 - **Guardian citation precision** — every numbered rule in `.context-map/library/**/*.md` is single-line and byte-citable by `verifyConstraintCite`.
 - **Library `applies_to` reachability** — every leaf has at least one glob that resolves under `mock_org/`; catches dead leaves Guardian would silently skip.
 - **Leaf metadata consistency** — `library:` matches parent dir, `chunk_id` follows `<library>.<topic>.v<n>`, frontmatter rule count matches body rule count.
 - **Seed library mirror** — every bootstrapped `mock_org/<sub>/.context-map/library/` is byte-identical to the canonical seed at the repo root; catches drift after `seed-context-map.sh` is forgotten.
 - **NM GC** — decay → merge → prune cycle on a synthetic SQLite DB; covers `nm_gc.run_once` end to end.
+- **Makefile help/target sync** — every `make <target>` named in `make help` exists as a recipe (and vice versa); catches docs-vs-code drift in the Makefile.
 
 Add a new eval by following [`evals/README.md`](evals/README.md). The
 quality bar is non-negotiable: if you cannot make the eval fail by
