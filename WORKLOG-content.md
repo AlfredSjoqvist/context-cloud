@@ -8,7 +8,23 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 6 (current) — globs reachability eval + pitch outline
+## Iteration 7 (current) — NM GC pruning eval
+
+**Goal**: The third agent (GC) is the least visible at demo time but
+the most load-bearing for the long-term pitch ("memory you never
+forget becomes memory you can't trust"). Pin its decay → merge →
+prune behaviour with an eval that runs in CI.
+
+**Plan**:
+1. `evals/test_gc_pruning.py` — controls `NM_DB` env var to write to
+   a temp SQLite, inserts synthetic notes with backdated timestamps,
+   exercises `nm_gc.{decay,merge,prune,run_once}`.
+2. Self-test: set `PRUNE_THRESHOLD = 0.0` in nm_gc.py → eval fails.
+3. Verify full suite stays green.
+
+---
+
+## Iteration 6 — globs reachability eval + pitch outline
 
 **Goal**: Close two of the largest remaining gaps in priority order:
 (a) the eval that catches stale `applies_to` globs (Guardian silently
@@ -135,6 +151,29 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 7
+
+- **1fc7697** `test(evals): add NM GC pruning eval covering decay/merge/prune cycle`
+  - 7 tests on synthetic SQLite (NM_DB env var). Self-test verified.
+- Eval suite now: 4 evals, 26 tests. All three agents covered:
+  Guardian (citation), NM hurdle scoring, NM GC, plus library
+  reachability.
+
+**Surprise**: `run_once` ran decay then prune in one cycle, so a 1.0
+importance + 30d-idle note decays to ~0.052 and prunes in the same
+call. Test now asserts the cascade explicitly (2 prunes, not 1).
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV; tighten any beat that reads
+   as "you have to know X."
+2. Add constraints for `mock_org/connectors/`, `mock_org/runtime-orchestrator/`,
+   `mock_org/control-plane/`, `mock_org/memory-graph/` so coverage isn't
+   100% inside agent-gateway.
+3. Code-cite eval mirror — verify the hand-authored constraints' rules
+   actually reference real code shapes in mock_org (not just file paths).
+4. README badges + an "evals" section linking `bash evals/run_all.sh`
+   so reviewers see green-on-clone.
 
 ### 2026-05-10 — Iteration 6
 
