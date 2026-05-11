@@ -10,7 +10,7 @@
 // All timestamps are computed at seed time as (now - offsetMin * 60_000),
 // so the data ages naturally relative to whenever this is run.
 
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 const NOW = () => Date.now();
 const isoAt = (msAgo: number) => new Date(NOW() - msAgo).toISOString();
@@ -516,7 +516,10 @@ const DEMO_GUARDIAN_EVENTS = [
 ];
 
 // ─── seedAll mutation ────────────────────────────
-export const seedAll = mutation({
+// Internal so it can't be called by the public API. Operators run it via
+// `npx convex run seed:seedAll` against a specific deployment; that path
+// still works because npx convex run can invoke internal functions.
+export const seedAll = internalMutation({
     args: {},
     handler: async (ctx) => {
         // wipe volatile + identity tables for idempotent re-seed
