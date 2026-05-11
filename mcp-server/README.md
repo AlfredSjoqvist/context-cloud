@@ -37,9 +37,57 @@ Or run from source:
 HINDSIGHT_CONVEX_URL=https://your-deployment.convex.cloud npm run dev
 ```
 
-## Wire into editors
+## Wire into editors — install CLI
 
-Add to `~/.cursor/mcp.json`, `~/.codex/config.toml`, or whatever your editor uses:
+After `npm run build`:
+
+```bash
+# Cursor (MCP only — Cursor has no PreToolUse/PostToolUse hook surface)
+node dist/install.js --editor cursor --convex-url https://your-deployment.convex.cloud
+
+# Claude Code (user-scope), MCP + hooks
+node dist/install.js --editor claude-code --with-hooks \
+  --convex-url https://your-deployment.convex.cloud
+
+# Claude Code (project-scope), MCP + hooks, dry-run first
+node dist/install.js --editor claude-code-project --with-hooks --print
+node dist/install.js --editor claude-code-project --with-hooks
+```
+
+The install is idempotent. For Claude Code, `--with-hooks` writes the
+PreToolUse/PostToolUse/UserPromptSubmit/Stop/SubagentStop entries that wire
+`nm_capture.py` and `nm_inject.py` into the editor. Any pre-existing hooks
+whose commands reference our scripts (including stale absolute paths) get
+stripped before fresh entries are appended; unrelated hooks are preserved.
+
+## Verify the install
+
+After installing, sanity-check the Convex side without booting the MCP server:
+
+```bash
+HINDSIGHT_CONVEX_URL=https://your-deployment.convex.cloud node dist/verify.js
+```
+
+Output:
+
+```
+hindsight-mcp-verify
+  convex: https://your-deployment.convex.cloud
+  timeout: 10000ms
+
+  ✓ findings:byStatus              243ms  (rows=1)
+  ✓ notes:listActive               169ms  (rows=1)
+
+all 2 check(s) passed.
+```
+
+Exits non-zero if a Convex query reference has drifted (i.e. the backend
+renamed a function) — usable from CI.
+
+## Manual config
+
+If you'd rather not use the CLI, paste this into `~/.cursor/mcp.json` or the
+`mcpServers` key of `~/.claude.json`:
 
 ```json
 {
@@ -54,5 +102,3 @@ Add to `~/.cursor/mcp.json`, `~/.codex/config.toml`, or whatever your editor use
   }
 }
 ```
-
-A cross-editor install CLI is on the integration roadmap.
