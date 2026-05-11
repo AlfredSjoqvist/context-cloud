@@ -8,7 +8,23 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 25 (current) — SETUP.md stranger re-walk
+## Iteration 26 (current) — payments + pii leaves
+
+**Goal**: Two compliance-grade leaves: payments (idempotency, integer
+money, PCI hygiene, webhook signature dance) and PII (minimisation,
+KMS encryption, deletion cascade, audit log, opaque IDs, export
+rate-limit). Each paired with a violating mock_org stub.
+
+**Plan**:
+1. payments leaf (6 rules) + mock_org/agent-gateway/src/api/payment.ts
+   stub (float amount + raw PAN field).
+2. pii leaf (6 rules) + mock_org/agent-gateway/src/api/user.ts stub
+   (sequential id in URL).
+3. Mirror via `make seed`. Commit each leaf+stub pair.
+
+---
+
+## Iteration 25 — SETUP.md stranger re-walk
 
 **Goal**: Mirror the DEMO.md polish pass for SETUP.md. Read cold,
 find every "you have to know X to follow this", fix it.
@@ -452,6 +468,22 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 26
+
+- **b1b91af** `feat(context-map): add payments/idempotency-and-money leaf + demo stub`
+- **f814ce5** `feat(context-map): add pii/minimisation-and-deletion leaf + demo stub`
+- Library: 22 leaves, ~128 rules. Each leaf paired with a stub
+  violating one of its rules; reachability eval green across all.
+
+**Left to do (next iterations, in priority):**
+1. CHANGELOG / README refresh: 22-leaf table.
+2. Add a leaf for `feature-flags` (config in code, kill-switch
+   discipline, no-secret-data-in-flag-rules, drift-detection).
+3. Add a leaf for `crypto` (no DIY primitives, no MD5/SHA1 for
+   security, KDF for passwords, AEAD over CBC).
+4. Verify `make demo` end-to-end runs without LLM keys (uses mock
+   mode flags) — proves the helper recipe holds.
 
 ### 2026-05-10 — Iteration 25
 
