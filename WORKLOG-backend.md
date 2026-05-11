@@ -80,3 +80,66 @@ Scope: `convex/` (schema, queries, mutations, actions, http.ts, crons.ts, _gener
 
 **Always-on agent state:** As of this iteration, dev has no cycles or gcActions in the last 29 hours. The agents in `agent/` (integration agent's scope) aren't being scheduled to fire against dev. Out of my scope to fix, but flagging because the dashboard will read stale data.
 
+---
+
+## Iteration 5 — Reseed dev so the Libraries panel has data
+
+**What:** V2 dashboard sidebar showed "Libraries: 0" because the `libraries` table was empty on dev despite seed code existing. Ran `npx convex run seed:seedAll` (the now-internal mutation) against dev. Result: libraries count went 0 → 9. Sessions still 0 because seed doesn't populate sessions (those come from `/sync/session` calls from the agent runtime).
+
+---
+
+## Iteration 6 — `by_created_from_session` index for sessions.listWithNotes
+
+**Root cause:** The `/dashboard/sessions-with-notes` endpoint is polled every 60s by V2 dashboard. Its inner loop ran a full notes-table scan per session via `.filter(eq(field("createdFromSession"), s.sessionId))` — O(sessions × notes) per request.
+
+**Plan:** Add `notes.by_created_from_session` index; rewrite the lookup to use `.withIndex(...)`.
+
+**Outcome:** Shipped at commit `99c9450`. Index added (one-time backfill). Re-curl returns same shape. O(N×M) → O(N log M).
+
+---
+
+## Iteration 7 — `/sync/note` atomicity (single-transaction note + edges)
+
+**Root cause:** The handler called three separate `runMutation` calls (upsertNote → for each edge: upsertFile + upsertEdge). Each is its own Convex transaction. A crash between calls could leave a note without its edges, or orphan a file row.
+
+**Plan:** New internal mutation `notes.upsertNoteWithEdges({note, edges})` does all writes in one Convex transaction. `/sync/note` now calls just that one mutation. Public POST signature unchanged.
+
+**Outcome:** Shipped at commit `3fb1dcd`. Smoke-tested end-to-end on dev: POST returned ok with id.
+
+---
+
+## Iteration 8 — Race-safe `cycles.openNextCycle`
+
+**Root cause:** `agent/cycle.ts` calls `cycles.nextCycleNumber()` then `cycles.openCycle({cycleNumber:N})` as two separate Convex round-trips. Concurrent calls could both read the same "next number" then both insert duplicate cycleNumber rows.
+
+**Plan:** New atomic `cycles.openNextCycle({})` that reads the latest and inserts the next in one transaction. Existing `nextCycleNumber` + `openCycle` stay so agent/ keeps working until the integration agent migrates.
+
+**Outcome:** Shipped at commit `2db38a6`. Returned `cycleNumber: 52` against dev (previous was 51).
+
+---
+
+## Iteration 9 — `/sync/injection` and `/sync/gc` atomicity
+
+**Root cause:** Same pattern as iteration 7. Both handlers called two `runMutation` calls per request:
+- `/sync/injection`: `recordInjection` → optional `bumpInjectCount` on the affected note
+- `/sync/gc`: `recordAction` → optional `invalidateNote` on the affected note
+
+Crash between calls left the note's `injectCount` / `invalidatedAt` out of sync with the corresponding table row.
+
+**Plan:** New atomic mutations:
+- `injections.recordWithBump` — insert injection + (if accepted with a known noteId) bump the note's injectCount + lastInjectedAt in one transaction.
+- `gc.recordWithMaybeInvalidate` — insert gcAction + (if action is `prune` OR `invalidate`) set the note's invalidatedAt in one transaction. Also widens the trigger to fire on both terminal-action types (was prune-only before; "invalidate" GC actions used to leave notes still active in the dashboard).
+
+`/sync/injection` and `/sync/gc` rewired to call the single mutations.
+
+**Outcome:** Shipped at commit `6b569b1`. Verified on dev with two POSTs:
+- `POST /sync/injection` (accepted=true, noteId set) — 200, id returned
+- `POST /sync/gc` (action=invalidate, noteId set) — 200, id returned, note invalidatedAt set
+
+---
+
+## DEPLOY STATE (as of iteration 9):
+
+- **Dev `acoustic-fish-389`:** Up to date with `main` HEAD. All nine iterations live.
+- **Prod `colorless-porcupine-926`:** STILL ON OLD CODE. See `NEEDS-NICOLAS.md`.
+
