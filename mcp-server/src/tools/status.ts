@@ -54,15 +54,17 @@ export function registerStatusTool(server: McpServer): void {
         }
 
         const truncationFlag = typeof noteCount === "number" && noteCount >= 500 ? " (scan limit)" : "";
-        const lines: string[] = [
+        // Build the lines as an array of (string | null), then filter only null. Empty
+        // strings are intentional blank-line separators; filter(Boolean) would drop them.
+        const lines = [
           `hindsight-mcp v${SERVER_VERSION}`,
           `  convex: ${url}  (source=${source})`,
-          source === "default" ? `  ⚠️  reading the project's demo deployment — set HINDSIGHT_CONVEX_URL to override.` : "",
+          source === "default" ? `  ⚠️  reading the project's demo deployment — set HINDSIGHT_CONVEX_URL to override.` : null,
           ``,
           `active notes:    ${noteCount}${truncationFlag}`,
           `findings:`,
           ...findingCounts.map(([s, n]) => `  ${s.padEnd(22)} ${n}`),
-        ].filter(Boolean);
+        ].filter((line): line is string => line !== null);
 
         return {
           content: [{ type: "text", text: lines.join("\n") }],
