@@ -1,0 +1,80 @@
+# CHANGELOG
+
+What shipped, in reverse chronological order. One entry per logical
+change set; granular commits are visible in `git log`.
+
+## 2026-05-10 — Demo, content, evals (Agent 4)
+
+### Added — constraint library
+
+11 hand-authored seed leaves under `.context-map/library/`, 60 rules
+total. Each rule is a single line, byte-citable by Guardian's
+`verifyConstraintCite`, and currently violated by at least one file
+under `mock_org/`.
+
+| Library | Rules | Demo target violation example |
+|---|---:|---|
+| auth | 5 | `agent-gateway/src/api/auth.ts` returns `{ ok: true }` with no credential check |
+| secrets | 4 | `agent-gateway/src/lib/redaction.ts` redacts by KEY only, missing value-pattern scan |
+| rate-limit | 5 | `agent-gateway/src/api/rateLimit.ts` is a process-local Map with no decay or eviction |
+| db | 6 | universal: parameter binding, transactions, migrations |
+| observability | 6 | `console.log`, correlation ids, redaction at emission |
+| errors | 6 | exp backoff with jitter, attempt + wall-clock ceilings, no swallowed errors |
+| validation | 6 | `agent-gateway` handlers accept `Record<string, unknown>` (rule 2 fires) |
+| webhooks | 6 | `connectors/src/github/webhooks.ts` calls `timingSafeEqual` without an equal-length check |
+| sandbox | 6 | `runtime-orchestrator/src/runtime/job_runner.py` validates upper bound only |
+| supply-chain | 7 | universal: lockfile in same commit, `npm ci` in CI, no `curl \| bash` |
+| state | 6 | `runtime-orchestrator/src/runtime/state_store.py` calls `write_text` non-atomically |
+
+The seed is mirrored into every `mock_org/<sub-org>/.context-map/library/`
+via [`seed-context-map.sh`](seed-context-map.sh); a drift eval
+([`evals/test_seed_library_mirror.py`](evals/test_seed_library_mirror.py))
+refuses silent divergence.
+
+### Added — eval suite
+
+6 stdlib-only Python evals under [`evals/`](evals/), 31 tests when the
+mirror is bootstrapped (one suite skips when no mirror exists). Every
+eval has a documented self-test that breaks the source under verification.
+
+| Eval | Pins | Self-test |
+|---|---|---|
+| `test_hurdle_threshold.py` | NM `expand_windows`: HURDLE_THRESHOLD, SIGNAL_CLUSTER_GAP, score-as-sum | `HURDLE_THRESHOLD = 0.5` → 3 fail |
+| `test_citation_precision.py` | every rule line is single-line, byte-citable, applies_to non-empty | trailing whitespace → fail |
+| `test_applies_to_globs_resolve.py` | every leaf has at least one glob that resolves under `mock_org/` | aspirational glob → fail |
+| `test_leaf_metadata_consistency.py` | library == parent dir, chunk_id format, rule count match, source_uri | library mismatch → 3 of 4 fail |
+| `test_gc_pruning.py` | NM GC: decay → merge → prune cascade on synthetic SQLite | PRUNE_THRESHOLD = 0.0 → fail |
+| `test_seed_library_mirror.py` | every bootstrapped mirror is byte-identical to canonical | append a line → fail |
+
+```bash
+bash evals/run_all.sh                # nonzero exit on any failure
+```
+
+### Added — documentation
+
+- [SETUP.md](SETUP.md) — single linear path from `git clone` to first
+  Guardian cycle in <5 min. Step 4 wires the seed library into the
+  demo target via the helper.
+- [DEMO.md](DEMO.md) — 3-minute pitch runbook with seven 30-second
+  beats, two paths (live + offline), a pre-flight check, and a
+  "things that go wrong" table.
+- [PITCH-OUTLINE.md](PITCH-OUTLINE.md) — 90-second + 5-minute pitch
+  variants sharing one thesis, plus 7 preempted Q&A entries and a
+  "don't say" list.
+- [README.md](README.md) — expanded Evals section, full constraint
+  library table.
+
+### Added — wiring
+
+- [`seed-context-map.sh`](seed-context-map.sh) — mirrors canonical
+  seed into every `mock_org/<sub-org>/.context-map/library/`. Run
+  after editing any leaf.
+
+### Notes
+
+- The mirror eval was added *after* 11 leaves had already been
+  written; the gap (Guardian reads from `<DEMO_REPO_LOCAL_PATH>/`,
+  not the repo root) was invisible until the wiring fix landed in
+  commit `53d349c`. From iteration 12 forward, every leaf is
+  guaranteed to reach Guardian.
+- All evals pass on `main` as of `48fb766`.
