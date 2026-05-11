@@ -74,6 +74,7 @@ All `/sync/*` return `{ "ok": true, "result": ... }` on success or `{ "error": "
 | `linkPR(runId, prNumber, prUrl)` | mutation | |
 | `markOutcome(runId, outcome, prMergedAt?)` | mutation | |
 | `byFinding(findingId)` | query | indexed |
+| `recent(limit?)` | query | most recently spawned runs across all findings |
 
 ### `api.fileScanHistory`
 
@@ -126,6 +127,8 @@ All `/sync/*` return `{ "ok": true, "result": ... }` on success or `{ "error": "
 | `recordRun(runId, ts, durationMs?, activeAfter?, invalidatedAfter?, edgesAfter?)` | mutation | **idempotent on runId** — run-level GC summary |
 | `recent(limit?)` | query | recent gcActions |
 | `recentStats(sinceMinutes?)` | query | rolled-up counts by action over a window |
+| `byRun(runId, limit?)` | query | gcActions for one GC run |
+| `runDetail(runId)` | query | `{ run, actions }` in one round-trip |
 
 ### `api.injections` / `api.hurdles` / `api.sessions` / `api.agentEvents`
 
