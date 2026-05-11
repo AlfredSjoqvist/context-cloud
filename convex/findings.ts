@@ -114,3 +114,32 @@ export const byStatus = query({
       .collect();
   },
 });
+
+// Single-finding drill-down: row + every Devin run spawned for it +
+// events from its detection cycle. Lets the Guardian detail panel
+// render in one round-trip.
+export const detail = query({
+  args: {
+    findingId: v.id("findings"),
+    eventsLimit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const finding = await ctx.db.get(args.findingId);
+    if (!finding) return null;
+    const [runs, events] = await Promise.all([
+      ctx.db
+        .query("devinRuns")
+        .withIndex("by_finding", (q) => q.eq("findingId", args.findingId))
+        .collect(),
+      // events scoped to the detection cycle, capped by eventsLimit
+      ctx.db
+        .query("events")
+        .withIndex("by_cycle_timestamp", (q) =>
+          q.eq("cycleNumber", finding.cycleDetected),
+        )
+        .take(args.eventsLimit ?? 100),
+    ]);
+    runs.sort((a, b) => (a.iteration ?? 0) - (b.iteration ?? 0));
+    return { finding, runs, events };
+  },
+});
