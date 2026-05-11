@@ -187,3 +187,38 @@ saved-feedback memory. Iteration commits, in order:
 | Examples | 1 (OpenAI Agents SDK) |
 
 **Scope coverage:** every item in the /loop scope statement is now shipped — `agent/` audited (no integration bugs), `mcp-server/` complete, hook scripts for Claude Code fixed and tested, install CLI for Cursor / Claude Code (user + project) / Codex + an OpenAI Agents SDK recipe, manifests + CI in place.
+
+---
+
+## Iterations 33–43 — second-pass audit caught real latent bugs
+
+| # | SHA      | What |
+|---|----------|------|
+| 33 | `f5f574a` | npm script shortcuts (install:cursor / install:claude-code / verify / test:live). |
+| 34 | `f938803` | One-command `setup-claude-code.sh`. |
+| 35 | `43d666f` | Verify CLI covers all 4 Convex queries the server depends on; shape (rows/object/null/scalar) reported instead of just rows. |
+| 36 | `d3664da` | `list_findings` accepts optional `severity` filter. |
+| 37 | `2d0706d` | Warn (don't error) when `--with-nm` in project-scope can't resolve nm_server.py from cwd. |
+| 38 | `a72ac67` | `.min(1)` on path inputs — empty string used to silently match all findings. |
+| 39 | `3cd45bb` | Codex install hint to stderr so `> config.toml` pipes stay clean. |
+| 40 | `51b12aa` | get_status description matches actual behavior (8 parallel queries with allSettled, not 7 serial). |
+| 41 | `036d0cf` | Verify CLI `--json` output for machine consumers. |
+| 42 | `5c5dccf` | **Real bug:** `formatNotes` was looking for `summary`/`body` but the actual NM schema uses `symptom`/`rootCause`/`correction`. Every list_notes / get_notes_for_file rendered empty bodies. Fixed; live now shows full content with `importance=0.60 injects=N: symptom: ...; cause: ...; fix: ...`. |
+| 43 | `fabdfa9` | **Real bug, same class:** `formatFindings` expected flat `codeLine` / `mdFile` / `mdLine` / `title` fields but the actual schema has nested `codeCite` / `constraintCite` and no `title` (use `reasoning`). Every finding rendered as "(untitled)" with no citation. Fixed; live now shows line + severity + category + reasoning + cite-path:line + issue#. |
+
+**Audit lesson:** I shipped the formatters and unit tests in iterations 1 and 16 based on a type I guessed at, not on a Convex schema read. The unit tests verified the formatter against the type I made up, so they passed. Only a live query revealed the mismatch. Wrote a note for next time: always grep `defineTable` for any Convex type the integration consumes, *before* designing the renderer.
+
+**Final cumulative counts at iteration 43:**
+
+| Surface | Count |
+|---|---|
+| MCP tools | 5 |
+| MCP resources | 8 |
+| Bins | 3 |
+| Install CLI editors | 4 |
+| Install CLI flags | 8 |
+| Unit tests | 69 |
+| E2e tests | 4 |
+| Opt-in live tests | 1 |
+| CI workflows | 1 |
+| Examples | 1 |
