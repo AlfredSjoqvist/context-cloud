@@ -189,16 +189,22 @@ function runInstall(): void {
       process.exit(2);
     }
     const mcpTarget = mcpConfigPathFor(args.editor);
-    let mcp = readJsonOrEmpty(mcpTarget);
-    mcp = removeMcpServer(mcp, "hindsight");
-    if (args.withNm) mcp = removeMcpServer(mcp, "nm");
-    writeOrPrint(mcpTarget, mcp, args.print, "MCP server config (uninstall)");
+    if (existsSync(mcpTarget)) {
+      let mcp = readJsonOrEmpty(mcpTarget);
+      mcp = removeMcpServer(mcp, "hindsight");
+      if (args.withNm) mcp = removeMcpServer(mcp, "nm");
+      writeOrPrint(mcpTarget, mcp, args.print, "MCP server config (uninstall)");
+    } else if (args.print) {
+      process.stdout.write(`# MCP server config: ${mcpTarget} does not exist (nothing to uninstall)\n`);
+    }
 
     const hooksTarget = hooksConfigPathFor(args.editor);
-    if (hooksTarget) {
+    if (hooksTarget && existsSync(hooksTarget)) {
       const hooks = readJsonOrEmpty(hooksTarget);
       const cleaned = removeClaudeCodeHooks(hooks);
       writeOrPrint(hooksTarget, cleaned, args.print, "Claude Code hooks (uninstall)");
+    } else if (hooksTarget && args.print) {
+      process.stdout.write(`# Claude Code hooks: ${hooksTarget} does not exist (nothing to uninstall)\n`);
     }
     if (!args.print) process.stdout.write(`\nRestart your editor so the changes take effect.\n`);
     return;
