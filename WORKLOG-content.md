@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 32 (current) — doc-link eval + README/CHANGELOG eval refresh
+## Iteration 33 (current) — re-audit + harden doc-link eval
+
+**Goal**: Re-audit recent commits for any breakage. Discovered
+the doc-link eval (added iteration 32) false-positived on its own
+worklog announcement because the announcement contained a
+`[label](relative/path)` example outside a code block.
+
+**Fixes**:
+1. cffef68 — rephrased the worklog example.
+2. 467e92c — strengthened the eval to ignore inline + fenced code
+   spans. The worklog example would have stayed quiet under the new
+   rule even without the rephrase.
+3. Verified mirror parity: 24 leaves canonical → 24 leaves in each
+   of 4 sub-orgs. 143 numbered rules.
+
+---
+
+## Iteration 32 — doc-link eval + README/CHANGELOG eval refresh
 
 **Goal**: Catch dead relative-path links in the docs (the third
 docs-vs-code drift eval, after Makefile and npm scripts), and
@@ -550,6 +567,13 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 33
+
+- **cffef68** `fix(worklog): rephrase iteration 32 example to avoid link-eval false positive`
+- **467e92c** `refactor(evals): doc-link eval skips links inside code spans`
+- The eval did its job; both the worklog and the eval are now bulletproof
+  against the example-vs-real-link conflation.
 
 ### 2026-05-10 — Iteration 32
 
