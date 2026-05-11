@@ -8,7 +8,28 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 2 (current) — first real constraint files + citation eval
+## Iteration 3 (current) — rate-limit constraint + 3-minute demo runbook
+
+**Goal**: Land the rate-limit library leaf (`mock_org/agent-gateway/src/api/rateLimit.ts`
+violates 3 of 5 rules) and ship `DEMO.md` so the 3-minute pitch is
+reproducible from a clean clone with zero context.
+
+**Plan**:
+1. `.context-map/library/rate-limit/persistent-decay.md` — 5 rules
+   (decay, no-process-local-state, eviction, 429+Retry-After,
+   principal-aware key).
+2. `DEMO.md` — 7 timed beats from cold start through wrap, two paths
+   (live and offline), commands verbatim, "things that go wrong" table.
+3. Verify: rerun `bash evals/run_all.sh` — citation eval must still
+   pass on the new leaf. Walk the runbook from a fresh terminal in head.
+
+**Why this**: Without DEMO.md, judges literally cannot reproduce the
+pitch. Without the rate-limit leaf, Guardian has 2 demo files and
+judges will ask "is that all you've got?". Both gaps are blocking.
+
+---
+
+## Iteration 2 — first real constraint files + citation eval
 
 **Goal**: Make the Guardian half of the demo *real*. Two constraint files
 (`auth/credentials-required.md`, `secrets/redaction-completeness.md`) plus
@@ -62,6 +83,33 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 3
+
+- **b11cd61** `feat(context-map): add rate-limit/persistent-decay leaf`
+  - 5 rules. Targets `mock_org/agent-gateway/src/api/rateLimit.ts` —
+    rules 1 (decay), 2 (process-local Map), 3 (eviction) all currently
+    fire. Rules 4 and 5 apply at the call-site / response layer.
+- **e8e59a8** `docs(demo): add 3-minute pitch runbook with timed beats + offline fallback`
+  - DEMO.md, 7 timed beats. Verified the commands match `package.json`
+    (`agent:once`), `vercel.json` (`outputDirectory: mock`), and
+    `.env.example` env keys.
+
+**Left to do (next iterations, in priority):**
+1. SETUP.md — clean-clone path that gets you to "agent:once works"
+   in <5 min. Currently the README's quickstart is split across NM and
+   Guardian sections; SETUP.md should be a single linear sequence.
+2. NM GC pruning eval. Use stdlib `sqlite3`; build a minimal in-memory
+   schema mirroring `nm_gc.py`'s expectations and verify decay → merge →
+   prune transitions on synthetic notes.
+3. db / transactions library leaf — `src/db/schema.ts` is a stub;
+   constraints around prepared statements, transaction boundaries,
+   and migration safety are universally violated.
+4. observability leaf — `console.log` in handlers, no structured fields,
+   no correlation id propagation.
+5. Pitch deck outline (root-level `PITCH-OUTLINE.md`).
+6. Verify the DEMO.md runbook actually runs end-to-end (needs Convex
+   keys; might require `NEEDS-NICOLAS.md` ask if env not available).
 
 ### 2026-05-10 — Iteration 2
 
