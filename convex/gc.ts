@@ -11,16 +11,32 @@ export const recordAction = internalMutation({
     handler: async (ctx, a) => ctx.db.insert("gcActions", a),
 });
 
-// Atomic gcAction record + (optional) note invalidation.
-// Replaces /sync/gc's two-mutation handler so a prune that records but
-// never invalidates leaves the note "still active" in the dashboard
-// despite GC having decided otherwise.
+// Atomic gcAction record + (optional) note invalidation + (optional)
+// prunedEdges record. Replaces /sync/gc's two-mutation handler.
+//
+// When action='prune' AND noteId is set:
+//   - the note's invalidatedAt is stamped (terminal action for the note)
+// When action='prune' AND noteId + targetFile both set:
+//   - additionally inserts a prunedEdges row so the Replay timeline can
+//     visualize WHICH edge was pruned (note → file) for that GC action
+// When action='invalidate' AND noteId set:
+//   - same as 'prune' but no prunedEdges row (the whole note is gone,
+//     not just one of its edges)
 export const recordWithMaybeInvalidate = internalMutation({
     args: {
         ts: v.string(),
         action: v.string(),
         noteId: v.optional(v.string()),
         details: v.optional(v.string()),
+        // Structured fields used by the GC + Replay dashboard views.
+        runId: v.optional(v.string()),
+        targetNote: v.optional(v.string()),
+        targetFile: v.optional(v.string()),
+        sourceNote: v.optional(v.string()),
+        reason: v.optional(v.string()),
+        // Edge-level prune: weight of the edge being removed (so the
+        // Replay timeline can render a fading edge animation).
+        edgeWeight: v.optional(v.number()),
     },
     handler: async (ctx, a) => {
         const id = await ctx.db.insert("gcActions", {
@@ -28,6 +44,11 @@ export const recordWithMaybeInvalidate = internalMutation({
             action: a.action,
             noteId: a.noteId,
             details: a.details,
+            runId: a.runId,
+            targetNote: a.targetNote,
+            targetFile: a.targetFile,
+            sourceNote: a.sourceNote,
+            reason: a.reason,
         });
         // 'prune' and 'invalidate' both terminate a note's active life.
         if ((a.action === "prune" || a.action === "invalidate") && a.noteId) {
@@ -38,6 +59,16 @@ export const recordWithMaybeInvalidate = internalMutation({
             if (n) {
                 await ctx.db.patch(n._id, { invalidatedAt: a.ts });
             }
+        }
+        // Edge-level prune: also record the lost edge so Replay can show it.
+        if (a.action === "prune" && a.noteId && a.targetFile) {
+            await ctx.db.insert("prunedEdges", {
+                noteId: a.noteId,
+                path: a.targetFile,
+                weight: a.edgeWeight ?? 0,
+                prunedAt: a.ts,
+                reason: a.reason ?? a.details,
+            });
         }
         return id;
     },
