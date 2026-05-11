@@ -82,13 +82,14 @@ seed library lives at the repo root; this step copies it into the demo
 target so Guardian can find it on the next cycle.
 
 ```bash
-mkdir -p mock_org/agent-gateway/.context-map
-cp -R .context-map/library mock_org/agent-gateway/.context-map/
+bash seed-context-map.sh                 # mirror to every sub-org under mock_org/
+# or, scoped to one sub-org:
+bash seed-context-map.sh agent-gateway
 ```
 
-Re-run `bash evals/run_all.sh` after the copy — both copies must remain
-in sync for the eval suite to keep passing. (If you edit one, re-run this
-step to mirror.)
+Re-run `bash evals/run_all.sh` after the mirror. The mirror eval refuses
+to merge silent drift, so any edit to `.context-map/library/` requires
+re-running this step.
 
 ---
 
