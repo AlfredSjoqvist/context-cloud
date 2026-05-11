@@ -6,9 +6,9 @@
 // (matrix similarity, replay event timeline, animation transitions) that
 // expect the full snapshot up-front.
 
-import { query } from "./_generated/server";
+import { internalQuery } from "./_generated/server";
 
-export const everything = query({
+export const everything = internalQuery({
     args: {},
     handler: async (ctx) => {
         const [

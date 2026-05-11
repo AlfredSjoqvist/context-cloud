@@ -5,10 +5,10 @@
 // hurdle detection, then `markExtracted` on the session to mark it
 // processed up to a given timestamp.
 
-import { mutation, query } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-export const append = mutation({
+export const append = internalMutation({
     args: {
         ts: v.string(),
         sessionId: v.string(),
@@ -61,7 +61,7 @@ export const sessionsToExtract = query({
     },
 });
 
-export const markExtracted = mutation({
+export const markExtracted = internalMutation({
     args: {
         sessionId: v.string(),
         atTs: v.string(),

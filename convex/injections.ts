@@ -1,7 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-export const recordInjection = mutation({
+export const recordInjection = internalMutation({
     args: {
         ts: v.string(),
         sessionId: v.optional(v.string()),

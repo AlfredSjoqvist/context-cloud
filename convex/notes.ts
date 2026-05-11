@@ -1,7 +1,9 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-export const upsertNote = mutation({
+// Writers below are called server-side only from convex/http.ts (after
+// NM_SYNC_TOKEN auth) and from agent/. They must NOT be exposed publicly.
+export const upsertNote = internalMutation({
     args: {
         noteId: v.string(),
         symptom: v.string(),
@@ -33,7 +35,7 @@ export const upsertNote = mutation({
     },
 });
 
-export const upsertEdge = mutation({
+export const upsertEdge = internalMutation({
     args: {
         noteId: v.string(),
         path: v.string(),
@@ -53,7 +55,7 @@ export const upsertEdge = mutation({
     },
 });
 
-export const upsertFile = mutation({
+export const upsertFile = internalMutation({
     args: {
         path: v.string(),
         type: v.optional(v.string()),
@@ -73,7 +75,7 @@ export const upsertFile = mutation({
     },
 });
 
-export const invalidateNote = mutation({
+export const invalidateNote = internalMutation({
     args: { noteId: v.string(), at: v.string() },
     handler: async (ctx, a) => {
         const n = await ctx.db
@@ -86,7 +88,7 @@ export const invalidateNote = mutation({
     },
 });
 
-export const bumpInjectCount = mutation({
+export const bumpInjectCount = internalMutation({
     args: { noteId: v.string(), at: v.string() },
     handler: async (ctx, a) => {
         const n = await ctx.db
@@ -104,7 +106,7 @@ export const bumpInjectCount = mutation({
 
 // Hyperspell supporting context. Best-effort enrichment — never blocks
 // note creation, never overrides the symptom/cause/correction.
-export const attachHyperspellRefs = mutation({
+export const attachHyperspellRefs = internalMutation({
     args: {
         noteId: v.string(),
         refs: v.array(v.object({

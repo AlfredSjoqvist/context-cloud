@@ -1,7 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { query, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
-export const upsertSession = mutation({
+export const upsertSession = internalMutation({
     args: {
         sessionId: v.string(),
         agentVendor: v.optional(v.string()),
@@ -38,7 +38,7 @@ export const recent = query({
 // Returns sessions newest-first by lastSeenAt (falling back to _creationTime
 // when lastSeenAt is missing), each with the notes that were created during it
 // and the file paths each note attaches to.
-export const listWithNotes = query({
+export const listWithNotes = internalQuery({
     args: { limit: v.optional(v.number()) },
     handler: async (ctx, { limit }) => {
         const sessions = await ctx.db.query("sessions").collect();

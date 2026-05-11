@@ -1,7 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-export const recordHurdle = mutation({
+export const recordHurdle = internalMutation({
     args: {
         hurdleId: v.number(),
         sessionId: v.optional(v.string()),
