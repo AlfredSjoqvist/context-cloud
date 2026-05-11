@@ -8,7 +8,23 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 14 (current) — README expansion + CHANGELOG.md
+## Iteration 15 (current) — concurrency leaf + Makefile
+
+**Goal**: One more universally-load-bearing leaf (concurrency: locks,
+races, ordering) plus a Makefile that hides the per-command env-var
+prefixes and gives Nicolas `make demo` as a one-liner pre-flight.
+
+**Plan**:
+1. `.context-map/library/concurrency/locks-and-races.md` — 6 rules
+   (TTL on distributed locks, finally-release, no serial-await,
+   per-key ordering, no cache-write-in-tx, idempotent handlers).
+2. Mirror via `seed-context-map.sh`, commit as one topic.
+3. `Makefile` with eval/seed/agent/ui/demo/setup-check/clean-mirrors.
+4. Verify `make eval`.
+
+---
+
+## Iteration 14 — README expansion + CHANGELOG.md
 
 **Goal**: Make the surface area visible from the front page. README's
 Evals section was 4 evals when there are 6, and there was no
@@ -276,6 +292,24 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 15
+
+- **6a82306** `feat(context-map): add concurrency/locks-and-races leaf`
+- **8afbcae** `feat(demo): add Makefile with eval/seed/agent/ui/demo recipes`
+- Library: 12 leaves, 66 rules. `make demo` chains seed + eval + agent.
+  Mirror eval still green across all 4 sub-orgs.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV — pre-flight, T-0:30, T+0:00:
+   are commands cut-paste-able as-is?
+2. Q&A practice run — read PITCH-OUTLINE.md cold, answer each
+   question out loud, rewrite anything that requires a footnote.
+3. Add a leaf for `time-and-clocks` (UTC vs local, monotonic vs wall,
+   timezone-naive datetime arithmetic, leap seconds).
+4. Add a leaf for `network` (DNS pinning, TLS verification, retry
+   semantics on transient DNS failures, no IP allow-lists vs cloud
+   egress).
 
 ### 2026-05-10 — Iteration 14
 
