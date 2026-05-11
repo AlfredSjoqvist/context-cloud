@@ -223,3 +223,50 @@ calls with the same target = no double-bump, verified on dev.
   blocker as before — see `NEEDS-NICOLAS.md`. User has said
   "the prod stuff does not matter" so I'm staying on dev.
 
+---
+
+## Iterations 19-31 — atomicity, idempotency, indexes, crons, drill-downs
+
+This block ran in continuous autonomous loop. Each commit was deploy-
+verified on dev via curl or `npx convex run`.
+
+| # | Commit | Topic |
+|---|---|---|
+| 19 | `11c97fe` | `/sync/gc` edge-level prune writes `prunedEdges` row |
+| 20 | `45e43df` | CONTRACT.md: document /sync/gc body fields |
+| 21 | `34623df` | new `gc.recordRun` (idempotent on runId) for run-level GC summaries |
+| 22 | `96a5d7c` | CONTRACT.md: document `api.gc.recordRun` |
+| 23 | `8d9a86e` | new `convex/crons.ts` + `events.pruneOlderThan` daily prune |
+| 24 | `6210570` | `agentEvents.pruneOlderThan` daily prune |
+| 25 | `5099c9c` | `injections.pruneOlderThan` daily prune |
+| 26 | `bd344bf` | `/sync/gc action='restore'` un-invalidates the note |
+| 27 | `15792cd` | CONTRACT.md: scheduled jobs section + restore action |
+| 28 | `479515e` | mark `gc.recordAction` deprecated in favor of recordWithMaybeInvalidate |
+| 29 | `24a0c3e` | new `notes.detail(noteId)` single-note drill-down query |
+
+**Cumulative state of the backend after this run:**
+
+- Every `/sync/*` write is atomic (4 compound endpoints all in one
+  Convex transaction).
+- Every mutation called by `agent/` has an idempotency story.
+- Every table has a writer in `convex/`; no schema-only tables.
+- 3 daily data-hygiene crons running (events 30d, agentEvents 14d,
+  injections 30d).
+- Public read surface: `/dashboard/everything`, `/dashboard/health`,
+  `/dashboard/sessions-with-notes`, plus 25+ `api.*` query/mutation
+  symbols documented in `convex/CONTRACT.md`.
+- All TypeScript clean (`npx tsc --noEmit -p convex/tsconfig.json`
+  returns 0 errors).
+
+**End-to-end regression spot-check** (after iter 31, against dev
+`acoustic-fish-389`):
+- `/dashboard/everything` returns the full 18-key shape.
+- `/dashboard/health` returns freshness + counts; `lastSessionAt` now
+  populated (was null before iter 11).
+- `cycles[0].currentPhase` field present.
+- `docsIngestRuns[0].lastIngestedAt` projected from `_creationTime`.
+- `docsLeaves` aliased to `docsIngestRuns` for V1 back-compat.
+
+Prod (`colorless-porcupine-926`) still on pre-iter-1 code — same
+blocker.
+
