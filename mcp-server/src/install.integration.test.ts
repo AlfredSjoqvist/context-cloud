@@ -54,14 +54,10 @@ describe("install → uninstall round-trip", () => {
 
     const uninstallR = runInstall(["--editor", "claude-code-project", "--uninstall"]);
     expect(uninstallR.status).toBe(0);
-    expect(existsSync(join(tmp, ".mcp.json"))).toBe(true);
-
-    const mcpAfter = JSON.parse(readFileSync(join(tmp, ".mcp.json"), "utf-8"));
-    expect(mcpAfter.mcpServers.hindsight).toBeUndefined();
-    expect(mcpAfter.mcpServers).toEqual({});
-
-    const settingsAfter = JSON.parse(readFileSync(join(tmp, ".claude", "settings.json"), "utf-8"));
-    expect(settingsAfter.hooks).toEqual({});
+    // Cleanup: when hindsight was the only entry, the files are deleted (not left as {}).
+    expect(existsSync(join(tmp, ".mcp.json"))).toBe(false);
+    expect(existsSync(join(tmp, ".claude", "settings.json"))).toBe(false);
+    expect(existsSync(join(tmp, ".claude"))).toBe(false);
   });
 
   it("preserves unrelated entries through install + uninstall", () => {

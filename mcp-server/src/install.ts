@@ -12,7 +12,7 @@
  *   - claude-code          MCP to ~/.claude.json ; hooks to ~/.claude/settings.json
  *   - claude-code-project  MCP to ./.mcp.json    ; hooks to ./.claude/settings.json
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, rmdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -154,6 +154,56 @@ function writeOrPrint(target: string, merged: Record<string, unknown>, print: bo
   process.stdout.write(`Wrote ${label} to ${target}\n`);
 }
 
+/**
+ * Like writeOrPrint, but on uninstall: if the resulting object is "empty"
+ * (mcpServers: {} or hooks: {} and nothing else), delete the target file
+ * instead of writing an empty stub. Also remove the parent .claude/ directory
+ * if it becomes empty as a side effect.
+ */
+function writeOrPrintOrCleanup(
+  target: string,
+  merged: Record<string, unknown>,
+  print: boolean,
+  label: string,
+): void {
+  const isEffectivelyEmpty = (() => {
+    const keys = Object.keys(merged);
+    if (keys.length === 0) return true;
+    if (keys.length !== 1) return false;
+    const only = merged[keys[0]];
+    return typeof only === "object" && only !== null && Object.keys(only).length === 0;
+  })();
+
+  if (print) {
+    if (isEffectivelyEmpty) {
+      process.stdout.write(`# ${label}: would DELETE ${target} (empty after uninstall)\n\n`);
+    } else {
+      process.stdout.write(`# ${label}: would write to ${target}\n${JSON.stringify(merged, null, 2)}\n\n`);
+    }
+    return;
+  }
+  if (isEffectivelyEmpty) {
+    try {
+      unlinkSync(target);
+      process.stdout.write(`Removed empty ${label} at ${target}\n`);
+    } catch {
+      // ignore — file may already be gone
+    }
+    // Clean up the parent .claude/ dir if it ends up empty.
+    const parent = dirname(target);
+    if (parent.endsWith(".claude")) {
+      try {
+        rmdirSync(parent);
+      } catch {
+        // not empty; leave it
+      }
+    }
+    return;
+  }
+  writeFileSync(target, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+  process.stdout.write(`Wrote ${label} to ${target}\n`);
+}
+
 function main(): void {
   try {
     runInstall();
@@ -193,7 +243,7 @@ function runInstall(): void {
       let mcp = readJsonOrEmpty(mcpTarget);
       mcp = removeMcpServer(mcp, "hindsight");
       if (args.withNm) mcp = removeMcpServer(mcp, "nm");
-      writeOrPrint(mcpTarget, mcp, args.print, "MCP server config (uninstall)");
+      writeOrPrintOrCleanup(mcpTarget, mcp, args.print, "MCP server config (uninstall)");
     } else if (args.print) {
       process.stdout.write(`# MCP server config: ${mcpTarget} does not exist (nothing to uninstall)\n`);
     }
@@ -202,7 +252,7 @@ function runInstall(): void {
     if (hooksTarget && existsSync(hooksTarget)) {
       const hooks = readJsonOrEmpty(hooksTarget);
       const cleaned = removeClaudeCodeHooks(hooks);
-      writeOrPrint(hooksTarget, cleaned, args.print, "Claude Code hooks (uninstall)");
+      writeOrPrintOrCleanup(hooksTarget, cleaned, args.print, "Claude Code hooks (uninstall)");
     } else if (hooksTarget && args.print) {
       process.stdout.write(`# Claude Code hooks: ${hooksTarget} does not exist (nothing to uninstall)\n`);
     }
