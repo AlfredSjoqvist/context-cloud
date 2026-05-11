@@ -81,13 +81,6 @@ def _split_frontmatter(text: str) -> tuple[dict[str, str], list[str]]:
     return fm, body
 
 
-def _numbered_rule_lines(body: list[str]) -> list[tuple[int, str]]:
-    """Return (1-based line number within the FULL file, rule_text) pairs.
-    The line number is what Guardian would put in `constraintCite.line`."""
-    out: list[tuple[int, str]] = []
-    return out
-
-
 def _file_line_for(file_text: str, body_line: str) -> int | None:
     """Find the 1-based line number in `file_text` whose `.strip()` matches
     `body_line.strip()`. Returns None if not found or if ambiguous (multiple
