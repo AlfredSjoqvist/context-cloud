@@ -32,6 +32,8 @@ type Check = { name: string; ref: string; args: unknown };
 const CHECKS: Check[] = [
   { name: "findings:byStatus", ref: "findings:byStatus", args: { status: "detected" } },
   { name: "notes:listActive", ref: "notes:listActive", args: { limit: 1 } },
+  { name: "notes:listEdgesForPath", ref: "notes:listEdgesForPath", args: { path: "verify-probe.ts" } },
+  { name: "cycles:latestCycle", ref: "cycles:latestCycle", args: {} },
 ];
 
 async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -83,8 +85,12 @@ async function main(): Promise<void> {
         check.name,
       );
       const ms = Date.now() - t0;
-      const count = Array.isArray(result) ? result.length : "?";
-      process.stdout.write(`  ✓ ${check.name.padEnd(28)}  ${String(ms).padStart(4)}ms  (rows=${count})\n`);
+      let shape: string;
+      if (Array.isArray(result)) shape = `rows=${result.length}`;
+      else if (result === null) shape = "null";
+      else if (typeof result === "object") shape = "object";
+      else shape = "scalar";
+      process.stdout.write(`  ✓ ${check.name.padEnd(28)}  ${String(ms).padStart(4)}ms  (${shape})\n`);
     } catch (err) {
       const ms = Date.now() - t0;
       failed++;
