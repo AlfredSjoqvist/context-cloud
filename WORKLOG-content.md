@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 3 (current) — rate-limit constraint + 3-minute demo runbook
+## Iteration 4 (current) — SETUP.md + db library leaf
+
+**Goal**: Make first contact succeed (SETUP.md is a single linear path
+from `git clone` to `agent:once` working) and broaden Guardian's
+constraint coverage with the db family.
+
+**Plan**:
+1. `SETUP.md` — 6 numbered steps. Stops at the first thing that proves
+   value (a Guardian cycle producing findings). Routes to DEMO.md.
+2. `.context-map/library/db/transactions-and-migrations.md` — 6 rules
+   (param binding, atomicity, no long-ops in tx, idempotency keys,
+   two-deploy drops, safe NOT NULL adds). Universally applicable to
+   every db/*.ts file.
+3. Verify evals still green, then commit each topic separately.
+
+---
+
+## Iteration 3 — rate-limit constraint + 3-minute demo runbook
 
 **Goal**: Land the rate-limit library leaf (`mock_org/agent-gateway/src/api/rateLimit.ts`
 violates 3 of 5 rules) and ship `DEMO.md` so the 3-minute pitch is
@@ -83,6 +100,29 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 4
+
+- **7703637** `docs(setup): add 5-minute clean-clone path landing on first Guardian cycle`
+  - SETUP.md, 6 numbered steps. NM is optional (step 6) so first
+    contact succeeds on the Guardian half alone.
+- **36a1139** `feat(context-map): add db/transactions-and-migrations leaf`
+  - 6 rules. Targets `src/db/*.ts` family. Currently a stub in
+    mock_org but the rules are universal — they apply the moment
+    Guardian's planner promotes a real db file.
+
+**Left to do (next iterations, in priority):**
+1. observability leaf — structured logs, no `console.log` in handlers,
+   correlation id propagation, metric naming convention.
+2. errors / retries leaf — exponential backoff with jitter, no infinite
+   retry, dead-letter discipline, no swallowed exceptions.
+3. NM GC pruning eval (stdlib `sqlite3`, in-memory schema).
+4. PITCH-OUTLINE.md — 90s / 5min / Q&A variants.
+5. Re-walk DEMO.md with fresh eyes; tighten any beat that rereads as
+   "you have to know X to follow this."
+6. Verify the rules in each leaf scope correctly: write an eval that
+   does `import-grep` over `mock_org/` and confirms `applies_to` globs
+   match real importer files (catches stale globs).
 
 ### 2026-05-10 — Iteration 3
 
