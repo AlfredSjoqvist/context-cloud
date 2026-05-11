@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 4 (current) — SETUP.md + db library leaf
+## Iteration 5 (current) — observability + errors leaves
+
+**Goal**: Two more high-impact constraint leaves so Guardian has at
+least one citable invariant for every category that comes up in code
+review of a service repo.
+
+**Plan**:
+1. `.context-map/library/observability/structured-logs-and-correlation.md`
+   — 6 rules (no console.log, correlation ids, stable field names,
+   redaction at emission, metric naming, preserve cause chain).
+2. `.context-map/library/errors/retries-and-backoff.md` — 6 rules
+   (full-jitter exp backoff, attempt+wall-clock ceilings, no-retry on
+   caller-error 4xx, no swallowed errors, explicit timeouts, DLQ).
+3. Verify evals stay green; commit each leaf separately.
+
+---
+
+## Iteration 4 — SETUP.md + db library leaf
 
 **Goal**: Make first contact succeed (SETUP.md is a single linear path
 from `git clone` to `agent:once` working) and broaden Guardian's
@@ -100,6 +117,22 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 5
+
+- **a6fae85** `feat(context-map): add observability/structured-logs-and-correlation leaf`
+- **9800bb7** `feat(context-map): add errors/retries-and-backoff leaf`
+- 12 new rules total. Library now has 5 leaves: auth, secrets,
+  rate-limit, db, observability, errors. Citation eval still green.
+
+**Left to do (next iterations, in priority):**
+1. New eval — `test_applies_to_globs_resolve.py` — verifies every
+   glob in `applies_to:` matches at least one file under `mock_org/`.
+   Catches stale globs as the demo target evolves.
+2. NM GC pruning eval (stdlib sqlite3, in-memory schema).
+3. PITCH-OUTLINE.md (90s / 5min / Q&A variants).
+4. Re-walk DEMO.md from a stranger's POV; tighten any beat that
+   reads as `you have to know X`.
 
 ### 2026-05-10 — Iteration 4
 
