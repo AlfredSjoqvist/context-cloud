@@ -61,7 +61,7 @@ consolidating.
 
 ### Added — eval suite
 
-7 stdlib-only Python evals under [`evals/`](evals/), 34 tests when the
+8 stdlib-only Python evals under [`evals/`](evals/), 36 tests when the
 mirror is bootstrapped (one suite skips when no mirror exists). Every
 eval has a documented self-test that breaks the source under verification.
 
@@ -74,6 +74,7 @@ eval has a documented self-test that breaks the source under verification.
 | `test_gc_pruning.py` | NM GC: decay → merge → prune cascade on synthetic SQLite | PRUNE_THRESHOLD = 0.0 → fail |
 | `test_seed_library_mirror.py` | every bootstrapped mirror is byte-identical to canonical | append a line → fail |
 | `test_makefile_targets_resolve.py` | every help-listed target exists, every recipe is documented | add ghost help line → fail |
+| `test_npm_scripts_referenced_in_docs_exist.py` | every `npm run <name>` in docs resolves to a workspace package.json | rename `npm test` → bogus → fail |
 
 ```bash
 bash evals/run_all.sh                # nonzero exit on any failure
