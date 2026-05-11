@@ -114,96 +114,94 @@ class CitationPrecisionEval(unittest.TestCase):
     def test_each_numbered_rule_is_a_single_line(self):
         """Every `N. text` line stands alone — no soft wraps."""
         for leaf in self.leaves:
-            text = leaf.read_text()
-            _, body = _split_frontmatter(text)
-            in_rule_block = True
-            for line in body:
-                if line.startswith("## "):
-                    in_rule_block = False
-                if not in_rule_block:
-                    continue
-                m = NUMBERED_RULE.match(line)
-                if not m:
-                    continue
-                # The rule line itself is one line by construction. The
-                # adversarial pattern is: numbered line followed by an
-                # indented continuation line that the LLM-aware reader
-                # would treat as part of the same rule. Detect it.
-                idx = body.index(line)
-                if idx + 1 < len(body):
-                    next_line = body[idx + 1]
-                    is_continuation = (
-                        next_line.startswith("   ")
-                        and next_line.strip()
-                        and not NUMBERED_RULE.match(next_line.lstrip())
-                    )
-                    self.assertFalse(
-                        is_continuation,
-                        f"{leaf}: rule {m.group(1)} appears to soft-wrap "
-                        f"into next line: {next_line!r}",
-                    )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                text = leaf.read_text()
+                _, body = _split_frontmatter(text)
+                in_rule_block = True
+                for line in body:
+                    if line.startswith("## "):
+                        in_rule_block = False
+                    if not in_rule_block:
+                        continue
+                    m = NUMBERED_RULE.match(line)
+                    if not m:
+                        continue
+                    idx = body.index(line)
+                    if idx + 1 < len(body):
+                        next_line = body[idx + 1]
+                        is_continuation = (
+                            next_line.startswith("   ")
+                            and next_line.strip()
+                            and not NUMBERED_RULE.match(next_line.lstrip())
+                        )
+                        self.assertFalse(
+                            is_continuation,
+                            f"rule {m.group(1)} appears to soft-wrap "
+                            f"into next line: {next_line!r}",
+                        )
 
     def test_no_trailing_whitespace_on_rule_lines(self):
         for leaf in self.leaves:
-            text = leaf.read_text()
-            _, body = _split_frontmatter(text)
-            for line in body:
-                if NUMBERED_RULE.match(line):
-                    self.assertEqual(
-                        line, line.rstrip(),
-                        f"{leaf}: rule line has trailing whitespace: {line!r}",
-                    )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                text = leaf.read_text()
+                _, body = _split_frontmatter(text)
+                for line in body:
+                    if NUMBERED_RULE.match(line):
+                        self.assertEqual(
+                            line, line.rstrip(),
+                            f"rule line has trailing whitespace: {line!r}",
+                        )
 
     def test_frontmatter_has_required_keys(self):
         for leaf in self.leaves:
-            fm, _ = _split_frontmatter(leaf.read_text())
-            missing = REQUIRED_FRONTMATTER_KEYS - set(fm.keys())
-            self.assertFalse(
-                missing,
-                f"{leaf}: frontmatter missing required keys: {sorted(missing)}",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                fm, _ = _split_frontmatter(leaf.read_text())
+                missing = REQUIRED_FRONTMATTER_KEYS - set(fm.keys())
+                self.assertFalse(
+                    missing,
+                    f"frontmatter missing required keys: {sorted(missing)}",
+                )
 
     def test_applies_to_is_non_empty_glob_list(self):
         for leaf in self.leaves:
-            fm, _ = _split_frontmatter(leaf.read_text())
-            v = fm.get("applies_to", "")
-            self.assertTrue(
-                v.startswith("[") and v.endswith("]"),
-                f"{leaf}: applies_to must be a JSON-style list, got {v!r}",
-            )
-            inside = v[1:-1].strip()
-            self.assertNotEqual(
-                inside, "",
-                f"{leaf}: applies_to is empty — Guardian will skip this leaf",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                fm, _ = _split_frontmatter(leaf.read_text())
+                v = fm.get("applies_to", "")
+                self.assertTrue(
+                    v.startswith("[") and v.endswith("]"),
+                    f"applies_to must be a JSON-style list, got {v!r}",
+                )
+                inside = v[1:-1].strip()
+                self.assertNotEqual(
+                    inside, "",
+                    f"applies_to is empty — Guardian will skip this leaf",
+                )
 
     def test_each_rule_is_byte_citable_by_guardian(self):
         """Per niaClient.verifyConstraintCite: file_lines[line-1].strip()
         must equal rule_text.strip(). Find the line for each rule and
         confirm the round-trip."""
         for leaf in self.leaves:
-            text = leaf.read_text()
-            _, body = _split_frontmatter(text)
-            in_rule_block = True
-            for line in body:
-                if line.startswith("## "):
-                    in_rule_block = False
-                    continue
-                if not in_rule_block:
-                    continue
-                m = NUMBERED_RULE.match(line)
-                if not m:
-                    continue
-                # Whole numbered line is what Guardian carries as
-                # constraintCite.text — the niaClient compares the entire
-                # line (after .trim()), not just the rule body.
-                located = _file_line_for(text, line)
-                self.assertIsNotNone(
-                    located,
-                    f"{leaf}: rule {m.group(1)} could not be uniquely "
-                    f"located by line-text match in source — citation "
-                    f"would be ambiguous or impossible",
-                )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                text = leaf.read_text()
+                _, body = _split_frontmatter(text)
+                in_rule_block = True
+                for line in body:
+                    if line.startswith("## "):
+                        in_rule_block = False
+                        continue
+                    if not in_rule_block:
+                        continue
+                    m = NUMBERED_RULE.match(line)
+                    if not m:
+                        continue
+                    located = _file_line_for(text, line)
+                    self.assertIsNotNone(
+                        located,
+                        f"rule {m.group(1)} could not be uniquely "
+                        f"located by line-text match in source — citation "
+                        f"would be ambiguous or impossible",
+                    )
 
 
 if __name__ == "__main__":

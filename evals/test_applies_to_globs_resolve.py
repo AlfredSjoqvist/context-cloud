@@ -86,19 +86,18 @@ class AppliesToGlobsResolveEval(unittest.TestCase):
 
     def test_applies_to_is_valid_json(self):
         for leaf in self.leaves:
-            raw = _extract_applies_to(leaf.read_text())
-            self.assertIsNotNone(raw, f"{leaf}: no applies_to in frontmatter")
-            try:
-                value = json.loads(raw)
-            except json.JSONDecodeError as e:
-                self.fail(f"{leaf}: applies_to is not JSON: {raw!r} ({e})")
-            self.assertIsInstance(
-                value, list, f"{leaf}: applies_to must be a JSON list"
-            )
-            self.assertTrue(
-                all(isinstance(g, str) for g in value),
-                f"{leaf}: applies_to entries must be strings",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                raw = _extract_applies_to(leaf.read_text())
+                self.assertIsNotNone(raw, "no applies_to in frontmatter")
+                try:
+                    value = json.loads(raw)
+                except json.JSONDecodeError as e:
+                    self.fail(f"applies_to is not JSON: {raw!r} ({e})")
+                self.assertIsInstance(value, list, "applies_to must be a JSON list")
+                self.assertTrue(
+                    all(isinstance(g, str) for g in value),
+                    "applies_to entries must be strings",
+                )
 
     def test_every_glob_matches_at_least_one_file(self):
         """Aggregated check: a leaf passes if AT LEAST ONE of its globs
@@ -112,20 +111,21 @@ class AppliesToGlobsResolveEval(unittest.TestCase):
         the leaf is dead weight.
         """
         for leaf in self.leaves:
-            raw = _extract_applies_to(leaf.read_text())
-            globs = json.loads(raw)
-            resolved_total = 0
-            per_glob: list[tuple[str, int]] = []
-            for g in globs:
-                hits = _glob_resolves(g)
-                per_glob.append((g, len(hits)))
-                resolved_total += len(hits)
-            self.assertGreater(
-                resolved_total, 0,
-                f"{leaf}: NONE of its applies_to globs match any file under "
-                f"mock_org/. Per-glob counts: {per_glob}. The leaf is dead "
-                f"weight — Guardian will never apply it to anything.",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                raw = _extract_applies_to(leaf.read_text())
+                globs = json.loads(raw)
+                resolved_total = 0
+                per_glob: list[tuple[str, int]] = []
+                for g in globs:
+                    hits = _glob_resolves(g)
+                    per_glob.append((g, len(hits)))
+                    resolved_total += len(hits)
+                self.assertGreater(
+                    resolved_total, 0,
+                    f"NONE of its applies_to globs match any file under "
+                    f"mock_org/. Per-glob counts: {per_glob}. The leaf is dead "
+                    f"weight — Guardian will never apply it to anything.",
+                )
 
 
 if __name__ == "__main__":
