@@ -238,6 +238,36 @@ export const listEdgesForNote = query({
     },
 });
 
+// Single-note drill-down: note row + its file edges + recent injections
+// that referenced it. Lets the Notes detail panel render in one
+// round-trip instead of three.
+export const detail = query({
+    args: {
+        noteId: v.string(),
+        injectionsLimit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const note = await ctx.db
+            .query("notes")
+            .withIndex("by_note_id", (q) => q.eq("noteId", args.noteId))
+            .first();
+        if (!note) return null;
+        const [edges, injections] = await Promise.all([
+            ctx.db
+                .query("noteFiles")
+                .withIndex("by_note", (q) => q.eq("noteId", args.noteId))
+                .collect(),
+            ctx.db
+                .query("injections")
+                .withIndex("by_note", (q) => q.eq("noteId", args.noteId))
+                .order("desc")
+                .take(args.injectionsLimit ?? 50),
+        ]);
+        edges.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+        return { note, edges, injections };
+    },
+});
+
 export const listEdgesForPath = query({
     args: { path: v.string() },
     handler: async (ctx, { path }) => {
