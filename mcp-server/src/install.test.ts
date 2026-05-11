@@ -9,6 +9,7 @@ import {
   mergeClaudeCodeHooks,
   isHindsightCommand,
   findScriptRoot,
+  renderCodexToml,
   NM_CAPTURE_CMD,
   NM_INJECT_CMD,
 } from "./installLib.js";
@@ -201,5 +202,31 @@ describe("mergeClaudeCodeHooks", () => {
     const once = mergeClaudeCodeHooks({});
     const twice = mergeClaudeCodeHooks(once);
     expect(twice).toEqual(once);
+  });
+});
+
+describe("renderCodexToml", () => {
+  it("emits the bare server block when no convexUrl is given", () => {
+    const out = renderCodexToml("/opt/hindsight/dist/index.js", null);
+    expect(out).toContain("[mcp_servers.hindsight]");
+    expect(out).toContain('command = "node"');
+    expect(out).toContain('args = ["/opt/hindsight/dist/index.js"]');
+    expect(out).not.toContain("HINDSIGHT_CONVEX_URL");
+    expect(out).not.toContain("[mcp_servers.hindsight.env]");
+  });
+
+  it("includes an env table when convexUrl is given", () => {
+    const out = renderCodexToml("/opt/x.js", "https://x.convex.cloud");
+    expect(out).toContain("[mcp_servers.hindsight.env]");
+    expect(out).toContain('HINDSIGHT_CONVEX_URL = "https://x.convex.cloud"');
+  });
+
+  it("escapes backslashes and double-quotes in paths", () => {
+    const out = renderCodexToml('C:\\path\\with "quote".js', null);
+    expect(out).toContain('args = ["C:\\\\path\\\\with \\"quote\\".js"]');
+  });
+
+  it("terminates with a newline so concatenation with existing TOML is safe", () => {
+    expect(renderCodexToml("/a.js", null).endsWith("\n")).toBe(true);
   });
 });

@@ -16,9 +16,9 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntry, mergeMcpServer, mergeClaudeCodeHooks, findScriptRoot } from "./installLib.js";
+import { buildEntry, mergeMcpServer, mergeClaudeCodeHooks, findScriptRoot, renderCodexToml } from "./installLib.js";
 
-type EditorKey = "cursor" | "claude-code" | "claude-code-project";
+type EditorKey = "cursor" | "claude-code" | "claude-code-project" | "codex";
 
 type ParsedArgs = {
   editor: EditorKey | null;
@@ -61,12 +61,15 @@ function mcpConfigPathFor(editor: EditorKey): string {
       return join(homedir(), ".claude.json");
     case "claude-code-project":
       return resolvePath(process.cwd(), ".mcp.json");
+    case "codex":
+      return join(homedir(), ".codex", "config.toml");
   }
 }
 
 function hooksConfigPathFor(editor: EditorKey): string | null {
   switch (editor) {
     case "cursor":
+    case "codex":
       return null;
     case "claude-code":
       return join(homedir(), ".claude", "settings.json");
@@ -96,7 +99,13 @@ function printHelp(): void {
     `hindsight-mcp-install — wire Hindsight into an editor
 
 Usage:
-  hindsight-mcp-install --editor <cursor|claude-code|claude-code-project> [options]
+  hindsight-mcp-install --editor <cursor|claude-code|claude-code-project|codex> [options]
+
+Editors:
+  cursor               JSON merge into ~/.cursor/mcp.json
+  claude-code          JSON merge into ~/.claude.json (MCP); ~/.claude/settings.json (hooks)
+  claude-code-project  JSON merge into ./.mcp.json (MCP); ./.claude/settings.json (hooks)
+  codex                TOML snippet for ~/.codex/config.toml (print-only, no auto-merge)
 
 Options:
   --convex-url <url>     Set HINDSIGHT_CONVEX_URL env on the MCP server entry.
@@ -134,14 +143,26 @@ function main(): void {
     return;
   }
 
-  if (args.withHooks && args.editor === "cursor") {
+  if (args.withHooks && (args.editor === "cursor" || args.editor === "codex")) {
     process.stderr.write(
-      "error: --with-hooks is only supported for claude-code and claude-code-project. Cursor has no equivalent hook surface.\n",
+      `error: --with-hooks is only supported for claude-code and claude-code-project. ${args.editor} has no equivalent hook surface.\n`,
     );
     process.exit(2);
   }
 
   const serverPath = args.serverPath ?? defaultServerPath();
+
+  // Codex uses TOML, not JSON. We emit a snippet to paste — auto-merging TOML
+  // loses comments / ordering, and there's no canonical way to detect a prior
+  // hindsight block without a real parser. The snippet is unambiguous and
+  // safe to paste at the end of ~/.codex/config.toml.
+  if (args.editor === "codex") {
+    const snippet = renderCodexToml(serverPath, args.convexUrl);
+    const target = mcpConfigPathFor(args.editor);
+    process.stdout.write(`# Codex MCP entry — append to ${target}\n${snippet}`);
+    return;
+  }
+
   const entry = buildEntry(serverPath, args.convexUrl);
 
   const mcpTarget = mcpConfigPathFor(args.editor);

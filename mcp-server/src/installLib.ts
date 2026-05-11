@@ -93,6 +93,25 @@ export function buildClaudeCodeHooks(scriptRoot: string | null = null): Record<H
   };
 }
 
+/**
+ * Render a Codex CLI TOML snippet for the Hindsight MCP server. Codex expects
+ * server entries under [mcp_servers.<name>] in ~/.codex/config.toml. We don't
+ * auto-merge because TOML round-trips lose comments/ordering — we just emit a
+ * snippet to append. Strings escape backslash and double-quote per TOML basic.
+ */
+export function renderCodexToml(serverPath: string, convexUrl: string | null): string {
+  const esc = (s: string): string => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const lines: string[] = [
+    "[mcp_servers.hindsight]",
+    `command = "node"`,
+    `args = ["${esc(serverPath)}"]`,
+  ];
+  if (convexUrl) {
+    lines.push("", "[mcp_servers.hindsight.env]", `HINDSIGHT_CONVEX_URL = "${esc(convexUrl)}"`);
+  }
+  return lines.join("\n") + "\n";
+}
+
 export function isHindsightCommand(cmd: string): boolean {
   return cmd.includes("nm_capture.py") || cmd.includes("nm_inject.py");
 }
