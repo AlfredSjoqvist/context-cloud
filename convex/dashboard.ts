@@ -24,7 +24,10 @@ export const everything = internalQuery({
             // to avoid runaway payloads if the agent ever scans a giant
             // monorepo into a single Convex deployment.
             ctx.db.query("files").take(2000),
-            ctx.db.query("notes").collect(),
+            // notes accumulate forever (GC stamps invalidatedAt rather than
+            // deleting). Cap to the latest 2000 so payload stays bounded;
+            // V2 dashboard only renders the active slice anyway.
+            ctx.db.query("notes").order("desc").take(2000),
             ctx.db.query("noteFiles").take(5000),
             // Capped at 500 — prunedEdges grows monotonically once GC is
             // firing and the Replay timeline only needs the recent slice.
@@ -34,10 +37,14 @@ export const everything = internalQuery({
             ctx.db.query("gcActions").order("desc").take(200),
             // Guardian + docs-ingest halves
             ctx.db.query("cycles").order("desc").take(50),
-            ctx.db.query("findings").collect(),
+            // findings accumulate as Guardian sweeps cycles. Cap at 2000 —
+            // older closed/verified findings can be queried via findings:detail.
+            ctx.db.query("findings").order("desc").take(2000),
             ctx.db.query("devinRuns").order("desc").take(100),
             ctx.db.query("events").order("desc").take(200),
-            ctx.db.query("docsIngestRuns").collect(),
+            // one row per docs leaf; bounded by codebase size but cap to
+            // keep the payload from blowing up if a huge corpus is ingested.
+            ctx.db.query("docsIngestRuns").order("desc").take(1000),
             // Live trace from hosted MCP
             ctx.db.query("sessions").order("desc").take(50),
             ctx.db.query("agentEvents").withIndex("by_ts").order("desc").take(100),
