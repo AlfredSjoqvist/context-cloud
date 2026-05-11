@@ -85,7 +85,7 @@ export function registerFindingsTools(server: McpServer): void {
         "Return active (non-resolved) Guardian findings whose code path matches the given file. " +
         "Useful when the user opens a file in their editor and wants to see what Guardian flagged.",
       inputSchema: {
-        path: z.string().describe("Repo-relative path, e.g. 'agent/main.ts'."),
+        path: z.string().min(1).describe("Repo-relative path, e.g. 'agent/main.ts'."),
       },
     },
     async ({ path }) =>

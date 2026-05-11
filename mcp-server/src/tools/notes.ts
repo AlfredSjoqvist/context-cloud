@@ -69,7 +69,7 @@ export function registerNotesTools(server: McpServer): void {
         "Return NM notes that have an edge to the given file path. Use this when an editor is " +
         "about to work on a file and wants the prior lessons surfaced.",
       inputSchema: {
-        path: z.string().describe("Repo-relative path, e.g. 'agent/main.ts'."),
+        path: z.string().min(1).describe("Repo-relative path, e.g. 'agent/main.ts'."),
       },
     },
     async ({ path }) =>
