@@ -136,6 +136,15 @@ function writeOrPrint(target: string, merged: Record<string, unknown>, print: bo
 }
 
 function main(): void {
+  try {
+    runInstall();
+  } catch (err) {
+    process.stderr.write(`error: ${(err as Error).message ?? String(err)}\n`);
+    process.exit(4);
+  }
+}
+
+function runInstall(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.editor) {
     printHelp();
