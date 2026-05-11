@@ -55,17 +55,21 @@ the demo gods turn against you.
 ### Pre-flight (1 min before you go live)
 
 ```bash
-bash evals/run_all.sh
+make eval                                  # or: bash evals/run_all.sh
 ```
 
-Expected: `evals: passed=N failed=0`. If anything fails, the demo will
-fail in a more confusing way later. Fix it now or switch to Path B.
+Expected: `evals: passed=6 failed=0`. If anything fails, the demo will
+fail in a more confusing way later — see "Things that go wrong" below
+or switch to Path B.
 
 ### T-0:30 — terminal A — start Convex + Hindsight UI
 
+`<repo>` below is your local clone of `context-cloud`. Substitute the
+absolute path or `cd` to it once and use `pwd` from there.
+
 ```bash
 cd <repo>
-npx convex dev                             # leaves running; ~10s to boot
+npx convex dev                             # interactive; logs in once + leaves running ~10s
 # new terminal tab
 cd <repo>/ui
 npm run dev                                # → http://localhost:3000
@@ -78,6 +82,12 @@ the **Activity** tab. Leave it visible.
 
 ```bash
 cd <repo>
+make agent                                 # equivalent to the env-prefixed agent:once below
+```
+
+Or, if you don't have `make` (or want to see the env explicitly):
+
+```bash
 DEMO_REPO_LOCAL_PATH="$(pwd)/mock_org/agent-gateway" \
 USE_MOCK_LLM=1 USE_MOCK_DEVIN=1 SKIP_NIA=1 \
 npm run agent:once
@@ -103,9 +113,18 @@ finding. Show:
 
 ### T+1:30 — open the cited constraint
 
-Open the `mdFile:line` from the finding in your editor. Read the rule out
-loud. The audience needs to hear that it's a *real* engineering invariant,
-not a stub.
+Open the `mdFile:line` from the finding in your editor. The fastest path
+on macOS / VS Code:
+
+```bash
+code -g .context-map/library/auth/credentials-required.md:5
+```
+
+Or `vim +5 .context-map/library/auth/credentials-required.md`, or `cat`
+it on the terminal if you want to read it without leaving the shell.
+
+Read the rule out loud. The audience needs to hear that it's a *real*
+engineering invariant, not a stub.
 
 Suggested talking line: *"Guardian's findings are line-precise and
 verified. Anyone in the room can clone this repo, jump to the cited line,
@@ -150,12 +169,16 @@ If anything in Path A fails on stage: open the deployed Vercel URL.
 `mock/index.html` is a self-contained static page that renders the demo
 narrative without any backend. It exists for exactly this moment.
 
-```
-# Find the URL with:
-git grep -h "vercel.app" README.md | head -1
+The deployed URL is set by whoever ran `vercel deploy`. To find it
+locally without the deploy:
+
+```bash
+open mock/index.html              # macOS
+xdg-open mock/index.html          # Linux
 ```
 
-(Project-team: keep the deployed URL fresh in `README.md`.)
+(Project-team: when you push a deploy, paste the production URL into
+`README.md` near the top so this fallback is one click away on stage.)
 
 The static fallback covers the same beats as Path A. You won't have a
 live cycle, but you will have screenshots of the cycle at every stage,
@@ -169,9 +192,10 @@ the architecture diagram, and a click-through of the UI tabs.
 |------------------------------------------------------|---------------------------------------------------------------------|
 | `npm run agent:once` exits with `CONVEX_URL not set` | Run `npx convex dev` first; copy the URL from its output to `.env`. |
 | UI shows "no events" forever                         | UI is on `*.convex.cloud`; Python sync writes to `*.convex.site`. Check both. |
-| Guardian fires zero findings                         | Mock-mode is off and the LLM has no opinion. Set `USE_MOCK_LLM=1`. |
+| Guardian fires zero findings                         | Either mock-mode is off (set `USE_MOCK_LLM=1`) OR the seed library is missing in the demo target (run `bash seed-context-map.sh`). |
 | `npm run agent:once` opens GitHub issues you didn't want | Set `USE_MOCK_DEVIN=1` to stub the handoff and skip GH issue creation. |
-| Citation on a finding fails byte-equality            | Run `bash evals/run_all.sh` — the citation-precision eval points at the offending leaf. |
+| Finding's `constraintCite.mdFile` does not exist     | The seed library wasn't mirrored into the demo target. `bash seed-context-map.sh`, then re-run `make agent`. |
+| Citation on a finding fails byte-equality            | Run `make eval` — the citation-precision and mirror evals will point at the offending leaf. |
 
 ---
 
@@ -183,6 +207,7 @@ This document is not a draft. To verify it stays correct:
 bash evals/run_all.sh
 ```
 
-…must exit 0. Currently checks NM hurdle scoring + `.context-map/library/`
-citation precision. Add coverage for new demo beats here as the demo
-evolves.
+…must exit 0. Six evals: NM hurdle scoring, citation precision,
+applies_to reachability, leaf metadata consistency, NM GC pruning,
+seed-library mirror. Add coverage for new demo beats as the demo
+evolves; the quality bar is in [`evals/README.md`](evals/README.md).
