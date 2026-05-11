@@ -7,7 +7,7 @@ change set; granular commits are visible in `git log`.
 
 ### Added — constraint library
 
-15 hand-authored seed leaves under `.context-map/library/`, ~85 rules
+18 hand-authored seed leaves under `.context-map/library/`, ~104 rules
 total. Each rule is a single line, byte-citable by Guardian's
 `verifyConstraintCite`, and currently violated by at least one file
 under `mock_org/` (where applicable — `frontend-security` and
@@ -30,11 +30,28 @@ under `mock_org/` (where applicable — `frontend-security` and
 | time | 6 | universal: UTC + ISO 8601, monotonic clocks for elapsed, calendar-aware date math |
 | network | 6 | universal: TLS verify on, min TLS 1.2, SSRF allow-list, both timeouts, no cross-origin auth follow |
 | frontend-security | 7 | `control-plane/components/*.tsx` — XSS, CSRF, CSP, cookies, iframes, open redirect |
+| accessibility | 7 | `control-plane/components/*.tsx` — semantic HTML, keyboard, ARIA, focus, contrast, motion |
+| i18n | 6 | universal: no concatenated translations, CLDR plurals, Intl.* formatting, RTL, Unicode inputs |
+| caching | 6 | universal: TTL on every entry, no auth/anon mixing, write-time invalidation, stampede protection |
 
 The seed is mirrored into every `mock_org/<sub-org>/.context-map/library/`
 via [`seed-context-map.sh`](seed-context-map.sh); a drift eval
 ([`evals/test_seed_library_mirror.py`](evals/test_seed_library_mirror.py))
 refuses silent divergence.
+
+**Intentional rule overlap.** A few rules appear in two leaves with
+different applies_to scopes:
+
+- "no process-local Map / Set / dict as source of truth" appears in
+  both `rate-limit/persistent-decay.md` (rule 2) and
+  `state/durable-and-atomic.md` (rule 3). The same anti-pattern hits a
+  rate-limit code path and a state-store code path with different
+  failure modes (over-limit on one replica, double-process on scale-out).
+  Two leaves means Guardian's planner picks the more contextual
+  rule for each file rather than firing the same generic rule twice.
+
+If you find a third copy of a rule across leaves, that's worth
+consolidating.
 
 ### Added — eval suite
 

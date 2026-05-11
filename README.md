@@ -164,7 +164,7 @@ mutating the source under test, it is a placebo and gets deleted.
 
 ### Constraint library
 
-Guardian enforces 11 constraint families seeded under
+Guardian enforces 18 constraint families seeded under
 [`.context-map/library/`](.context-map/library/). Every leaf is a
 markdown file with line-precise rules; Guardian's findings cite a
 specific line in a specific leaf, byte-equal to the file content.
@@ -182,6 +182,13 @@ specific line in a specific leaf, byte-equal to the file content.
 | [sandbox](.context-map/library/sandbox/job-resource-budgets.md) | job-resource-budgets | `src/runtime/`, `src/jobs/` |
 | [supply-chain](.context-map/library/supply-chain/dependencies-and-build.md) | dependencies-and-build | `package.json`, lockfiles, Dockerfiles, CI workflows |
 | [state](.context-map/library/state/durable-and-atomic.md) | durable-and-atomic | `src/runtime/state*`, schedulers, stores |
+| [concurrency](.context-map/library/concurrency/locks-and-races.md) | locks-and-races | `src/api/`, `src/jobs/`, `src/workers/`, lock helpers |
+| [time](.context-map/library/time/timezones-and-monotonic.md) | timezones-and-monotonic | `src/api/`, `src/lib/time*/clock*`, runtime |
+| [network](.context-map/library/network/tls-and-egress.md) | tls-and-egress | `src/api/`, `src/lib/http*`, connectors |
+| [frontend-security](.context-map/library/frontend-security/xss-csrf-csp.md) | xss-csrf-csp | `components/*.tsx`, middleware, next.config |
+| [accessibility](.context-map/library/accessibility/semantic-and-keyboard.md) | semantic-and-keyboard | `components/*.tsx`, app routes, pages |
+| [i18n](.context-map/library/i18n/locale-and-formatting.md) | locale-and-formatting | `components/*.tsx`, `lib/format*/i18n*/intl*` |
+| [caching](.context-map/library/caching/ttl-and-invalidation.md) | ttl-and-invalidation | `src/api/`, `src/lib/cache*/redis*/memo*` |
 
 Wire the seed into a demo target with
 [`bash seed-context-map.sh`](seed-context-map.sh) (mirrors to every
