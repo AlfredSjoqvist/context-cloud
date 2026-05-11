@@ -106,12 +106,16 @@ export const byStatus = query({
       v.literal("reopened_sharpened"),
       v.literal("escalated"),
     ),
+    // Cap large status buckets so a single query can't time out as
+    // resolved/escalated findings accumulate. Newest-first.
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("findings")
       .withIndex("by_status", (q) => q.eq("status", args.status))
-      .collect();
+      .order("desc")
+      .take(args.limit ?? 500);
   },
 });
 
