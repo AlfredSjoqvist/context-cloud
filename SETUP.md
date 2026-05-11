@@ -31,12 +31,22 @@ npm install                 # ~1 min, repo root
 ( cd ui && npm install )    # ~30s, Hindsight UI
 ```
 
+Optional sanity check now that you have `make` available:
+
+```bash
+make setup-check            # verifies node, npm, python3, git, node_modules
+```
+
 If `npm install` complains about peer deps, retry once with `--legacy-peer-deps`
 on the directory that failed; we don't pin Node-major peers.
 
 ---
 
 ## 2. Convex deployment (one-time)
+
+**Open a fresh terminal for this** — `npx convex dev` runs in the
+foreground and stays running for the rest of setup; the steps below
+need a separate terminal.
 
 ```bash
 npx convex dev              # interactive: log in, pick "create new project"
@@ -64,10 +74,10 @@ Leave `npx convex dev` running for the rest of setup.
 If this passes, your local checkout is structurally healthy:
 
 ```bash
-bash evals/run_all.sh
+make eval                                # or: bash evals/run_all.sh
 ```
 
-Expected: `evals: passed=N failed=0`. If it fails on
+Expected: `evals: passed=6 failed=0`. If it fails on
 `test_citation_precision`, a `.context-map/library/` leaf got into a
 state Guardian can't cite. Open the failing leaf and fix the line the
 eval names; do not silence the test.
@@ -82,18 +92,24 @@ seed library lives at the repo root; this step copies it into the demo
 target so Guardian can find it on the next cycle.
 
 ```bash
-bash seed-context-map.sh                 # mirror to every sub-org under mock_org/
+make seed                                # = bash seed-context-map.sh
 # or, scoped to one sub-org:
 bash seed-context-map.sh agent-gateway
 ```
 
-Re-run `bash evals/run_all.sh` after the mirror. The mirror eval refuses
-to merge silent drift, so any edit to `.context-map/library/` requires
-re-running this step.
+Re-run `make eval` after the mirror. The mirror eval refuses to merge
+silent drift, so any edit to `.context-map/library/` requires re-running
+this step.
 
 ---
 
 ## 5. First Guardian cycle
+
+```bash
+make agent                               # one-shot Guardian cycle in mock mode
+```
+
+…which is shorthand for:
 
 ```bash
 DEMO_REPO_LOCAL_PATH="$(pwd)/mock_org/agent-gateway" \
@@ -113,14 +129,17 @@ What you should see in the last ~20 lines:
 [guardian] cycle <id> done in <s>s
 ```
 
-Findings reference real lines in `.context-map/library/auth/credentials-required.md`
-and `.context-map/library/secrets/redaction-completeness.md` (and now
-`.context-map/library/rate-limit/persistent-decay.md`).
+Findings reference real lines in any of the 20 leaves under
+[.context-map/library/](.context-map/library/) — auth, secrets,
+rate-limit, db, observability, errors, validation, webhooks, sandbox,
+supply-chain, state, concurrency, time, network, frontend-security,
+accessibility, i18n, caching, file-uploads, email.
 
-If you see zero findings, you forgot `USE_MOCK_LLM=1`.
-If you see `cannot find demo target`, you forgot `DEMO_REPO_LOCAL_PATH`.
-If you see `convex: connection refused`, terminal-1 stopped running
-`npx convex dev`.
+Common first-cycle failures:
+- Zero findings → you forgot `USE_MOCK_LLM=1` (use `make agent` to avoid this).
+- `cannot find demo target` → you forgot `DEMO_REPO_LOCAL_PATH` (ditto).
+- `convex: connection refused` → terminal-1 stopped running `npx convex dev`.
+- `cannot read .context-map/library/...` → you skipped step 4. Run `make seed`.
 
 ---
 
@@ -152,9 +171,8 @@ the project end-to-end.
    working tree is dirty in a way that breaks Guardian's contract; fix
    the named leaf before chasing a Guardian error.
 2. Confirm step 4 ran and the demo target now has the seed library:
-   `ls mock_org/agent-gateway/.context-map/library` should list the
-   leaves (auth, secrets, rate-limit, db, observability, errors,
-   webhooks, sandbox, validation, supply-chain, state).
+   `ls mock_org/agent-gateway/.context-map/library` should list 20
+   leaf directories. If empty: re-run `make seed`.
 3. `git status` — uncommitted changes outside `convex/`, `agent/`, etc.
    can break the build; stash and retry.
 4. `git log --oneline -5` — confirm you're on a recent `origin/main`.
