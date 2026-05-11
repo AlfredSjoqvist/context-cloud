@@ -1,0 +1,35 @@
+{
+  "name": "@hindsight/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hindsight MCP server — exposes Guardian findings + NM notes to editors (Cursor / Claude Code / Codex).",
+  "type": "module",
+  "bin": {
+    "hindsight-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "convex": "^1.38.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
