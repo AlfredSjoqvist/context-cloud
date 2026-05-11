@@ -16,9 +16,10 @@ sync README + CHANGELOG eval section to reflect 8 evals.
 
 **Plan**:
 1. README + CHANGELOG: 7 → 8 evals row.
-2. `evals/test_doc_links_resolve.py` — every `[label](relative/path)`
-   in any root markdown doc points to a file that exists. URL-decodes
-   `%20` etc. before checking. Skips external URLs.
+2. `evals/test_doc_links_resolve.py` — every markdown link with a
+   relative path (the parenthesised target after a square-bracket
+   label) in any root markdown doc points to a file that exists.
+   URL-decodes `%20` etc. before checking. Skips external URLs.
 3. Self-test by appending a ghost link → red.
 
 ---
