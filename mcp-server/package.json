@@ -23,7 +23,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepack": "npm run build",
     "pretest": "npm run build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:live": "HINDSIGHT_LIVE_CONVEX_URL=$HINDSIGHT_LIVE_CONVEX_URL vitest run server.live",
+    "verify": "node dist/verify.js",
+    "install:cursor": "node dist/install.js --editor cursor",
+    "install:claude-code-project": "node dist/install.js --editor claude-code-project --with-hooks",
+    "install:claude-code": "node dist/install.js --editor claude-code --with-hooks",
+    "install:codex": "node dist/install.js --editor codex"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
