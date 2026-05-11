@@ -52,19 +52,25 @@ export function registerFindingsTools(server: McpServer): void {
         status: FindingStatus.describe(
           "Lifecycle status to filter on. Most useful: 'detected' (new), 'pr_open' (Devin handed off), 'verifying'.",
         ),
+        severity: z
+          .enum(["low", "medium", "high", "critical"])
+          .optional()
+          .describe("Optional severity filter — applied client-side after the Convex query."),
         limit: z.number().int().positive().max(200).optional().describe("Max rows to return (default 50)."),
       },
     },
-    async ({ status, limit }) =>
-      safe("list_findings", { status, limit }, async () => {
+    async ({ status, severity, limit }) =>
+      safe("list_findings", { status, severity, limit }, async () => {
         const rows = await runQuery<Finding[]>(Q.findingsByStatus, { status });
-        const slice = rows.slice(0, limit ?? 50);
+        const filtered = severity ? rows.filter((f) => f.severity === severity) : rows;
+        const slice = filtered.slice(0, limit ?? 50);
+        const sevSuffix = severity ? `, severity=${severity}` : "";
         return {
           content: [
             { type: "text", text: formatFindings(slice) },
             {
               type: "text",
-              text: `\n(returned ${slice.length} of ${rows.length} findings with status=${status})`,
+              text: `\n(returned ${slice.length} of ${filtered.length} findings with status=${status}${sevSuffix})`,
             },
           ],
         };
