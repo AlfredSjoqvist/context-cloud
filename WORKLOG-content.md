@@ -8,7 +8,22 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 26 (current) — payments + pii leaves
+## Iteration 27 (current) — feature-flags + crypto leaves
+
+**Goal**: Two more universally-applicable leaves: feature flags
+(default off, kill-switch, hot-path latency) and crypto (no DIY
+primitives, no MD5/SHA-1, KDF for passwords, AEAD, crypto-random,
+KMS-managed keys with rotation).
+
+**Plan**:
+1. feature-flags leaf (6 rules), mirror.
+2. crypto leaf (6 rules), mirror.
+3. Both are universal — no demo stub needed; targets are `src/api/`
+   which has plenty of files in mock_org so reachability eval passes.
+
+---
+
+## Iteration 26 — payments + pii leaves
 
 **Goal**: Two compliance-grade leaves: payments (idempotency, integer
 money, PCI hygiene, webhook signature dance) and PII (minimisation,
@@ -468,6 +483,27 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 27
+
+- **1f1afe9** `feat(context-map): add feature-flags/rollout-and-killswitch leaf`
+- **10315e2** `feat(context-map): add crypto/primitives-and-keys leaf`
+- Library: 24 leaves, ~140 rules. All mirrored. Eval suite still 6/all green.
+
+**Diminishing returns check**: at 24 leaves the library covers the
+universal categories (auth, secrets, db, observability, errors,
+validation, network, time, concurrency, caching, state, sandbox,
+webhooks, supply-chain, frontend-security, accessibility, i18n,
+file-uploads, email, payments, pii, feature-flags, crypto, rate-limit).
+Future additions should be domain-specific (e.g. ML training data,
+real-time pipelines) rather than more general categories.
+
+**Left to do (next iterations, in priority):**
+1. CHANGELOG / README refresh: 24-leaf table.
+2. Verify `make demo` end-to-end actually completes a Guardian cycle
+   without LLM keys (proves the helper recipe holds).
+3. Add a `make help` target audit — does the help output stay in sync
+   with the actual recipes?
 
 ### 2026-05-10 — Iteration 26
 
