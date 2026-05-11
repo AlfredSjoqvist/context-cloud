@@ -270,3 +270,31 @@ verified on dev via curl or `npx convex run`.
 Prod (`colorless-porcupine-926`) still on pre-iter-1 code — same
 blocker.
 
+---
+
+## Iterations 32-35 — payload caps + index coverage
+
+Continuous autonomous loop. Each commit deploy-verified on dev.
+
+| # | Commit | Topic |
+|---|---|---|
+| 32 | `66835ef` | `gc.recentRuns` query for GC history timeline |
+| 33 | `66aba9e` | `notes.recent` (includes invalidated, for GC tab) |
+| 34 | `e6d0a65` | `cycles.recent` + `cycles.detail` Replay drill-down |
+| 35 | `65bd403` | `findings.by_cycle_detected` index — cycles.detail now O(matches) |
+| 36 | `9be0092` | `noteFiles.by_note_path` compound index — every note-write was scanning all edges for that noteId then filtering by path; now true indexed lookup |
+| 37 | `9460564` | cap unbounded `collect()` in `dashboard.everything` (notes/findings 2000 each, docsIngestRuns 1000) |
+| 38 | `a3eba6b` | cap unbounded `collect()` in `dashboard.health` (cycles/findings 2000 each for 24h-window counts) |
+
+**Why caps matter:** `notes` is append-only (GC stamps `invalidatedAt`,
+never deletes); `findings` accumulates for audit trail. A naive
+`.collect()` payload grows monotonically and eventually times out.
+Both endpoints now have hard caps in line with the pre-existing caps on
+prunedEdges/injections/gcActions.
+
+**Why compound index matters:** `upsertNoteWithEdges` is on the hot
+path of every `/sync/note` (and `/sync/note` runs on every Note Manager
+write — multiple per minute when an agent is active). Was doing
+`withIndex(by_note) + filter(path == X)` for every edge, which scans
+all edges of that note. With `by_note_path` it's a direct point lookup.
+
