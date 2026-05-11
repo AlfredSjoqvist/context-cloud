@@ -103,9 +103,11 @@ export const health = query({
             ctx.db.query("sessions").order("desc").first(),
             ctx.db.query("agentEvents").withIndex("by_ts").order("desc").first(),
             ctx.db.query("events").withIndex("by_timestamp").order("desc").first(),
-            // counts for the 24h windows the V2 Overview wants
-            ctx.db.query("cycles").collect(),
-            ctx.db.query("findings").collect(),
+            // counts for the 24h windows the V2 Overview wants. Cap at
+            // 2000 each — the dashboard renders approximate counts, and
+            // an unbounded collect() risks timing out as tables grow.
+            ctx.db.query("cycles").withIndex("by_cycle_number").order("desc").take(2000),
+            ctx.db.query("findings").order("desc").take(2000),
             ctx.db.query("gcActions").withIndex("by_ts").order("desc").take(500),
             ctx.db.query("injections").withIndex("by_ts").order("desc").take(500),
         ]);
