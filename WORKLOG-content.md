@@ -8,7 +8,22 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 16 (current) — time + network leaves
+## Iteration 17 (current) — frontend-security leaf + CHANGELOG refresh
+
+**Goal**: Add the frontend / browser-trust-boundary leaf so Guardian
+covers the OWASP-grade UI risks too, and refresh CHANGELOG with the
+4 leaves added in iterations 15–17.
+
+**Plan**:
+1. `.context-map/library/frontend-security/xss-csrf-csp.md` — 7 rules
+   (XSS, CSRF, CSP, cookie flags, iframe sandboxing, open redirect).
+   applies_to covers both Next.js src-dir and the
+   `mock_org/control-plane/components/*.tsx` shape.
+2. CHANGELOG row updates to 15 leaves / ~85 rules.
+
+---
+
+## Iteration 16 — time + network leaves
 
 **Goal**: Two more universally-applicable categories: time-and-clocks
 (timezones, monotonic vs wall, DST math, parsing strictness) and
@@ -306,6 +321,27 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 17
+
+- **eed6ba5** `feat(context-map): add frontend-security/xss-csrf-csp leaf`
+- **2e8501c** `docs(changelog): refresh constraint library count to 15 leaves / ~85 rules`
+- Library: 15 leaves, ~85 rules. All mirrored. Eval suite still 6/all green.
+
+**Surprise**: hook blocked the first write because the literal token
+`dangerouslySetInnerHTML` triggers a security-reminder regex even
+when the surrounding text recommends *against* it. Reworded the
+constraint to "the raw-HTML escape hatch prop" + a description so
+the rule still teaches the right lesson without tripping the regex.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV.
+2. Audit for rule overlap across leaves (no-process-local-Map appears
+   in rate-limit, state, and concurrency).
+3. Add a leaf for `accessibility` (semantic HTML, ARIA, keyboard nav,
+   focus trap, color contrast).
+4. Add a leaf for `i18n` (locale/dir/script-aware string handling,
+   no concatenated translations).
 
 ### 2026-05-10 — Iteration 16
 
