@@ -13,7 +13,7 @@ const FindingStatus = z.enum([
   "escalated",
 ]);
 
-type Finding = {
+export type Finding = {
   _id: string;
   status: string;
   path?: string;
@@ -27,7 +27,7 @@ type Finding = {
   createdAt?: number;
 };
 
-function formatFindings(findings: Finding[]): string {
+export function formatFindings(findings: Finding[]): string {
   if (findings.length === 0) return "No findings.";
   return findings
     .map((f) => {

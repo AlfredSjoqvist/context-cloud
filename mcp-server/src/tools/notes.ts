@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getConvexClient, Q } from "../convex.js";
 import { safe } from "../log.js";
 
-type Note = {
+export type Note = {
   _id: string;
   noteId?: string;
   body?: string;
@@ -13,19 +13,19 @@ type Note = {
   injectCount?: number;
 };
 
-type NoteEdge = {
+export type NoteEdge = {
   noteId: string;
   path: string;
   weight?: number;
 };
 
-function truncate(s: string | undefined, n: number): string {
+export function truncate(s: string | undefined, n: number): string {
   if (!s) return "";
   if (s.length <= n) return s;
   return s.slice(0, n - 1) + "…";
 }
 
-function formatNotes(notes: Note[]): string {
+export function formatNotes(notes: Note[]): string {
   if (notes.length === 0) return "No notes.";
   return notes
     .map((n) => {
