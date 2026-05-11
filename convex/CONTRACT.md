@@ -31,7 +31,7 @@ Base URLs:
 | `POST` | `/sync/note` | `{ note: NoteFields, edges?: EdgeFields[] }` — atomic |
 | `POST` | `/sync/injection` | injection fields. Auto-bumps note.injectCount when `accepted: true` and `noteId` set. Atomic. |
 | `POST` | `/sync/hurdle` | hurdle fields. Upsert on `hurdleId`. |
-| `POST` | `/sync/gc` | gc fields: `{ ts, action, noteId?, details?, runId?, targetNote?, targetFile?, sourceNote?, reason?, edgeWeight? }`. Atomically invalidates note when `action ∈ {prune, invalidate}` and `noteId` set. Additionally writes a `prunedEdges` row when `action='prune'` AND both `noteId` and `targetFile` set. |
+| `POST` | `/sync/gc` | gc fields: `{ ts, action, noteId?, details?, runId?, targetNote?, targetFile?, sourceNote?, reason?, edgeWeight? }`. Atomically invalidates note when `action ∈ {prune, invalidate}` and `noteId` set. Un-invalidates note when `action='restore'` and `noteId` set. Additionally writes a `prunedEdges` row when `action='prune'` AND both `noteId` and `targetFile` set. |
 | `POST` | `/sync/session` | session fields. Upsert on `sessionId`. |
 | `POST` | `/sync/agent-event` | event fields. Atomically auto-creates / touches session row. |
 | `POST` | `/sync/mark-extracted` | `{ sessionId, atTs, lastEventTs? }`. Patches session.lastExtractedAt. |
@@ -196,6 +196,22 @@ These compound HTTP endpoints are now **single-transaction**:
 - `POST /sync/agent-event` → `agentEvents.appendWithSessionTouch` (event + session upsert/bump)
 
 A crash mid-handler will not leave inconsistent state on these paths.
+
+---
+
+## Scheduled jobs (`convex/crons.ts`)
+
+Pure data hygiene. Independent of the agent runtimes in `agent/`.
+
+| Job | Cadence | Effect |
+|---|---|---|
+| `prune-old-events` | daily 04:00 UTC | deletes `events` rows older than 30d (max 5000/run) |
+| `prune-old-agent-events` | daily 04:30 UTC | deletes `agentEvents` rows older than 14d (max 5000/run) |
+| `prune-old-injections` | daily 05:00 UTC | deletes `injections` rows older than 30d (max 5000/run) |
+
+The cutoff is computed inside each prune mutation at fire time — not
+captured from cron args at deploy time — so the window slides
+correctly day-to-day.
 
 ---
 
