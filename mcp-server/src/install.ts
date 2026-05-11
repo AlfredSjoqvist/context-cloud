@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 /**
- * hindsight-mcp-install — write the MCP server entry into a supported editor's config.
+ * hindsight-mcp-install — write Hindsight integration into a supported editor's config.
  *
- * Supported editors (JSON configs only for now; TOML editors like Codex print the snippet to paste):
- *   - cursor       ~/.cursor/mcp.json
- *   - claude-code  ~/.claude.json  (mcpServers key)
- *   - claude-code-project  ./.mcp.json (project-scoped)
+ * Two things get written:
+ *   1. The MCP server entry (mcpServers.hindsight) — into Cursor / Claude Code config.
+ *   2. (Optional, --with-hooks, Claude Code only) The PreToolUse / PostToolUse hooks
+ *      that wire nm_capture.py and nm_inject.py into the editor.
  *
- * Usage:
- *   npx hindsight-mcp-install --editor cursor
- *   npx hindsight-mcp-install --editor claude-code --convex-url https://x.convex.cloud
- *   npx hindsight-mcp-install --print --editor cursor      # dry-run, just print the JSON
+ * Supported editors:
+ *   - cursor               MCP only. ~/.cursor/mcp.json
+ *   - claude-code          MCP to ~/.claude.json ; hooks to ~/.claude/settings.json
+ *   - claude-code-project  MCP to ./.mcp.json    ; hooks to ./.claude/settings.json
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildEntry, mergeMcpServer, mergeClaudeCodeHooks } from "./installLib.js";
 
 type EditorKey = "cursor" | "claude-code" | "claude-code-project";
 
@@ -23,16 +24,25 @@ type ParsedArgs = {
   editor: EditorKey | null;
   convexUrl: string | null;
   serverPath: string | null;
+  withHooks: boolean;
   print: boolean;
   help: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const out: ParsedArgs = { editor: null, convexUrl: null, serverPath: null, print: false, help: false };
+  const out: ParsedArgs = {
+    editor: null,
+    convexUrl: null,
+    serverPath: null,
+    withHooks: false,
+    print: false,
+    help: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--help" || a === "-h") out.help = true;
     else if (a === "--print") out.print = true;
+    else if (a === "--with-hooks") out.withHooks = true;
     else if (a === "--editor") out.editor = argv[++i] as EditorKey;
     else if (a === "--convex-url") out.convexUrl = argv[++i] ?? null;
     else if (a === "--server-path") out.serverPath = argv[++i] ?? null;
@@ -40,7 +50,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return out;
 }
 
-function configPathFor(editor: EditorKey): string {
+function mcpConfigPathFor(editor: EditorKey): string {
   switch (editor) {
     case "cursor":
       return join(homedir(), ".cursor", "mcp.json");
@@ -51,26 +61,20 @@ function configPathFor(editor: EditorKey): string {
   }
 }
 
-function defaultServerPath(): string {
-  // dist/install.js -> dist/index.js (sibling)
-  const here = dirname(fileURLToPath(import.meta.url));
-  return join(here, "index.js");
+function hooksConfigPathFor(editor: EditorKey): string | null {
+  switch (editor) {
+    case "cursor":
+      return null;
+    case "claude-code":
+      return join(homedir(), ".claude", "settings.json");
+    case "claude-code-project":
+      return resolvePath(process.cwd(), ".claude", "settings.json");
+  }
 }
 
-type ServerEntry = {
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
-};
-
-function buildEntry(serverPath: string, convexUrl: string | null): ServerEntry {
-  const env: Record<string, string> = {};
-  if (convexUrl) env.HINDSIGHT_CONVEX_URL = convexUrl;
-  return {
-    command: "node",
-    args: [serverPath],
-    ...(Object.keys(env).length ? { env } : {}),
-  };
+function defaultServerPath(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return join(here, "index.js");
 }
 
 function readJsonOrEmpty(path: string): Record<string, unknown> {
@@ -84,34 +88,36 @@ function readJsonOrEmpty(path: string): Record<string, unknown> {
   }
 }
 
-function mergeMcpServer(config: Record<string, unknown>, name: string, entry: ServerEntry): Record<string, unknown> {
-  const next = { ...config };
-  const existing = (next.mcpServers && typeof next.mcpServers === "object" ? next.mcpServers : {}) as Record<
-    string,
-    unknown
-  >;
-  next.mcpServers = { ...existing, [name]: entry };
-  return next;
-}
-
 function printHelp(): void {
   process.stdout.write(
-    `hindsight-mcp-install — wire Hindsight MCP server into an editor
+    `hindsight-mcp-install — wire Hindsight into an editor
 
 Usage:
   hindsight-mcp-install --editor <cursor|claude-code|claude-code-project> [options]
 
 Options:
-  --convex-url <url>     Set HINDSIGHT_CONVEX_URL env on the server entry.
+  --convex-url <url>     Set HINDSIGHT_CONVEX_URL env on the MCP server entry.
   --server-path <path>   Override path to dist/index.js (defaults to this install's dist/index.js).
-  --print                Dry-run: print the merged JSON config to stdout instead of writing.
+  --with-hooks           Also write Claude Code hooks (PreToolUse + PostToolUse + ...). Claude Code only.
+  --print                Dry-run: print the merged JSON to stdout instead of writing.
   --help                 Show this help.
 
 Examples:
-  hindsight-mcp-install --editor cursor --convex-url https://example.convex.cloud
-  hindsight-mcp-install --editor claude-code-project --print
+  hindsight-mcp-install --editor cursor
+  hindsight-mcp-install --editor claude-code --with-hooks --convex-url https://x.convex.cloud
+  hindsight-mcp-install --editor claude-code-project --with-hooks --print
 `,
   );
+}
+
+function writeOrPrint(target: string, merged: Record<string, unknown>, print: boolean, label: string): void {
+  if (print) {
+    process.stdout.write(`# ${label}: would write to ${target}\n${JSON.stringify(merged, null, 2)}\n\n`);
+    return;
+  }
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+  process.stdout.write(`Wrote ${label} to ${target}\n`);
 }
 
 function main(): void {
@@ -122,22 +128,28 @@ function main(): void {
     return;
   }
 
-  const serverPath = args.serverPath ?? defaultServerPath();
-  const entry = buildEntry(serverPath, args.convexUrl);
-  const target = configPathFor(args.editor);
-  const current = readJsonOrEmpty(target);
-  const merged = mergeMcpServer(current, "hindsight", entry);
-
-  if (args.print) {
-    process.stdout.write(
-      `# Would write to: ${target}\n${JSON.stringify(merged, null, 2)}\n`,
+  if (args.withHooks && args.editor === "cursor") {
+    process.stderr.write(
+      "error: --with-hooks is only supported for claude-code and claude-code-project. Cursor has no equivalent hook surface.\n",
     );
-    return;
+    process.exit(2);
   }
 
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, JSON.stringify(merged, null, 2) + "\n", "utf-8");
-  process.stdout.write(`Wrote hindsight MCP server entry to ${target}\n`);
+  const serverPath = args.serverPath ?? defaultServerPath();
+  const entry = buildEntry(serverPath, args.convexUrl);
+
+  const mcpTarget = mcpConfigPathFor(args.editor);
+  const mcpCurrent = readJsonOrEmpty(mcpTarget);
+  const mcpMerged = mergeMcpServer(mcpCurrent, "hindsight", entry);
+  writeOrPrint(mcpTarget, mcpMerged, args.print, "MCP server config");
+
+  if (args.withHooks) {
+    const hooksTarget = hooksConfigPathFor(args.editor);
+    if (!hooksTarget) throw new Error(`hooks not supported for editor=${args.editor}`);
+    const hooksCurrent = readJsonOrEmpty(hooksTarget);
+    const hooksMerged = mergeClaudeCodeHooks(hooksCurrent);
+    writeOrPrint(hooksTarget, hooksMerged, args.print, "Claude Code hooks");
+  }
 }
 
 main();
