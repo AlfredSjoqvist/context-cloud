@@ -96,6 +96,18 @@ export const recordWithMaybeInvalidate = internalMutation({
                 await ctx.db.patch(n._id, { invalidatedAt: a.ts });
             }
         }
+        // 'restore' un-invalidates a note that GC previously took out.
+        // Without this branch a restored note would stay missing from
+        // dashboard's listActive forever.
+        if (a.action === "restore" && a.noteId) {
+            const n = await ctx.db
+                .query("notes")
+                .withIndex("by_note_id", (q) => q.eq("noteId", a.noteId!))
+                .first();
+            if (n) {
+                await ctx.db.patch(n._id, { invalidatedAt: undefined });
+            }
+        }
         // Edge-level prune: also record the lost edge so Replay can show it.
         if (a.action === "prune" && a.noteId && a.targetFile) {
             await ctx.db.insert("prunedEdges", {
