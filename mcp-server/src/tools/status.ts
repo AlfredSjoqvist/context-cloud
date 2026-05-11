@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getConvexClient, Q, resolveConvexUrl } from "../convex.js";
-import { safe } from "../log.js";
+import { safe, log } from "../log.js";
 
 const STATUSES = [
   "detected",
@@ -37,10 +37,17 @@ export function registerStatusTool(server: McpServer): void {
         const findingResults = await Promise.allSettled(
           STATUSES.map((s) => client.query(Q.findingsByStatus as never, { status: s } as never)),
         );
-        const findingCounts: [string, number | "ERR"][] = findingResults.map((r, i) => [
-          STATUSES[i],
-          r.status === "fulfilled" && Array.isArray(r.value) ? (r.value as unknown[]).length : "ERR",
-        ]);
+        const findingCounts: [string, number | "ERR"][] = findingResults.map((r, i) => {
+          if (r.status === "fulfilled" && Array.isArray(r.value)) {
+            return [STATUSES[i], (r.value as unknown[]).length];
+          }
+          // Surface the reason to stderr so the user can debug; row stays "ERR".
+          if (r.status === "rejected") {
+            const reason = (r.reason as Error)?.message ?? String(r.reason);
+            log.warn("get_status.subquery_failed", { status: STATUSES[i], error: reason });
+          }
+          return [STATUSES[i], "ERR"];
+        });
 
         let noteCount: number | "ERR" = "ERR";
         try {
