@@ -8,7 +8,25 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 30 (current) — README + CHANGELOG eval refresh
+## Iteration 31 (current) — `make verify` recipe + npm-scripts drift eval
+
+**Goal**: Add a louder pre-flight (`make verify` with PASS/FAIL banner)
+and another docs-vs-code drift eval — same shape as Makefile drift,
+applied to npm scripts referenced in markdown.
+
+**Plan**:
+1. Makefile: add `verify` recipe that chains seed + eval and prints
+   a banner. Makefile drift eval already covers that the recipe is
+   listed in `make help`.
+2. `evals/test_npm_scripts_referenced_in_docs_exist.py` — every
+   `npm run <name>` in any root `*.md` doc resolves to a script in
+   any of the workspace package.json files.
+3. Self-test the eval (replace a real `npm test` reference with a
+   bogus name → red).
+
+---
+
+## Iteration 30 — README + CHANGELOG eval refresh
 
 **Goal**: Sync README "Evals" section and CHANGELOG eval table to
 include the Makefile drift eval added in iteration 29. Counts:
@@ -516,6 +534,27 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 31
+
+- **88bede2** `feat(demo): add `make verify` recipe with PASS/FAIL summary`
+- **e387f0b** `test(evals): add npm-scripts-referenced-in-docs eval`
+- Eval suite: 8 evals, 36 tests when bootstrapped. Self-test
+  verified for npm-scripts (replacing `npm test` with a bogus name
+  in README turns the eval red).
+
+**Surprise**: the npm-scripts eval initially failed because README
+references `cd docs-ingest && npm run demo` and the eval only knew
+about root + ui package.json. Extended the catalog to include
+docs-ingest + dashboard. Tradeoff: a script defined in one workspace
+but referenced in the wrong context isn't caught — acceptable since
+all workspaces share the same repo.
+
+**Left to do (next iterations, in priority):**
+1. README + CHANGELOG eval section refresh (8 evals now).
+2. Add `make verify` doc references in DEMO.md / SETUP.md.
+3. Doc-references-real-file eval — every relative-path link in any
+   markdown points to a file that exists.
 
 ### 2026-05-10 — Iteration 30
 
