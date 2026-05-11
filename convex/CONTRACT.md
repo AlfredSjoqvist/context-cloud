@@ -64,6 +64,7 @@ All `/sync/*` return `{ "ok": true, "result": ... }` on success or `{ "error": "
 | `incrementSharpen(findingId)` | mutation | bumps `sharpenIterations` by 1 (NOT idempotent — prefer `setSharpenIterations`) |
 | `setSharpenIterations(findingId, iterations)` | mutation | **idempotent-by-value** — preferred for retry-safe writes |
 | `byStatus(status)` | query | indexed lookup |
+| `detail(findingId, eventsLimit?)` | query | returns `{ finding, runs, events }` in one round-trip |
 
 ### `api.devinRuns`
 
@@ -95,6 +96,7 @@ All `/sync/*` return `{ "ok": true, "result": ... }` on success or `{ "error": "
 | Function | Type | Notes |
 |---|---|---|
 | `listActive(limit?)` | query | excludes invalidated notes |
+| `detail(noteId, injectionsLimit?)` | query | returns `{ note, edges, injections }` in one round-trip |
 | `listEdgesForNote(noteId)` | query | |
 | `listEdgesForPath(path)` | query | |
 | `listFiles()` | query | |
