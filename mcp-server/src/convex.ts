@@ -1,23 +1,44 @@
 import { ConvexHttpClient } from "convex/browser";
+import { log } from "./log.js";
 
 /**
  * Hindsight MCP server reads from Convex over HTTP.
  *
- * CONVEX_URL must point at a *.convex.cloud deployment (not *.convex.site, which is the
- * HTTP-action surface used by NM's Python writer). Defaults to the colorless-porcupine-926
- * deployment from CLAUDE.md if unset, but real installs should set it explicitly.
+ * Resolution order:
+ *   1. HINDSIGHT_CONVEX_URL  — preferred; namespaced to this package.
+ *   2. CONVEX_URL            — convenience fallback so users with an existing
+ *                              Convex env don't have to duplicate it.
+ *   3. DEFAULT_CONVEX_URL    — the project's own demo deployment. Only used
+ *                              when neither env var is set; logs a loud warn
+ *                              so misconfigured installs are visible at boot.
+ *
+ * The URL must point at a *.convex.cloud deployment (NOT *.convex.site, which
+ * is the HTTP-action surface used by NM's Python writer).
  */
 const DEFAULT_CONVEX_URL = "https://colorless-porcupine-926.convex.cloud";
 
 let client: ConvexHttpClient | null = null;
 
+export function resolveConvexUrl(): { url: string; source: "HINDSIGHT_CONVEX_URL" | "CONVEX_URL" | "default" } {
+  if (process.env.HINDSIGHT_CONVEX_URL) {
+    return { url: process.env.HINDSIGHT_CONVEX_URL, source: "HINDSIGHT_CONVEX_URL" };
+  }
+  if (process.env.CONVEX_URL) {
+    return { url: process.env.CONVEX_URL, source: "CONVEX_URL" };
+  }
+  return { url: DEFAULT_CONVEX_URL, source: "default" };
+}
+
 export function getConvexClient(): ConvexHttpClient {
   if (client) return client;
-  const url = process.env.HINDSIGHT_CONVEX_URL || process.env.CONVEX_URL || DEFAULT_CONVEX_URL;
-  if (!url) {
-    throw new Error(
-      "Hindsight MCP server needs CONVEX_URL (or HINDSIGHT_CONVEX_URL) set to a *.convex.cloud deployment.",
-    );
+  const { url, source } = resolveConvexUrl();
+  if (source === "default") {
+    log.warn("convex.fallback_to_demo", {
+      url,
+      hint: "Set HINDSIGHT_CONVEX_URL to your own deployment so you stop reading the demo's data.",
+    });
+  } else {
+    log.debug("convex.client_init", { url, source });
   }
   client = new ConvexHttpClient(url);
   return client;

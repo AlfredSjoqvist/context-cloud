@@ -80,16 +80,30 @@ export function registerNotesTools(server: McpServer): void {
         if (edges.length === 0) {
           return { content: [{ type: "text", text: `No NM notes attached to ${path}.` }] };
         }
-        const allActive = (await client.query(Q.notesListActive as never, { limit: 500 } as never)) as Note[];
+        // Note: listActive caps at this limit. If the deployment ever exceeds it we
+        // could miss notes for the file. The cap is reported in the response so the
+        // caller can tell when a re-query with a higher limit is needed.
+        const ACTIVE_SCAN_LIMIT = 500;
+        const allActive = (await client.query(
+          Q.notesListActive as never,
+          { limit: ACTIVE_SCAN_LIMIT } as never,
+        )) as Note[];
         const byId = new Map<string, Note>();
         for (const n of allActive) byId.set(n.noteId ?? n._id, n);
         const matched = edges
           .map((e) => byId.get(e.noteId))
           .filter((n): n is Note => Boolean(n));
+        const truncationNote =
+          allActive.length >= ACTIVE_SCAN_LIMIT
+            ? ` — WARNING: scanned only the most recent ${ACTIVE_SCAN_LIMIT} active notes; older notes attached to this file may not be shown`
+            : "";
         return {
           content: [
             { type: "text", text: formatNotes(matched) },
-            { type: "text", text: `\n(${matched.length} active notes attached to ${path}; ${edges.length} edges total)` },
+            {
+              type: "text",
+              text: `\n(${matched.length} active notes attached to ${path}; ${edges.length} edges total${truncationNote})`,
+            },
           ],
         };
       }),
