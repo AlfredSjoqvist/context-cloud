@@ -67,6 +67,8 @@ export const setStatus = mutation({
   },
 });
 
+// NON-idempotent — retries double-bump. Prefer setSharpenIterations
+// when the caller can compute the target value.
 export const incrementSharpen = mutation({
   args: { findingId: v.id("findings") },
   handler: async (ctx, args) => {
@@ -74,6 +76,21 @@ export const incrementSharpen = mutation({
     if (!f) throw new Error("finding not found");
     await ctx.db.patch(args.findingId, {
       sharpenIterations: f.sharpenIterations + 1,
+    });
+  },
+});
+
+// Idempotent-by-value: pass the target sharpenIterations count. Safe to
+// retry on transient network failures because re-applying the same
+// target is a no-op rather than a double-increment.
+export const setSharpenIterations = mutation({
+  args: {
+    findingId: v.id("findings"),
+    iterations: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.findingId, {
+      sharpenIterations: args.iterations,
     });
   },
 });
