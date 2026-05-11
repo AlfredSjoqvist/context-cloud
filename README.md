@@ -154,11 +154,38 @@ Currently covers:
 - **NM hurdle scoring** — `HURDLE_THRESHOLD`, `SIGNAL_CLUSTER_GAP`, score-as-sum invariants in `nm_extract.expand_windows`.
 - **Guardian citation precision** — every numbered rule in `.context-map/library/**/*.md` is single-line and byte-citable by `verifyConstraintCite`.
 - **Library `applies_to` reachability** — every leaf has at least one glob that resolves under `mock_org/`; catches dead leaves Guardian would silently skip.
+- **Leaf metadata consistency** — `library:` matches parent dir, `chunk_id` follows `<library>.<topic>.v<n>`, frontmatter rule count matches body rule count.
+- **Seed library mirror** — every bootstrapped `mock_org/<sub>/.context-map/library/` is byte-identical to the canonical seed at the repo root; catches drift after `seed-context-map.sh` is forgotten.
 - **NM GC** — decay → merge → prune cycle on a synthetic SQLite DB; covers `nm_gc.run_once` end to end.
 
 Add a new eval by following [`evals/README.md`](evals/README.md). The
 quality bar is non-negotiable: if you cannot make the eval fail by
 mutating the source under test, it is a placebo and gets deleted.
+
+### Constraint library
+
+Guardian enforces 11 constraint families seeded under
+[`.context-map/library/`](.context-map/library/). Every leaf is a
+markdown file with line-precise rules; Guardian's findings cite a
+specific line in a specific leaf, byte-equal to the file content.
+
+| Library | Topic | Targets |
+|---|---|---|
+| [auth](.context-map/library/auth/credentials-required.md) | credentials-required | `src/api/auth.ts` family |
+| [secrets](.context-map/library/secrets/redaction-completeness.md) | redaction-completeness | `src/lib/redaction.ts`, MCP/session APIs |
+| [rate-limit](.context-map/library/rate-limit/persistent-decay.md) | persistent-decay | `src/api/rateLimit.ts` family |
+| [db](.context-map/library/db/transactions-and-migrations.md) | transactions-and-migrations | `src/db/*.ts`, repositories |
+| [observability](.context-map/library/observability/structured-logs-and-correlation.md) | structured-logs-and-correlation | `src/api/`, middleware, loggers |
+| [errors](.context-map/library/errors/retries-and-backoff.md) | retries-and-backoff | `src/api/`, retry/http/queue helpers |
+| [validation](.context-map/library/validation/schema-at-trust-boundaries.md) | schema-at-trust-boundaries | `src/api/`, parsers, schemas |
+| [webhooks](.context-map/library/webhooks/signature-verification.md) | signature-verification | `src/api/webhooks/`, connectors |
+| [sandbox](.context-map/library/sandbox/job-resource-budgets.md) | job-resource-budgets | `src/runtime/`, `src/jobs/` |
+| [supply-chain](.context-map/library/supply-chain/dependencies-and-build.md) | dependencies-and-build | `package.json`, lockfiles, Dockerfiles, CI workflows |
+| [state](.context-map/library/state/durable-and-atomic.md) | durable-and-atomic | `src/runtime/state*`, schedulers, stores |
+
+Wire the seed into a demo target with
+[`bash seed-context-map.sh`](seed-context-map.sh) (mirrors to every
+sub-org under `mock_org/`).
 
 ---
 
