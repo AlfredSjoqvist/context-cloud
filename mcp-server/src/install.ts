@@ -249,6 +249,17 @@ function runInstall(): void {
         );
         process.exit(3);
       }
+    } else if (args.editor === "claude-code-project") {
+      // Project-scope uses a relative "nm_server.py". Warn (don't error) if the file
+      // isn't in cwd at install time — the user might be wiring a future project, but
+      // most likely they're installing in the wrong directory.
+      if (!existsSync(resolvePath(process.cwd(), "nm_server.py"))) {
+        process.stderr.write(
+          `warning: --with-nm wired 'python3 nm_server.py' relative to ${process.cwd()}, ` +
+            "but nm_server.py is not in this directory. Claude Code will fail to spawn the nm server when the relative path doesn't resolve.\n" +
+            "Run this install from the context-cloud project root, or use --editor claude-code --with-hooks --with-nm --hindsight-root <abs-path> for an absolute-path setup.\n",
+        );
+      }
     }
     mcpMerged = mergeMcpServer(mcpMerged, "nm", buildNmEntry(nmRoot));
   }
