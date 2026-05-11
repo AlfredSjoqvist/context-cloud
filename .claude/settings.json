@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python C:/Users/Alfred/Desktop/nozomio/nm_capture.py"
+            "command": "python3 nm_capture.py"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python C:/Users/Alfred/Desktop/nozomio/nm_capture.py"
+            "command": "python3 nm_capture.py"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python C:/Users/Alfred/Desktop/nozomio/nm_capture.py"
+            "command": "python3 nm_capture.py"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python C:/Users/Alfred/Desktop/nozomio/nm_capture.py"
+            "command": "python3 nm_capture.py"
           }
         ]
       }
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python C:/Users/Alfred/Desktop/nozomio/nm_inject.py"
+            "command": "python3 nm_inject.py"
           }
         ]
       }

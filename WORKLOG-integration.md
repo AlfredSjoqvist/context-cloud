@@ -22,7 +22,35 @@ Scope: `agent/`, `mcp-server/`, hook scripts, install CLI, related manifests.
 
 ---
 
-## Iteration 2 (in progress)
+## Iteration 2 — SHIPPED (commit `47b1e7f`, pushed)
+
+**What shipped:** `hindsight-mcp-install` CLI bin + vitest setup for `mcp-server/`. CLI merges a `hindsight` entry into `~/.cursor/mcp.json`, `~/.claude.json`, or `./.mcp.json`. Preserves unrelated entries, idempotent. `--print` dry-runs. Four passing unit tests for the merge logic.
+
+**Verification:**
+- `npx tsc -p tsconfig.json` clean.
+- `node dist/install.js --help` prints usage.
+- `node dist/install.js --print --editor cursor --convex-url https://test.convex.cloud` preserved my real `livekit-docs` and `nia` entries while adding `hindsight` with the correct `node` command and env.
+- `npx vitest run`: 4/4 tests pass (empty config, preserve unrelated, overwrite idempotent, non-object mcpServers).
+
+**Caught a near-miss:** at staging time another agent (likely backend) had `git add`-ed `convex/dashboard.ts` and `WORKLOG-backend.md` in the shared working tree. If I had run `git commit` with the default index I would have included their WIP in my commit. Saved by checking `git status -s` and explicitly `git restore --staged` on out-of-scope paths before staging mine by name. **Going forward: never trust the implicit index in this repo. Always `git restore --staged` everything first, then `git add` my files by explicit path.**
+
+**Left in head:**
+- Boot-time smoke ping for Convex queries (fail-fast on schema drift).
+- Hook scripts: PostToolUse/PreToolUse for Cursor + Claude Code + Codex are not in repo yet. Highest-value next.
+- TOML support in install CLI for Codex (`~/.codex/config.toml`). Currently it only handles JSON-config editors.
+- `--editor all` mode that writes to every supported editor in one shot.
+- README example for the install CLI in `mcp-server/README.md`.
+
+**Surprising:** the root `vitest.config.ts` has `include: agent/**/*.test.ts, scripts/**/*.test.ts`. Running `npx vitest run` from `mcp-server/` still picked up the root config (vitest walks upward). Solved with a local `mcp-server/vitest.config.ts` that scopes to `src/**/*.test.ts`.
+
+---
+
+## Iteration 3 — planned
+
+**Goal:** Hook scripts (PreToolUse / PostToolUse) for Claude Code + Cursor that fire NM capture and Guardian-finding injection at the right moments. Start with Claude Code since the repo already has `nm_capture.py` + `nm_inject.py` as the proven baseline — wrap them in tiny shell entrypoints so Claude Code's `settings.json` hooks point at something stable across machines. Then wire the new MCP server's tools into the injection flow.
+
+Plan to surface a clean cross-platform path (no hardcoded `C:\Users\Alfred\...` like the current `.mcp.json`).
+
 
 **Goal:** Scaffold `mcp-server/` — a Node/TypeScript stdio MCP server that exposes Hindsight's Guardian findings + Note Manager notes as read-only MCP tools to any editor (Cursor / Claude Code / Codex). Net-new directory; no conflicts with other agents' scopes.
 
