@@ -14,7 +14,7 @@ export const everything = query({
         const [
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
-            cycles, findings, devinRuns, guardianEvents, docsLeaves,
+            cycles, findings, devinRuns, guardianEvents, docsIngestRuns,
             sessions, agentEvents,
         ] = await Promise.all([
             ctx.db.query("users").collect(),
@@ -40,7 +40,12 @@ export const everything = query({
         return {
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
-            cycles, findings, devinRuns, guardianEvents, docsLeaves,
+            cycles, findings, devinRuns, guardianEvents,
+            // V2 canonical name (matches schema table name).
+            docsIngestRuns,
+            // V1 alias — kept for backward compat with mock/index.html. Will be
+            // removed once V1 is decommissioned. See WORKLOG-backend.md.
+            docsLeaves: docsIngestRuns,
             libraries,
             sessions, agentEvents,
         };
