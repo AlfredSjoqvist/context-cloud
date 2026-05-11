@@ -4,6 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { registerFindingsTools } from "./tools/findings.js";
 import { registerNotesTools } from "./tools/notes.js";
 import { registerStatusTool } from "./tools/status.js";
+import { registerFindingsResources } from "./resources/findings.js";
+import { registerNotesResource } from "./resources/notes.js";
 import { log } from "./log.js";
 
 const SERVER_NAME = "hindsight";
@@ -20,6 +22,10 @@ Tools:
 
 All tools are read-only against the Convex deployment configured via HINDSIGHT_CONVEX_URL
 (or CONVEX_URL). They never mutate. NM capture and Guardian's own write paths are out of band.
+
+Resources (alternative to tools — editors that prefer browsing):
+- hindsight://findings/<status>   one per lifecycle state
+- hindsight://notes/active        the 100 most recent active NM notes
 `;
 
 async function main(): Promise<void> {
@@ -34,7 +40,9 @@ async function main(): Promise<void> {
   registerFindingsTools(server);
   registerNotesTools(server);
   registerStatusTool(server);
-  log.debug("tools.registered", { count: 5 });
+  registerFindingsResources(server);
+  registerNotesResource(server);
+  log.debug("tools.registered", { tools: 5, resources: 8 });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

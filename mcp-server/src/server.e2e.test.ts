@@ -130,4 +130,21 @@ describe("mcp protocol e2e", () => {
     expect(r.error).toBeDefined();
     expect(r.error?.code).toBeLessThan(0);
   });
+
+  it("lists 8 resources covering all finding statuses + active notes", async () => {
+    const r = await harness.call("resources/list");
+    expect(r.error).toBeUndefined();
+    const resources = (r.result as { resources?: { uri: string; name: string }[] }).resources ?? [];
+    const uris = resources.map((x) => x.uri).sort();
+    expect(uris).toEqual([
+      "hindsight://findings/detected",
+      "hindsight://findings/devin_running",
+      "hindsight://findings/escalated",
+      "hindsight://findings/pr_open",
+      "hindsight://findings/reopened_sharpened",
+      "hindsight://findings/resolved",
+      "hindsight://findings/verifying",
+      "hindsight://notes/active",
+    ]);
+  });
 });
