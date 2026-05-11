@@ -15,7 +15,7 @@ export const everything = internalQuery({
             users, agents, files, notes, noteFiles, prunedEdges,
             injections, gcRuns, gcActions,
             cycles, findings, devinRuns, guardianEvents, docsIngestRuns,
-            sessions, agentEvents,
+            sessions, agentEvents, libraries,
         ] = await Promise.all([
             ctx.db.query("users").collect(),
             ctx.db.query("agents").collect(),
@@ -35,8 +35,8 @@ export const everything = internalQuery({
             // Live trace from hosted MCP
             ctx.db.query("sessions").order("desc").take(50),
             ctx.db.query("agentEvents").withIndex("by_ts").order("desc").take(100),
+            ctx.db.query("libraries").collect(),
         ]);
-        const libraries = await ctx.db.query("libraries").collect();
         // Project lastIngestedAt onto docsIngestRuns rows from _creationTime.
         // The schema doesn't store a separate ingestion timestamp on this
         // table (one row per emitted leaf, immutable), and mock/v2.js sorts
