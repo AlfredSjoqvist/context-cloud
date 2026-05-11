@@ -8,7 +8,20 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 17 (current) — frontend-security leaf + CHANGELOG refresh
+## Iteration 18 (current) — accessibility + i18n leaves
+
+**Goal**: Round out the frontend coverage with accessibility (WCAG-grade
+keyboard / focus / contrast / motion) and i18n (CLDR plurals, Intl.*
+formatting, RTL, Unicode-tolerant inputs).
+
+**Plan**:
+1. `.context-map/library/accessibility/semantic-and-keyboard.md` — 7 rules.
+2. `.context-map/library/i18n/locale-and-formatting.md` — 6 rules.
+3. Mirror via `seed-context-map.sh`. Commit each as its own topic.
+
+---
+
+## Iteration 17 — frontend-security leaf + CHANGELOG refresh
 
 **Goal**: Add the frontend / browser-trust-boundary leaf so Guardian
 covers the OWASP-grade UI risks too, and refresh CHANGELOG with the
@@ -321,6 +334,19 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 18
+
+- **6ce68bd** `feat(context-map): add accessibility/semantic-and-keyboard leaf`
+- **5a3cc14** `feat(context-map): add i18n/locale-and-formatting leaf`
+- Library: 17 leaves, ~98 rules. All mirrored.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV — final pass.
+2. CHANGELOG refresh for accessibility + i18n.
+3. Audit for rule overlap and document the intentional duplication.
+4. Add a leaf for `caching` (TTL, key invalidation, write-through vs
+   write-behind, no-cache for authenticated content).
 
 ### 2026-05-10 — Iteration 17
 
