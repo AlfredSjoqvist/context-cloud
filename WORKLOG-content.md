@@ -8,7 +8,25 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 10 (current) — validation leaf + DEMO stranger-readability pass
+## Iteration 11 (current) — supply-chain + state leaves
+
+**Goal**: Two more universally-load-bearing categories: supply-chain
+(lockfile, install, bootstrap, container) and durable-state
+(atomic writes, no process-local source of truth). Both fire on
+real code in mock_org sub-orgs.
+
+**Plan**:
+1. `.context-map/library/supply-chain/dependencies-and-build.md` —
+   7 rules. Targets package.json/Dockerfile/CI workflow files.
+2. `.context-map/library/state/durable-and-atomic.md` — 6 rules.
+   Targets src/runtime/state*.py and analogues. Rule 1 fires on
+   mock_org/runtime-orchestrator/src/runtime/state_store.py
+   (raw write_text, no atomic rename).
+3. Verify evals stay green.
+
+---
+
+## Iteration 10 — validation leaf + DEMO stranger-readability pass
 
 **Goal**: One more category leaf (validation — `mock_org/agent-gateway`
 has zod as a dep but never uses it) and tighten DEMO.md so a stranger
@@ -203,6 +221,25 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 11
+
+- **e3e3c74** `feat(context-map): add supply-chain/dependencies-and-build leaf`
+- **767b38d** `feat(context-map): add state/durable-and-atomic leaf`
+- Library now: 11 leaves, 60 rules. Eval suite still 5/30 green.
+
+**Left to do (next iterations, in priority):**
+1. Code-shape eval — for each leaf, grep at least one keyword from
+   each rule body against the resolved applies_to files. Catches a
+   leaf whose globs resolve but whose rules describe code shapes that
+   don't exist there.
+2. Verify across leaves: are any rules redundant across files
+   (e.g. "no process-local Map" appears in rate-limit AND state)?
+   Either consolidate or note the duplication is intentional.
+3. Look at whether docs-ingest already produces leaves at the same
+   paths (e.g. `library/lodash/security-advisories.md`); avoid
+   collisions with the seed library.
+4. README: link the eval coverage table to specific leaves.
 
 ### 2026-05-10 — Iteration 10
 
