@@ -73,3 +73,17 @@ export const byFinding = query({
       .collect();
   },
 });
+
+// Most recently spawned Devin runs across all findings. Powers the
+// V2 dashboard's "Resolutions" tab and the mcp-server's recent-status
+// surfaces. dashboard.everything also returns this list (last 100)
+// but consumers that don't need the full bundle can use this.
+export const recent = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("devinRuns")
+      .order("desc")
+      .take(args.limit ?? 50);
+  },
+});
