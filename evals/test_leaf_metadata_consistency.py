@@ -108,67 +108,73 @@ class LeafMetadataConsistencyEval(unittest.TestCase):
 
     def test_library_matches_parent_directory(self):
         for leaf in self.leaves:
-            fm, _, _ = _split_frontmatter(leaf.read_text())
-            parent = leaf.parent.name
-            self.assertEqual(
-                fm.get("library"), parent,
-                f"{leaf}: frontmatter library={fm.get('library')!r} "
-                f"but parent dir is {parent!r}. Either rename the dir or "
-                f"fix the frontmatter — Guardian groups by `library`.",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                fm, _, _ = _split_frontmatter(leaf.read_text())
+                parent = leaf.parent.name
+                self.assertEqual(
+                    fm.get("library"), parent,
+                    f"frontmatter library={fm.get('library')!r} "
+                    f"but parent dir is {parent!r}. Either rename the dir or "
+                    f"fix the frontmatter — Guardian groups by `library`.",
+                )
 
     def test_chunk_id_format(self):
         for leaf in self.leaves:
-            fm, _, _ = _split_frontmatter(leaf.read_text())
-            chunk_id = fm.get("chunk_id", "")
-            m = CHUNK_ID_FORMAT.match(chunk_id)
-            self.assertIsNotNone(
-                m,
-                f"{leaf}: chunk_id={chunk_id!r} does not match "
-                f"`<library>.<topic>.v<n>`",
-            )
-            lib_part = m.group(1)
-            topic_part = m.group(2)
-            self.assertEqual(
-                lib_part, fm.get("library"),
-                f"{leaf}: chunk_id library segment {lib_part!r} != "
-                f"frontmatter library {fm.get('library')!r}",
-            )
-            stem = leaf.stem
-            self.assertEqual(
-                topic_part, stem,
-                f"{leaf}: chunk_id topic segment {topic_part!r} != "
-                f"filename stem {stem!r}",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                fm, _, _ = _split_frontmatter(leaf.read_text())
+                chunk_id = fm.get("chunk_id", "")
+                m = CHUNK_ID_FORMAT.match(chunk_id)
+                self.assertIsNotNone(
+                    m,
+                    f"chunk_id={chunk_id!r} does not match "
+                    f"`<library>.<topic>.v<n>`",
+                )
+                if m is None:
+                    continue
+                lib_part = m.group(1)
+                topic_part = m.group(2)
+                self.assertEqual(
+                    lib_part, fm.get("library"),
+                    f"chunk_id library segment {lib_part!r} != "
+                    f"frontmatter library {fm.get('library')!r}",
+                )
+                stem = leaf.stem
+                self.assertEqual(
+                    topic_part, stem,
+                    f"chunk_id topic segment {topic_part!r} != "
+                    f"filename stem {stem!r}",
+                )
 
     def test_rule_count_matches_frontmatter(self):
         for leaf in self.leaves:
-            text = leaf.read_text()
-            _, fm_raw, body = _split_frontmatter(text)
-            fm_n = _count_rules_in_frontmatter(fm_raw)
-            body_n = _count_numbered_rules_in_body(body)
-            self.assertEqual(
-                fm_n, body_n,
-                f"{leaf}: frontmatter declares {fm_n} rules but body has "
-                f"{body_n} numbered rules. The two MUST match — "
-                f"frontmatter is what docs-ingest reads, body is what "
-                f"Guardian cites.",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                text = leaf.read_text()
+                _, fm_raw, body = _split_frontmatter(text)
+                fm_n = _count_rules_in_frontmatter(fm_raw)
+                body_n = _count_numbered_rules_in_body(body)
+                self.assertEqual(
+                    fm_n, body_n,
+                    f"frontmatter declares {fm_n} rules but body has "
+                    f"{body_n} numbered rules. The two MUST match — "
+                    f"frontmatter is what docs-ingest reads, body is what "
+                    f"Guardian cites.",
+                )
 
     def test_source_uri_includes_library_and_topic(self):
         for leaf in self.leaves:
-            fm, _, _ = _split_frontmatter(leaf.read_text())
-            uri = fm.get("source_uri", "")
-            lib = fm.get("library", "")
-            topic = leaf.stem
-            self.assertIn(
-                lib, uri,
-                f"{leaf}: source_uri={uri!r} should include library {lib!r}",
-            )
-            self.assertIn(
-                topic, uri,
-                f"{leaf}: source_uri={uri!r} should include topic {topic!r}",
-            )
+            with self.subTest(leaf=str(leaf.relative_to(REPO_ROOT))):
+                fm, _, _ = _split_frontmatter(leaf.read_text())
+                uri = fm.get("source_uri", "")
+                lib = fm.get("library", "")
+                topic = leaf.stem
+                self.assertIn(
+                    lib, uri,
+                    f"source_uri={uri!r} should include library {lib!r}",
+                )
+                self.assertIn(
+                    topic, uri,
+                    f"source_uri={uri!r} should include topic {topic!r}",
+                )
 
 
 if __name__ == "__main__":
