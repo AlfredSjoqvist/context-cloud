@@ -98,6 +98,26 @@ renamed a function) — usable from CI.
 
 If neither Convex env var is set, the server falls back to the project's own demo deployment and logs a loud warning on first tool call. Set `HINDSIGHT_CONVEX_URL` so you stop reading the demo's data.
 
+## Using Hindsight from the OpenAI Agents SDK
+
+See [`examples/openai-agents.ts`](examples/openai-agents.ts) for a runnable
+recipe. The SDK has first-class `MCPServerStdio` support, so wiring is:
+
+```ts
+const hindsight = new MCPServerStdio({
+  name: "hindsight",
+  command: "node",
+  args: [pathToDistIndexJs],
+  env: { HINDSIGHT_CONVEX_URL: "https://your-deployment.convex.cloud" },
+});
+await hindsight.connect();
+const agent = new Agent({
+  name: "Investigator",
+  instructions: "...",
+  mcpServers: [hindsight],
+});
+```
+
 ## Manual config
 
 If you'd rather not use the CLI, paste this into `~/.cursor/mcp.json` or the
