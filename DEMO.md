@@ -35,13 +35,27 @@ the demo gods turn against you.
 
 - Node 20+, Python 3.10+, `npm`
 - Repo cloned, `npm install` at repo root and in `ui/`
-- Convex deployment provisioned (`npx convex dev` once)
+- Convex deployment provisioned (`npx convex dev` once).
 - Either:
   - Real keys in `.env`: `OPENAI_API_KEY`, `NIA_API_KEY`, `GITHUB_TOKEN` +
     `GITHUB_OWNER` + `GITHUB_REPO` (Guardian files real GH issues), or
   - Mock-mode flags in env: `USE_MOCK_LLM=1 USE_MOCK_DEVIN=1 SKIP_NIA=1`
 - `DEMO_REPO_LOCAL_PATH=$(pwd)/mock_org/agent-gateway` so Guardian scans the
   in-repo demo target instead of an external clone.
+- **For the T+2:00 NM beat**: Claude Code wired to the NM MCP per
+  [README.md](README.md#nm-session-capture-python-half). If you don't have
+  this set up, that beat falls back to the legacy NM dashboard (commands
+  in T+2:00 below) and you reframe the narrative slightly — it's the
+  same point either way.
+
+### Pre-flight (1 min before you go live)
+
+```bash
+bash evals/run_all.sh
+```
+
+Expected: `evals: passed=N failed=0`. If anything fails, the demo will
+fail in a more confusing way later. Fix it now or switch to Path B.
 
 ### T-0:30 — terminal A — start Convex + Hindsight UI
 
