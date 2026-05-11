@@ -6,7 +6,7 @@
 // (matrix similarity, replay event timeline, animation transitions) that
 // expect the full snapshot up-front.
 
-import { internalQuery } from "./_generated/server";
+import { internalQuery, query } from "./_generated/server";
 
 export const everything = internalQuery({
     args: {},
@@ -59,6 +59,97 @@ export const everything = internalQuery({
             docsLeaves: docsIngestRunsWithTs,
             libraries,
             sessions, agentEvents,
+        };
+    },
+});
+
+// Lightweight system-health snapshot. Returns the freshness of each major
+// data stream so a status badge can render without pulling the full
+// /dashboard/everything payload. Used by both the V2 dashboard's "live"
+// indicator and by external monitoring.
+//
+// Public so it can be called over HTTP without auth; surfaces zero PII
+// and zero internal IDs — just counts and ISO/epoch timestamps.
+export const health = query({
+    args: {},
+    handler: async (ctx) => {
+        const now = Date.now();
+
+        // Latest row per stream. Use indexes / order to avoid full scans
+        // where we have the option.
+        const [
+            latestCycle, latestGcAction, latestNote, latestFinding,
+            latestInjection, latestSession, latestAgentEvent, latestEvent,
+            cycles, findings, gcActions, injections,
+        ] = await Promise.all([
+            ctx.db.query("cycles").withIndex("by_cycle_number").order("desc").first(),
+            ctx.db.query("gcActions").withIndex("by_ts").order("desc").first(),
+            ctx.db.query("notes").order("desc").first(),
+            ctx.db.query("findings").order("desc").first(),
+            ctx.db.query("injections").withIndex("by_ts").order("desc").first(),
+            ctx.db.query("sessions").order("desc").first(),
+            ctx.db.query("agentEvents").withIndex("by_ts").order("desc").first(),
+            ctx.db.query("events").withIndex("by_timestamp").order("desc").first(),
+            // counts for the 24h windows the V2 Overview wants
+            ctx.db.query("cycles").collect(),
+            ctx.db.query("findings").collect(),
+            ctx.db.query("gcActions").withIndex("by_ts").order("desc").take(500),
+            ctx.db.query("injections").withIndex("by_ts").order("desc").take(500),
+        ]);
+
+        const dayAgo = now - 86_400_000;
+        const cyclesLast24h = cycles.filter(
+            (c) => (c.startedAt ?? 0) > dayAgo,
+        ).length;
+        const findingsOpen = findings.filter((f) =>
+            ["detected", "devin_running", "pr_open", "verifying"].includes(f.status),
+        ).length;
+        const gcLast24h = gcActions.filter((g) => {
+            const t = Date.parse(g.ts);
+            return Number.isFinite(t) && t > dayAgo;
+        }).length;
+        const injectionsLast24h = injections.filter((i) => {
+            const t = Date.parse(i.ts);
+            return Number.isFinite(t) && t > dayAgo;
+        });
+        const injectionsAcceptedLast24h = injectionsLast24h.filter(
+            (i) => i.accepted,
+        ).length;
+
+        return {
+            asOf: now,
+            // Per-stream freshness (epoch ms). null = no rows in that stream.
+            // Frontend can compute "X minutes ago" from these.
+            freshness: {
+                lastCycleAt: latestCycle?.startedAt ?? null,
+                lastCycleNumber: latestCycle?.cycleNumber ?? null,
+                lastGcActionAt: latestGcAction
+                    ? Date.parse(latestGcAction.ts) || latestGcAction._creationTime
+                    : null,
+                lastNoteAt: latestNote
+                    ? Date.parse(latestNote.createdAt) || latestNote._creationTime
+                    : null,
+                lastFindingAt: latestFinding?._creationTime ?? null,
+                lastInjectionAt: latestInjection
+                    ? Date.parse(latestInjection.ts) || latestInjection._creationTime
+                    : null,
+                lastSessionAt: latestSession
+                    ? (latestSession.lastSeenAt
+                        ? Date.parse(latestSession.lastSeenAt)
+                        : latestSession._creationTime)
+                    : null,
+                lastAgentEventAt: latestAgentEvent
+                    ? Date.parse(latestAgentEvent.ts) || latestAgentEvent._creationTime
+                    : null,
+                lastEventAt: latestEvent?.timestamp ?? null,
+            },
+            counts: {
+                cyclesLast24h,
+                findingsOpen,
+                gcLast24h,
+                injectionsLast24h: injectionsLast24h.length,
+                injectionsAcceptedLast24h,
+            },
         };
     },
 });

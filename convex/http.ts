@@ -10,7 +10,7 @@
 
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -195,10 +195,28 @@ http.route({
     handler: wrapPublicGet(async () => ({ ok: true })),
 });
 
+// Lightweight liveness probe. Returns { ok: true, ts } regardless of
+// Convex state. Use this for uptime monitors.
 http.route({
     path: "/health",
     method: "GET",
     handler: httpAction(async () => ok({ ok: true, ts: new Date().toISOString() })),
+});
+
+// Detailed system-health snapshot: per-stream freshness timestamps and
+// 24h counts. Public + CORS-enabled so the V2 dashboard can render a
+// "live · X minutes ago" indicator without hitting /dashboard/everything.
+http.route({
+    path: "/dashboard/health",
+    method: "GET",
+    handler: wrapPublicGet(async (ctx) => {
+        return await ctx.runQuery(api.dashboard.health, {});
+    }),
+});
+http.route({
+    path: "/dashboard/health",
+    method: "OPTIONS",
+    handler: wrapPublicGet(async () => ({ ok: true })),
 });
 
 export default http;
