@@ -83,17 +83,12 @@ http.route({
     path: "/sync/note",
     method: "POST",
     handler: wrap(async (ctx, body) => {
-        const id = await ctx.runMutation(internal.notes.upsertNote, body.note);
-        const edges = body.edges ?? [];
-        for (const e of edges) {
-            await ctx.runMutation(internal.notes.upsertFile, {
-                path: e.path, type: e.type, firstSeen: e.firstSeen ?? body.note.createdAt,
-                lastSeen: e.lastSeen ?? body.note.createdAt,
-            });
-            await ctx.runMutation(internal.notes.upsertEdge, {
-                noteId: body.note.noteId, path: e.path, weight: e.weight ?? 1.0,
-            });
-        }
+        // Single atomic mutation: writes note + every file/edge in one Convex
+        // transaction so partial-failure can't leave inconsistent state.
+        const id = await ctx.runMutation(internal.notes.upsertNoteWithEdges, {
+            note: body.note,
+            edges: body.edges ?? [],
+        });
         return { id };
     }),
 });

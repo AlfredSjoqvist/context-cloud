@@ -133,6 +133,87 @@ export const attachHyperspellRefs = internalMutation({
     },
 });
 
+// Combined upsert: writes a note plus its edges (file + noteFiles rows) in
+// a single mutation transaction. /sync/note used to call three separate
+// internal mutations in a loop — each was its own transaction, so a crash
+// between calls could leave a note without its edges or vice versa. This
+// keeps the public POST endpoint idempotent AND atomic.
+export const upsertNoteWithEdges = internalMutation({
+    args: {
+        note: v.object({
+            noteId: v.string(),
+            symptom: v.string(),
+            rootCause: v.string(),
+            correction: v.optional(v.string()),
+            importance: v.number(),
+            injectCount: v.optional(v.number()),
+            lastInjectedAt: v.optional(v.string()),
+            invalidatedAt: v.optional(v.string()),
+            createdAt: v.string(),
+            createdBy: v.optional(v.string()),
+            createdFromSession: v.optional(v.string()),
+            createdFromHurdle: v.optional(v.number()),
+        }),
+        edges: v.optional(v.array(v.object({
+            path: v.string(),
+            type: v.optional(v.string()),
+            weight: v.optional(v.number()),
+            firstSeen: v.optional(v.string()),
+            lastSeen: v.optional(v.string()),
+        }))),
+    },
+    handler: async (ctx, a) => {
+        // ---- note ----
+        const existingNote = await ctx.db
+            .query("notes")
+            .withIndex("by_note_id", (q) => q.eq("noteId", a.note.noteId))
+            .first();
+        const noteFields = { ...a.note, injectCount: a.note.injectCount ?? 0 };
+        let noteRowId;
+        if (existingNote) {
+            await ctx.db.patch(existingNote._id, noteFields);
+            noteRowId = existingNote._id;
+        } else {
+            noteRowId = await ctx.db.insert("notes", noteFields);
+        }
+
+        // ---- edges (files + noteFiles) ----
+        for (const e of a.edges ?? []) {
+            // file
+            const existingFile = await ctx.db
+                .query("files")
+                .withIndex("by_path", (q) => q.eq("path", e.path))
+                .first();
+            const firstSeen = e.firstSeen ?? a.note.createdAt;
+            const lastSeen = e.lastSeen ?? a.note.createdAt;
+            if (existingFile) {
+                await ctx.db.patch(existingFile._id, { lastSeen });
+            } else {
+                await ctx.db.insert("files", {
+                    path: e.path, type: e.type, firstSeen, lastSeen,
+                });
+            }
+
+            // noteFiles edge
+            const existingEdge = await ctx.db
+                .query("noteFiles")
+                .withIndex("by_note", (q) => q.eq("noteId", a.note.noteId))
+                .filter((q) => q.eq(q.field("path"), e.path))
+                .first();
+            const weight = e.weight ?? 1.0;
+            if (existingEdge) {
+                await ctx.db.patch(existingEdge._id, { weight });
+            } else {
+                await ctx.db.insert("noteFiles", {
+                    noteId: a.note.noteId, path: e.path, weight,
+                });
+            }
+        }
+
+        return noteRowId;
+    },
+});
+
 // ---- queries (the dashboard reads these reactively) ----
 
 export const listActive = query({
