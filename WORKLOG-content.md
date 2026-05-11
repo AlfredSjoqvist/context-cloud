@@ -8,7 +8,25 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 5 (current) — observability + errors leaves
+## Iteration 6 (current) — globs reachability eval + pitch outline
+
+**Goal**: Close two of the largest remaining gaps in priority order:
+(a) the eval that catches stale `applies_to` globs (Guardian silently
+skips dead leaves; this is the only way it surfaces), and (b) the
+pitch outline so Nicolas can run the demo to a sponsor on no notice.
+
+**Plan**:
+1. `evals/test_applies_to_globs_resolve.py` — for each leaf, parse
+   `applies_to`, glob each entry against `mock_org/<sub-org>/`, fail
+   if zero hits across all globs. Aggregated semantics tolerate
+   forward-looking globs.
+2. `PITCH-OUTLINE.md` — 90s + 5min + Q&A. Shares one thesis. Includes
+   a "don't say" list.
+3. Self-test the eval; rerun full suite. Commit each artefact separately.
+
+---
+
+## Iteration 5 — observability + errors leaves
 
 **Goal**: Two more high-impact constraint leaves so Guardian has at
 least one citable invariant for every category that comes up in code
@@ -117,6 +135,34 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 6
+
+- **042d351** `test(evals): add applies_to-globs reachability eval`
+  - 2 tests. Aggregated check: a leaf passes if at least one of its
+    globs resolves under `mock_org/`. Self-test verified by pointing
+    applies_to at non-existent paths.
+- **69fe1e5** `docs(pitch): add pitch outline with 90s/5min variants and preempted Q&A`
+  - 90s, 5min, and 7-question Q&A section + a "don't say" list of common
+    mis-framings.
+- Eval suite now: 3 evals, 19 tests, all green.
+
+**Left to do (next iterations, in priority):**
+1. NM GC pruning eval — synthetic SQLite via stdlib, mirror minimum
+   schema from `nm_db.py`, run `nm_gc` decay→merge→prune on planted
+   notes, assert pruned notes are removed and `gcActions` records
+   the right ops.
+2. Re-walk DEMO.md from a stranger's POV; tighten any beat that reads
+   as "you have to know X" (e.g. step T+2:00 assumes IDE wired to NM
+   MCP — call out the prereq earlier).
+3. Re-audit recent leaves: do `mock_org/connectors/`, `mock_org/control-plane/`,
+   `mock_org/runtime-orchestrator/` files have constraint coverage too?
+   The aggregated `mock_org/**` glob check passes, but only because of
+   `agent-gateway`. Adding constraints that target the other sub-orgs
+   demonstrates breadth.
+4. Code-cite eval mirror — verify the synthetic Finding fixtures the
+   citation tests use also satisfy `verifyCitation` end-to-end against
+   real mock_org files.
 
 ### 2026-05-10 — Iteration 5
 
