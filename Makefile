@@ -1,7 +1,7 @@
 # Makefile — convenience wrappers around the demo + content + eval workflow.
 # Authored for hindsight Agent 4 scope; safe to extend.
 
-.PHONY: help eval seed demo agent ui setup-check clean-mirrors
+.PHONY: help eval seed demo agent ui setup-check clean-mirrors verify
 
 help:
 	@echo "Common targets:"
@@ -10,6 +10,7 @@ help:
 	@echo "  make agent          # run one Guardian cycle against mock_org/agent-gateway in mock mode"
 	@echo "  make ui             # start the Hindsight UI (cd ui && npm run dev)"
 	@echo "  make demo           # seed + eval + agent (full pre-flight)"
+	@echo "  make verify         # seed + eval, with PASS/FAIL summary (no agent run)"
 	@echo "  make setup-check    # confirm prereqs match SETUP.md step 0"
 	@echo "  make clean-mirrors  # remove every mock_org/<sub>/.context-map/library/"
 
@@ -29,6 +30,20 @@ ui:
 
 demo: seed eval agent
 	@echo "Demo pre-flight complete. Open http://localhost:3000 if ui is running."
+
+verify:
+	@bash seed-context-map.sh > /dev/null
+	@if bash evals/run_all.sh > /tmp/.hindsight-verify.log 2>&1; then \
+		echo "==================================="; \
+		echo "  PASS  — seed mirrored, evals green"; \
+		echo "==================================="; \
+	else \
+		echo "==================================="; \
+		echo "  FAIL  — see /tmp/.hindsight-verify.log"; \
+		echo "==================================="; \
+		tail -20 /tmp/.hindsight-verify.log; \
+		exit 1; \
+	fi
 
 setup-check:
 	@command -v node >/dev/null  && echo "node: $$(node --version)"  || (echo "node: missing" && exit 1)
