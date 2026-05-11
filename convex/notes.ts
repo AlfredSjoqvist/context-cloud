@@ -228,6 +228,16 @@ export const listActive = query({
     },
 });
 
+// All recent notes (active OR invalidated), newest-first. listActive
+// excludes invalidated rows; this one keeps them so the GC tab can
+// show "recently pruned" notes alongside active ones.
+export const recent = query({
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, { limit }) => {
+        return await ctx.db.query("notes").order("desc").take(limit ?? 100);
+    },
+});
+
 export const listEdgesForNote = query({
     args: { noteId: v.string() },
     handler: async (ctx, { noteId }) => {
