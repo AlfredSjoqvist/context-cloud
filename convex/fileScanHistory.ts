@@ -1,6 +1,9 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Idempotent on (path, cycleNumber): the agent's retry of a single scan
+// won't double-bump cleanScanStreak. The cycleNumber check is the
+// natural dedup key — a given file is scanned at most once per cycle.
 export const upsertScan = mutation({
   args: {
     path: v.string(),
@@ -23,6 +26,11 @@ export const upsertScan = mutation({
         cleanScanStreak: args.cleanScan ? 1 : 0,
         securityRotationAt: 0,
       });
+    }
+    // Retry of an already-recorded scan: keep the row as-is so
+    // cleanScanStreak doesn't inflate from network retries.
+    if (existing.lastScannedCycle === args.cycleNumber) {
+      return existing._id;
     }
     await ctx.db.patch(existing._id, {
       lastScannedCycle: args.cycleNumber,
