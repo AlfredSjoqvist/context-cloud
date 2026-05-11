@@ -8,7 +8,22 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 20 (current) — DEMO.md stranger re-walk
+## Iteration 21 (current) — subTest mirror to remaining evals
+
+**Goal**: Mirror the subTest pattern (landed in iteration 19 for
+metadata-consistency) to test_citation_precision and
+test_applies_to_globs_resolve so they too report all bad leaves
+in one run.
+
+**Plan**:
+1. Wrap each per-leaf iteration in `self.subTest(leaf=...)`.
+2. Drop `{leaf}:` prefix from assertion messages (subTest already
+   identifies the leaf).
+3. Verify eval suite stays 6/all green.
+
+---
+
+## Iteration 20 — DEMO.md stranger re-walk
 
 **Goal**: Read DEMO.md cold, find every "you have to know X to follow
 this" and fix it. Five fixes shipped in one commit.
@@ -371,6 +386,20 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 21
+
+- **763ed80** `refactor(evals): use subTest in citation-precision and applies_to-resolve`
+- All eval suites that iterate per-leaf now report independently;
+  multiple bad leaves surface in one run.
+
+**Left to do (next iterations, in priority):**
+1. caching leaf — TTL, key invalidation, no-cache for authenticated
+   responses, cache stampede protection.
+2. CHANGELOG refresh + README leaf table refresh for accessibility +
+   i18n + caching.
+3. Audit for rule overlap and document the intentional duplication.
+4. SETUP.md re-walk (mirror the DEMO.md polish pass).
 
 ### 2026-05-10 — Iteration 20
 
