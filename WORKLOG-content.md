@@ -31,4 +31,26 @@ silent failure. No eval here = no proof.
 
 ## Log
 
-(commits append below as the loop runs)
+### 2026-05-10 — Iteration 1
+
+- **5d91938** `test(evals): bootstrap eval harness with NM hurdle threshold suite`
+  - `evals/README.md`, `evals/run_all.sh`, `evals/test_hurdle_threshold.py`,
+    `WORKLOG-content.md`.
+  - 11 tests, all pass. Self-test confirmed: dropping
+    `HURDLE_THRESHOLD` to 0.5 → 3 failures; flipping `<= SIGNAL_CLUSTER_GAP`
+    to `<` → 4 failures. The eval has bite.
+  - Surprise: stale `__pycache__` survived a `sed -i ''` rewrite during one
+    self-test run. `run_all.sh` now nukes `__pycache__` before every run.
+
+**Left to do (next iterations, in priority):**
+1. First real `.context-map/library/` constraint set covering `mock_org/agent-gateway/src/api/auth.ts` (auth bearer-token validation
+   missing in stub) and `mock_org/agent-gateway/src/api/rateLimit.ts`
+   (in-memory bucket — won't survive multi-instance deploy).
+2. Second eval: Guardian citation precision — bytewise verify
+   `mdFile:line:text` matches the actual file. Lives in `evals/`, exercises
+   real `.context-map/library/` content from step 1.
+3. Third eval: NM GC pruning — pruned notes are removed from injection
+   surface; `gcActions` records the right operation.
+4. `DEMO.md` 3-minute runbook + `SETUP.md` clean-clone path.
+5. Pitch deck outline (`docs/PITCH.md` is out of scope; root-level
+   `PITCH-OUTLINE.md` is in scope).
