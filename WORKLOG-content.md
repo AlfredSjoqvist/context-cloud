@@ -8,7 +8,21 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 15 (current) — concurrency leaf + Makefile
+## Iteration 16 (current) — time + network leaves
+
+**Goal**: Two more universally-applicable categories: time-and-clocks
+(timezones, monotonic vs wall, DST math, parsing strictness) and
+network (TLS verification, DNS handling, SSRF, timeouts, redirect
+credentials).
+
+**Plan**:
+1. `.context-map/library/time/timezones-and-monotonic.md` — 6 rules.
+2. `.context-map/library/network/tls-and-egress.md` — 6 rules.
+3. Mirror via `seed-context-map.sh`, commit each leaf as its own topic.
+
+---
+
+## Iteration 15 — concurrency leaf + Makefile
 
 **Goal**: One more universally-load-bearing leaf (concurrency: locks,
 races, ordering) plus a Makefile that hides the per-command env-var
@@ -292,6 +306,29 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 16
+
+- **81ce43a** `feat(context-map): add time/timezones-and-monotonic leaf`
+- **60743e2** `feat(context-map): add network/tls-and-egress leaf`
+- Library: 14 leaves, 78 rules. All mirrored.
+
+**Surprise**: shipped network leaf with `network: network` instead of
+`library: network` in the frontmatter. Three independent evals turned
+red simultaneously (metadata-consistency, citation-precision via the
+applies_to extractor, mirror via the byte-equality check). The eval
+suite did exactly what it was built to do — caught a hand-typed
+typo before commit. This is the second time the suite has caught
+me; first was the `__pycache__` issue in iteration 1.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV.
+2. Audit for rule overlap across leaves (no-process-local-Map appears
+   in rate-limit, state, and concurrency now — flag it deliberately
+   or consolidate).
+3. Add a leaf for `frontend-security` (XSS, CSRF, CSP, sandboxed
+   iframes, unsafe innerHTML insertion patterns).
+4. Update CHANGELOG.md to reflect 14 leaves (was 11).
 
 ### 2026-05-10 — Iteration 15
 
