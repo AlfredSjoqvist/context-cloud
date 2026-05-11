@@ -8,7 +8,21 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 28 (current) — README + CHANGELOG refresh (24 leaves)
+## Iteration 29 (current) — Makefile help/target drift eval
+
+**Goal**: Add an eval that catches docs-vs-code drift in the Makefile.
+Today the help block is hand-edited; tomorrow someone adds a recipe
+and forgets to update help (or vice versa). Eval forces them in sync.
+
+**Plan**:
+1. `evals/test_makefile_targets_resolve.py` — parse recipes from
+   Makefile + parse target names from `make help` output, assert
+   set equality (modulo `help` itself).
+2. Self-test by adding a ghost target to help.
+
+---
+
+## Iteration 28 — README + CHANGELOG refresh (24 leaves)
 
 **Goal**: Sync README leaf table and CHANGELOG count to reflect the
 six leaves added since the last refresh: file-uploads, email,
@@ -494,6 +508,18 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 29
+
+- **08c0776** `test(evals): add Makefile target/help drift eval`
+- Eval suite now 7 evals / 34 tests. Self-test verified
+  (ghost-target injection turns the eval red).
+
+**Left to do (next iterations, in priority):**
+1. README "Evals" section refresh: list 7 evals (currently lists 6).
+2. Add a `frontend-error-boundaries` leaf (ErrorBoundary placement,
+   Suspense fallback hygiene, hydration mismatch detection).
+3. Update CHANGELOG eval table (currently 6 evals, now 7).
 
 ### 2026-05-10 — Iteration 28
 
