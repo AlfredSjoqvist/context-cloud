@@ -8,7 +8,26 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 7 (current) — NM GC pruning eval
+## Iteration 8 (current) — webhooks + sandbox leaves (broaden coverage)
+
+**Goal**: Cover `mock_org/connectors/` and `mock_org/runtime-orchestrator/`
+so Guardian doesn't only fire on `agent-gateway`. Both target real bugs
+in real code.
+
+**Plan**:
+1. `.context-map/library/webhooks/signature-verification.md` — 6 rules.
+   `connectors/src/github/webhooks.ts` calls `crypto.timingSafeEqual`
+   without an equal-length check (rule 1 fires), has no replay
+   timestamp window (rule 3), parses JSON without try/catch (rule 4),
+   no event-id dedup (rule 5).
+2. `.context-map/library/sandbox/job-resource-budgets.md` — 6 rules.
+   `runtime-orchestrator/src/runtime/job_runner.py` validates upper
+   memory bound but not lower (rule 1 fires).
+3. Verify evals stay green.
+
+---
+
+## Iteration 7 — NM GC pruning eval
 
 **Goal**: The third agent (GC) is the least visible at demo time but
 the most load-bearing for the long-term pitch ("memory you never
@@ -151,6 +170,29 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 8
+
+- **74fc508** `feat(context-map): add webhooks/signature-verification leaf`
+  - 6 rules. Targets connectors. Currently 4 of 6 fire on
+    mock_org/connectors/src/github/webhooks.ts.
+- **74f3e61** `feat(context-map): add sandbox/job-resource-budgets leaf`
+  - 6 rules. Targets runtime-orchestrator. Rule 1 fires on
+    mock_org/runtime-orchestrator/src/runtime/job_runner.py.
+- Library now: 8 leaves across auth, secrets, rate-limit, db,
+  observability, errors, webhooks, sandbox. 41 total rules.
+
+**Left to do (next iterations, in priority):**
+1. README — add an "Evals" section pointing at `bash evals/run_all.sh`
+   so reviewers see green-on-clone. Also link DEMO.md, SETUP.md,
+   PITCH-OUTLINE.md from the top.
+2. Re-walk DEMO.md from a stranger's POV; tighten any beat that
+   reads as "you have to know X."
+3. Code-cite eval — for each leaf, run a small grep against `applies_to`
+   files for at least one keyword from the rule body (catches a leaf
+   whose globs resolve but whose rules describe code shapes that don't
+   exist there).
+4. Cover `memory-graph/` and `control-plane/` sub-orgs.
 
 ### 2026-05-10 — Iteration 7
 
