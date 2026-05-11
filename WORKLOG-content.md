@@ -8,7 +8,24 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 23 (current) — README/CHANGELOG refresh + overlap audit
+## Iteration 24 (current) — file-uploads + email leaves
+
+**Goal**: Two more universally-applicable categories: file uploads
+(size, MIME, paths, scanning) and transactional email (SPF/DKIM/DMARC,
+no plaintext credentials, single-use tokens, bounce handling).
+
+**Plan**:
+1. `.context-map/library/file-uploads/size-mime-and-paths.md` — 6 rules.
+2. `.context-map/library/email/transactional-deliverability.md` — 6 rules.
+3. mock_org didn't have any upload or email files → add minimal stubs
+   (`agent-gateway/src/api/upload.ts`, `agent-gateway/src/lib/email.ts`)
+   that each violate one rule explicitly so the applies_to-reachability
+   eval has a target.
+4. Mirror via `seed-context-map.sh`. Commit each leaf+stub pair.
+
+---
+
+## Iteration 23 — README/CHANGELOG refresh + overlap audit
 
 **Goal**: Bring README's leaf table and CHANGELOG's count up to date
 with the 7 leaves added in iterations 15–22. While doing it, audit
@@ -419,6 +436,27 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 24
+
+- **fb6ed94** `feat(context-map): add file-uploads/size-mime-and-paths leaf + demo stub`
+- **2f0dd33** `feat(context-map): add email/transactional-deliverability leaf + demo stub`
+- Library: 20 leaves, ~116 rules. Each new leaf paired with a minimal
+  mock_org stub that violates one rule, so the reachability eval
+  verified them as load-bearing.
+
+**Surprise**: shipped both leaves with applies_to globs that resolved
+to nothing (mock_org had no upload/email files). The applies_to
+reachability eval immediately failed — exactly the use case it was
+written for. Added the stubs, eval went green.
+
+**Left to do (next iterations, in priority):**
+1. SETUP.md re-walk (mirror DEMO polish — fresh-eyes pass).
+2. CHANGELOG / README refresh for file-uploads + email rows.
+3. Add a leaf for `payments` (idempotent capture, never log full PAN,
+   webhook signature dance, currency precision).
+4. Add a leaf for `pii` (data-minimisation, encryption-at-rest for
+   identifiers, deletion handling, audit log of access).
 
 ### 2026-05-10 — Iteration 23
 
