@@ -34,6 +34,51 @@ export const recent = query({
     },
 });
 
+// Single-session drill-down. Mirrors notes.detail / findings.detail.
+// Returns the session row + notes created during it + recent
+// agentEvents + recent hurdles tied to the session.
+export const detail = query({
+    args: {
+        sessionId: v.string(),
+        eventsLimit: v.optional(v.number()),
+        hurdlesLimit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const session = await ctx.db
+            .query("sessions")
+            .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+            .first();
+        if (!session) return null;
+
+        const [notes, events, hurdles] = await Promise.all([
+            ctx.db
+                .query("notes")
+                .withIndex("by_created_from_session", (q) =>
+                    q.eq("createdFromSession", args.sessionId),
+                )
+                .collect(),
+            ctx.db
+                .query("agentEvents")
+                .withIndex("by_session_ts", (q) => q.eq("sessionId", args.sessionId))
+                .order("desc")
+                .take(args.eventsLimit ?? 200),
+            ctx.db
+                .query("hurdles")
+                .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+                .order("desc")
+                .take(args.hurdlesLimit ?? 50),
+        ]);
+        notes.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
+        return {
+            session,
+            notes,
+            events,
+            hurdles,
+        };
+    },
+});
+
 // Sessions tab in mock/index.html (and the public dashboard) reads from this.
 // Returns sessions newest-first by lastSeenAt (falling back to _creationTime
 // when lastSeenAt is missing), each with the notes that were created during it
