@@ -43,6 +43,20 @@ DOC_FILES = [
 # is also matched; we don't differentiate.
 MD_LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 
+# Backtick code spans — `like this`. Anything inside is sample / example
+# text, not a real link. Strip these before scanning. Triple-backtick
+# fenced code blocks span multiple lines; handled separately.
+INLINE_CODE = re.compile(r"`[^`\n]+`")
+FENCED_CODE = re.compile(r"```.*?```", re.DOTALL)
+
+
+def _strip_code(text: str) -> str:
+    """Remove fenced and inline code spans so the link parser doesn't
+    treat example markdown as real links."""
+    text = FENCED_CODE.sub("", text)
+    text = INLINE_CODE.sub("", text)
+    return text
+
 
 def _is_external(target: str) -> bool:
     if target.startswith(("http://", "https://", "mailto:", "tel:")):
@@ -72,7 +86,7 @@ class DocLinksResolveEval(unittest.TestCase):
 
     def test_every_relative_link_resolves(self):
         for doc in self.docs:
-            text = doc.read_text()
+            text = _strip_code(doc.read_text())
             doc_dir = doc.parent
             for raw in MD_LINK.findall(text):
                 if _is_external(raw):
