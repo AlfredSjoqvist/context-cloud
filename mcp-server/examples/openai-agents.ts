@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     });
 
     const result = await run(agent, "Summarize the state of the codebase based on Hindsight.");
-    process.stdout.write(result.finalOutput + "\n");
+    process.stdout.write((result.finalOutput ?? "(no final output — agent didn't terminate cleanly)") + "\n");
   } finally {
     await hindsight.close();
   }
