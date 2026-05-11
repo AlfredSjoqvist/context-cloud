@@ -61,6 +61,19 @@ export const recent = query({
     },
 });
 
+// Injections recorded for a specific agent. Uses the by_agent index.
+// Powers the Agents detail panel ("what did this agent inject lately").
+export const byAgent = query({
+    args: { agentId: v.string(), limit: v.optional(v.number()) },
+    handler: async (ctx, a) => {
+        return await ctx.db
+            .query("injections")
+            .withIndex("by_agent", (q) => q.eq("agentId", a.agentId))
+            .order("desc")
+            .take(a.limit ?? 100);
+    },
+});
+
 export const recentStats = query({
     args: { sinceMinutes: v.optional(v.number()) },
     handler: async (ctx, { sinceMinutes }) => {
