@@ -8,7 +8,23 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 24 (current) — file-uploads + email leaves
+## Iteration 25 (current) — SETUP.md stranger re-walk
+
+**Goal**: Mirror the DEMO.md polish pass for SETUP.md. Read cold,
+find every "you have to know X to follow this", fix it.
+
+**Findings**:
+1. Step 2 didn't say "open a fresh terminal" before `npx convex dev`.
+2. Step 3 expected count was vague (`passed=N` → `passed=6`).
+3. Step 4 didn't reference `make seed`.
+4. Step 5 didn't reference `make agent`.
+5. Step 5 expected-output named only 3 of 20 leaves (stale).
+6. Recovery section listed 11 leaf names (stale).
+7. No `make setup-check` hint after install.
+
+---
+
+## Iteration 24 — file-uploads + email leaves
 
 **Goal**: Two more universally-applicable categories: file uploads
 (size, MIME, paths, scanning) and transactional email (SPF/DKIM/DMARC,
@@ -436,6 +452,23 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 25
+
+- **cb6c6b3** `docs(setup): five fixes from a stranger-readability re-walk`
+- Six runbook fixes consolidated. SETUP.md now matches DEMO.md's
+  polish level: every command available as `make <target>`, all leaf
+  counts current, every "obvious to me" assumption explicit.
+
+**Left to do (next iterations, in priority):**
+1. CHANGELOG / README refresh for file-uploads + email rows.
+2. Add a leaf for `payments` (idempotent capture, never log full PAN,
+   webhook signature dance, currency precision).
+3. Add a leaf for `pii` (data-minimisation, encryption-at-rest for
+   identifiers, deletion handling, audit log of access).
+4. Audit Makefile recipes — does every documented `make <target>`
+   actually exist? (setup-check, eval, seed, agent, ui, demo,
+   clean-mirrors are all defined; verified earlier.)
 
 ### 2026-05-10 — Iteration 24
 
