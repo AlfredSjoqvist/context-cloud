@@ -8,7 +8,15 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 29 (current) — Makefile help/target drift eval
+## Iteration 30 (current) — README + CHANGELOG eval refresh
+
+**Goal**: Sync README "Evals" section and CHANGELOG eval table to
+include the Makefile drift eval added in iteration 29. Counts:
+6 → 7 evals, 31 → 34 tests.
+
+---
+
+## Iteration 29 — Makefile help/target drift eval
 
 **Goal**: Add an eval that catches docs-vs-code drift in the Makefile.
 Today the help block is hand-edited; tomorrow someone adds a recipe
@@ -508,6 +516,30 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 30
+
+- **b52114e** `docs(readme,changelog): refresh evals section to 7 evals / 34 tests`
+
+**Status snapshot at iteration 30**:
+- Library: 24 leaves, ~140 rules. Mirrored to 4 sub-orgs.
+- Evals: 7 evals, 34 tests when bootstrapped. All have self-tests
+  that demonstrate they bite on a real-world mutation.
+- Docs: SETUP.md, DEMO.md, PITCH-OUTLINE.md, CHANGELOG.md, README.md
+  all current and cross-linked.
+- Helpers: seed-context-map.sh, Makefile (eval/seed/agent/ui/demo/
+  setup-check/clean-mirrors).
+- 30 iterations, ~130 commits, all on main, all reviewed against
+  the eval suite before push.
+
+**Left to do (next iterations, in priority):**
+1. Hunt: are there any other invariants in the codebase the eval
+   suite should pin? (e.g. `package.json` script names referenced
+   by docs — do they exist?)
+2. Add a `frontend-error-boundaries` leaf if there's appetite for
+   another frontend leaf.
+3. Consider adding a `make verify` recipe that chains
+   eval + seed + agent and prints a coloured PASS/FAIL summary.
 
 ### 2026-05-10 — Iteration 29
 
