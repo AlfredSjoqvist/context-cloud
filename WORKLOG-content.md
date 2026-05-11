@@ -8,7 +8,28 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 22 (current) — caching leaf
+## Iteration 23 (current) — README/CHANGELOG refresh + overlap audit
+
+**Goal**: Bring README's leaf table and CHANGELOG's count up to date
+with the 7 leaves added in iterations 15–22. While doing it, audit
+for rule duplication and document the one intentional overlap.
+
+**Plan**:
+1. README leaf table → 18 rows.
+2. CHANGELOG: 11 → 18 leaves, ~85 → ~104 rules.
+3. CHANGELOG: new "Intentional rule overlap" subsection naming the
+   rate-limit/state pair and the rationale.
+4. One commit covering both files (single topic: doc refresh).
+
+**Audit finding**: only one cross-leaf rule overlap exists today
+(no-process-local-Map between rate-limit and state). Different
+applies_to scopes mean Guardian picks the contextually right one.
+Documented as intentional; future overlaps get the same treatment
+or get consolidated.
+
+---
+
+## Iteration 22 — caching leaf
 
 **Goal**: Add the caching family — TTL discipline, key-namespacing for
 auth, write-time invalidation, stampede protection. Universally
@@ -398,6 +419,22 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 23
+
+- **21557ad** `docs(readme,changelog): refresh leaf table to 18 leaves + document overlap`
+- README + CHANGELOG synced. Overlap doc added so future authors know
+  why the no-process-local-Map rule appears twice.
+
+**Left to do (next iterations, in priority):**
+1. SETUP.md re-walk (mirror DEMO polish — fresh-eyes pass).
+2. Convert evals/test_gc_pruning.py to subTest where it iterates
+   (it already uses setUp per-test, so probably no change needed —
+   audit anyway).
+3. Add a leaf for `email-deliverability` (SPF/DKIM/DMARC, bounce
+   handling, no plain-text password reset links).
+4. Add a leaf for `file-uploads` (size limits, MIME validation,
+   filename sanitisation, no path traversal in stored filenames).
 
 ### 2026-05-10 — Iteration 22
 
