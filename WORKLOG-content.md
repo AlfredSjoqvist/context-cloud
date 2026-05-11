@@ -8,7 +8,22 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 34 (current) — ai-agent leaf
+## Iteration 35 (current) — minimum-rule-count eval
+
+**Goal**: Catch the failure mode where a leaf gets shipped as a stub
+(1–2 rules) and starts costing Guardian a planner slot without
+earning it. Soft floor of 4 rules per leaf, bumpable.
+
+**Plan**:
+1. `evals/test_leaf_minimum_rule_count.py` — subtest per leaf,
+   asserts ≥ 4 numbered rules. MIN_RULES is a constant, easy to
+   raise as the bar evolves.
+2. Self-test by bumping MIN_RULES to 10 → all 25 leaves fail.
+3. Eval suite is now 10 evals / 39 tests.
+
+---
+
+## Iteration 34 — ai-agent leaf
 
 **Goal**: Add the LLM-trust-boundaries leaf — directly applicable to
 Hindsight's own Guardian / NM agents and to any LLM-using service.
@@ -582,6 +597,12 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 35
+
+- **6276053** `test(evals): add minimum-rule-count eval (≥4 rules per leaf)`
+- 10 evals total, 39 tests when bootstrapped. Self-test verified
+  (bumping MIN_RULES to 10 turns all 25 leaves red via subTest).
 
 ### 2026-05-10 — Iteration 34
 
