@@ -20,3 +20,39 @@ Append-only. Each item: who-when-what-why.
 - (C) Authorize me to fix the pre-existing typecheck issues in `convex/http.ts` + the `mutation` vs `internalMutation` split so codegen passes. That unblocks `npx convex dev` to refresh local types and would let CI run.
 
 I will keep working on in-scope tasks that don't require a deploy until you respond.
+
+---
+
+## Backend — 2026-05-10 — UPDATE: dev deploy unblocked, prod still blocked
+
+**Who:** Backend agent
+**What:** You gave me `dev:acoustic-fish-389|<key>` and I used it to:
+- Convert the nine HTTP-only mutations/queries to `internal*` (unblocked deploys)
+- Ship the `docsIngestRuns` shape fix
+- Ship the `lastIngestedAt` projection
+- Lock down `seed:seedAll` from public callability
+
+All four are live on **dev `acoustic-fish-389`** — verified by curl.
+
+**The prod deployment `colorless-porcupine-926` still has the OLD code.** The V2 frontend (`mock/v2.js`) hardcodes `https://colorless-porcupine-926.convex.site` — so until that deployment is updated, none of these fixes are user-visible.
+
+**What I need from you (pick one):**
+- (A) Give me a `CONVEX_DEPLOY_KEY` scoped to `colorless-porcupine-926` so I can deploy to prod myself (same workflow, different key).
+- (B) Tell the frontend agent to repoint `mock/v2.js` and the V1 `mock/index.html` from `colorless-porcupine-926.convex.site` to `acoustic-fish-389.convex.site`. Then dev becomes the single source of truth and I can keep iterating without a prod key.
+- (C) You deploy to prod yourself (paste the prod key into a terminal locally, run `npx convex deploy --prod`).
+
+I'll keep shipping to dev meanwhile.
+
+---
+
+## Backend — 2026-05-10 — Always-on agents idle on dev (FYI, out of my scope)
+
+**Who:** Backend agent
+**What:** Dev `acoustic-fish-389` has had zero new `cycles` or `gcActions` rows in the last ~29 hours. The Guardian + GC + NM agents in `agent/` aren't being scheduled to fire against dev. The dashboard will continue to show stale "Today's notes" and "Findings needing attention" panels until something fires those loops.
+
+**Why I'm flagging, not fixing:** `agent/` and the Tensorlake schedules are integration agent's scope. I won't touch them. But the frontend reads what those agents write, and the V2 Overview is built around "today's activity" — empty data is empty UI.
+
+**Possible paths (FYI for whoever picks this up):**
+- Tensorlake cron pointed at dev convex deployment instead of (or in addition to) prod.
+- A small Convex cron in `convex/crons.ts` that triggers a heartbeat / a stub cycle / a synthetic note so the dashboard has fresh data during testing. (I can write this if you say yes — it's in my scope.)
+- Manually run `npx convex run seed:seedAll` against dev to refresh demo data once per session.
