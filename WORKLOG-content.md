@@ -8,7 +8,27 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 18 (current) — accessibility + i18n leaves
+## Iteration 19 (current) — re-audit recent commits
+
+**Goal**: Per loop instructions priority 1, "re-audit your own recent
+commits — find a bug, a weak test, a missing edge case." Hunt
+through evals + leaves for problems.
+
+**Findings + fixes**:
+1. `test_citation_precision._numbered_rule_lines` was a dead helper
+   from an earlier draft (returned empty). Removed.
+2. `test_leaf_metadata_consistency` iterated leaves in a flat for-loop;
+   one bad leaf masked others. Wrapped each iteration in subTest so
+   all failures surface in one run.
+3. Defensive `if m is None: continue` after `assertIsNotNone(m)` in
+   chunk_id parsing — assertion already fails, but avoids a confusing
+   AttributeError on the next `.group()` call.
+
+**Plan**: One commit per fix.
+
+---
+
+## Iteration 18 — accessibility + i18n leaves
 
 **Goal**: Round out the frontend coverage with accessibility (WCAG-grade
 keyboard / focus / contrast / motion) and i18n (CLDR plurals, Intl.*
@@ -334,6 +354,21 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 19
+
+- **c9d5e63** `refactor(evals): remove dead _numbered_rule_lines helper`
+- **730a2e2** `refactor(evals): use subTest in metadata-consistency so all leaf failures surface`
+- Eval suite still 6 evals; metadata-consistency now reports per-leaf
+  failures simultaneously instead of stopping at the first.
+
+**Left to do (next iterations, in priority):**
+1. Re-walk DEMO.md from a stranger's POV — final pass.
+2. Mirror the subTest pattern to test_citation_precision so it
+   reports all bad leaves at once too.
+3. Audit for rule overlap and document the intentional duplication.
+4. Add a leaf for `caching` (TTL, key invalidation, no-cache for
+   authenticated content).
 
 ### 2026-05-10 — Iteration 18
 
