@@ -103,6 +103,47 @@ export const latestCycle = query({
   },
 });
 
+// Recent cycles, newest-first. Standalone alternative to pulling them
+// out of dashboard.everything (50 rows there) — Replay tab can poll
+// this cheaply.
+export const recent = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    return await ctx.db
+      .query("cycles")
+      .withIndex("by_cycle_number")
+      .order("desc")
+      .take(limit ?? 30);
+  },
+});
+
+// Single-cycle drill-down: cycle row + every event with that cycleNumber
+// + every finding detected during it. One round-trip for the Replay
+// detail panel.
+export const detail = query({
+  args: { cycleNumber: v.number() },
+  handler: async (ctx, args) => {
+    const cycle = await ctx.db
+      .query("cycles")
+      .withIndex("by_cycle_number", (q) => q.eq("cycleNumber", args.cycleNumber))
+      .first();
+    if (!cycle) return null;
+    const [events, findings] = await Promise.all([
+      ctx.db
+        .query("events")
+        .withIndex("by_cycle_timestamp", (q) =>
+          q.eq("cycleNumber", args.cycleNumber),
+        )
+        .take(500),
+      ctx.db
+        .query("findings")
+        .filter((q) => q.eq(q.field("cycleDetected"), args.cycleNumber))
+        .collect(),
+    ]);
+    return { cycle, events, findings };
+  },
+});
+
 export const nextCycleNumber = query({
   args: {},
   handler: async (ctx) => {
