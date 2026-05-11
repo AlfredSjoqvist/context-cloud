@@ -37,6 +37,13 @@ export const recordRun = mutation({
     },
 });
 
+// DEPRECATED: use `recordWithMaybeInvalidate` instead. This raw-insert
+// version doesn't side-effect note.invalidatedAt, doesn't populate the
+// gcActions structured fields (runId/targetNote/targetFile/sourceNote/
+// reason), and doesn't record per-edge prunes into prunedEdges. Kept
+// in place because no callers should reference it directly anymore —
+// /sync/gc routes through recordWithMaybeInvalidate — but leaving the
+// symbol so any forgotten internal caller in agent/ doesn't break.
 export const recordAction = internalMutation({
     args: {
         ts: v.string(),
