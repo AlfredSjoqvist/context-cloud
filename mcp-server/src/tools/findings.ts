@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getConvexClient, Q } from "../convex.js";
+import { safe } from "../log.js";
 
 const FindingStatus = z.enum([
   "detected",
@@ -54,20 +55,21 @@ export function registerFindingsTools(server: McpServer): void {
         limit: z.number().int().positive().max(200).optional().describe("Max rows to return (default 50)."),
       },
     },
-    async ({ status, limit }) => {
-      const client = getConvexClient();
-      const rows = (await client.query(Q.findingsByStatus as never, { status } as never)) as Finding[];
-      const slice = rows.slice(0, limit ?? 50);
-      return {
-        content: [
-          { type: "text", text: formatFindings(slice) },
-          {
-            type: "text",
-            text: `\n(returned ${slice.length} of ${rows.length} findings with status=${status})`,
-          },
-        ],
-      };
-    },
+    async ({ status, limit }) =>
+      safe("list_findings", { status, limit }, async () => {
+        const client = getConvexClient();
+        const rows = (await client.query(Q.findingsByStatus as never, { status } as never)) as Finding[];
+        const slice = rows.slice(0, limit ?? 50);
+        return {
+          content: [
+            { type: "text", text: formatFindings(slice) },
+            {
+              type: "text",
+              text: `\n(returned ${slice.length} of ${rows.length} findings with status=${status})`,
+            },
+          ],
+        };
+      }),
   );
 
   server.registerTool(
@@ -81,22 +83,23 @@ export function registerFindingsTools(server: McpServer): void {
         path: z.string().describe("Repo-relative path, e.g. 'agent/main.ts'."),
       },
     },
-    async ({ path }) => {
-      const client = getConvexClient();
-      const active = (
-        await Promise.all(
-          (["detected", "devin_running", "pr_open", "verifying", "reopened_sharpened"] as const).map((s) =>
-            client.query(Q.findingsByStatus as never, { status: s } as never) as Promise<Finding[]>,
-          ),
-        )
-      ).flat();
-      const matched = active.filter((f) => f.path === path);
-      return {
-        content: [
-          { type: "text", text: formatFindings(matched) },
-          { type: "text", text: `\n(${matched.length} active findings for ${path})` },
-        ],
-      };
-    },
+    async ({ path }) =>
+      safe("get_findings_for_file", { path }, async () => {
+        const client = getConvexClient();
+        const active = (
+          await Promise.all(
+            (["detected", "devin_running", "pr_open", "verifying", "reopened_sharpened"] as const).map((s) =>
+              client.query(Q.findingsByStatus as never, { status: s } as never) as Promise<Finding[]>,
+            ),
+          )
+        ).flat();
+        const matched = active.filter((f) => f.path === path);
+        return {
+          content: [
+            { type: "text", text: formatFindings(matched) },
+            { type: "text", text: `\n(${matched.length} active findings for ${path})` },
+          ],
+        };
+      }),
   );
 }

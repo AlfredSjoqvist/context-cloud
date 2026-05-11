@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getConvexClient, Q } from "../convex.js";
+import { safe } from "../log.js";
 
 type Note = {
   _id: string;
@@ -48,16 +49,17 @@ export function registerNotesTools(server: McpServer): void {
         limit: z.number().int().positive().max(500).optional().describe("Max rows to return (default 50)."),
       },
     },
-    async ({ limit }) => {
-      const client = getConvexClient();
-      const rows = (await client.query(Q.notesListActive as never, { limit: limit ?? 50 } as never)) as Note[];
-      return {
-        content: [
-          { type: "text", text: formatNotes(rows) },
-          { type: "text", text: `\n(${rows.length} active notes)` },
-        ],
-      };
-    },
+    async ({ limit }) =>
+      safe("list_notes", { limit }, async () => {
+        const client = getConvexClient();
+        const rows = (await client.query(Q.notesListActive as never, { limit: limit ?? 50 } as never)) as Note[];
+        return {
+          content: [
+            { type: "text", text: formatNotes(rows) },
+            { type: "text", text: `\n(${rows.length} active notes)` },
+          ],
+        };
+      }),
   );
 
   server.registerTool(
@@ -71,24 +73,25 @@ export function registerNotesTools(server: McpServer): void {
         path: z.string().describe("Repo-relative path, e.g. 'agent/main.ts'."),
       },
     },
-    async ({ path }) => {
-      const client = getConvexClient();
-      const edges = (await client.query(Q.notesListEdgesForPath as never, { path } as never)) as NoteEdge[];
-      if (edges.length === 0) {
-        return { content: [{ type: "text", text: `No NM notes attached to ${path}.` }] };
-      }
-      const allActive = (await client.query(Q.notesListActive as never, { limit: 500 } as never)) as Note[];
-      const byId = new Map<string, Note>();
-      for (const n of allActive) byId.set(n.noteId ?? n._id, n);
-      const matched = edges
-        .map((e) => byId.get(e.noteId))
-        .filter((n): n is Note => Boolean(n));
-      return {
-        content: [
-          { type: "text", text: formatNotes(matched) },
-          { type: "text", text: `\n(${matched.length} active notes attached to ${path}; ${edges.length} edges total)` },
-        ],
-      };
-    },
+    async ({ path }) =>
+      safe("get_notes_for_file", { path }, async () => {
+        const client = getConvexClient();
+        const edges = (await client.query(Q.notesListEdgesForPath as never, { path } as never)) as NoteEdge[];
+        if (edges.length === 0) {
+          return { content: [{ type: "text", text: `No NM notes attached to ${path}.` }] };
+        }
+        const allActive = (await client.query(Q.notesListActive as never, { limit: 500 } as never)) as Note[];
+        const byId = new Map<string, Note>();
+        for (const n of allActive) byId.set(n.noteId ?? n._id, n);
+        const matched = edges
+          .map((e) => byId.get(e.noteId))
+          .filter((n): n is Note => Boolean(n));
+        return {
+          content: [
+            { type: "text", text: formatNotes(matched) },
+            { type: "text", text: `\n(${matched.length} active notes attached to ${path}; ${edges.length} edges total)` },
+          ],
+        };
+      }),
   );
 }

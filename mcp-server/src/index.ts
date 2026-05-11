@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerFindingsTools } from "./tools/findings.js";
 import { registerNotesTools } from "./tools/notes.js";
+import { log } from "./log.js";
 
 const SERVER_NAME = "hindsight";
 const SERVER_VERSION = "0.1.0";
@@ -20,6 +21,9 @@ All tools are read-only against the Convex deployment configured via HINDSIGHT_C
 `;
 
 async function main(): Promise<void> {
+  const convexUrl = process.env.HINDSIGHT_CONVEX_URL ?? process.env.CONVEX_URL ?? "<unset>";
+  log.info("boot", { version: SERVER_VERSION, convex: convexUrl, logLevel: process.env.HINDSIGHT_LOG ?? "info" });
+
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
     { instructions: INSTRUCTIONS },
@@ -27,18 +31,18 @@ async function main(): Promise<void> {
 
   registerFindingsTools(server);
   registerNotesTools(server);
+  log.debug("tools.registered", { count: 4 });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  log.info("ready", { transport: "stdio" });
 
-  // The transport keeps the process alive on stdin. Surface unhandled rejections
-  // so a misbehaving tool doesn't silently hang the server.
   process.on("unhandledRejection", (err) => {
-    process.stderr.write(`[hindsight-mcp] unhandledRejection: ${String(err)}\n`);
+    log.error("unhandledRejection", { error: String(err) });
   });
 }
 
 main().catch((err) => {
-  process.stderr.write(`[hindsight-mcp] fatal: ${String(err)}\n`);
+  log.error("fatal", { error: (err as Error).message ?? String(err) });
   process.exit(1);
 });
