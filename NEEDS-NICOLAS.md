@@ -56,3 +56,35 @@ I'll keep shipping to dev meanwhile.
 - Tensorlake cron pointed at dev convex deployment instead of (or in addition to) prod.
 - A small Convex cron in `convex/crons.ts` that triggers a heartbeat / a stub cycle / a synthetic note so the dashboard has fresh data during testing. (I can write this if you say yes — it's in my scope.)
 - Manually run `npx convex run seed:seedAll` against dev to refresh demo data once per session.
+
+---
+
+## Integration — 2026-05-10 — root `.mcp.json` still hardcoded for Windows
+
+**Who:** Integration agent
+**What:** `.mcp.json` references `C:\Users\Alfred\Desktop\nozomio\nm_server.py`. On macOS/Linux the `nm` MCP entry silently fails to spawn — same class of bug as the `.claude/settings.json` Windows-path issue I fixed in commit `a836fc8`. I didn't fix this one because CLAUDE.md explicitly lists `.mcp.json` in the "ask before touching" set.
+
+**Suggested change:**
+```json
+{
+  "mcpServers": {
+    "nm": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["nm_server.py"]
+    },
+    "hindsight": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "env": {
+        "HINDSIGHT_CONVEX_URL": "https://colorless-porcupine-926.convex.cloud"
+      }
+    }
+  }
+}
+```
+
+Both relative — Claude Code spawns MCP servers with cwd=project root. Adding `hindsight` here would mean any Claude Code session opened in this repo gets the Hindsight tools for free.
+
+If you'd rather I run the install CLI: `cd mcp-server && node dist/install.js --editor claude-code-project` handles the `hindsight` entry idempotently — but the broken `nm` entry has to be hand-edited regardless.
