@@ -8,7 +8,23 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 9 (current) — README evals section + metadata-consistency eval
+## Iteration 10 (current) — validation leaf + DEMO stranger-readability pass
+
+**Goal**: One more category leaf (validation — `mock_org/agent-gateway`
+has zod as a dep but never uses it) and tighten DEMO.md so a stranger
+can run the demo without inferring prereqs.
+
+**Plan**:
+1. `.context-map/library/validation/schema-at-trust-boundaries.md` —
+   6 rules. Rule 2 fires immediately on every `Record<string, unknown>`
+   handler in mock_org/agent-gateway/.
+2. DEMO.md — hoist the NM-MCP prereq for T+2:00 to the top prereqs
+   list; add a "Pre-flight" sub-section that runs `bash evals/run_all.sh`
+   ~1 min before going live.
+
+---
+
+## Iteration 9 — README evals section + metadata-consistency eval
 
 **Goal**: Surface evals to anyone who lands on the repo (README link),
 and add a structural-integrity eval that catches the most common
@@ -187,6 +203,23 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 10
+
+- **948ef66** `feat(context-map): add validation/schema-at-trust-boundaries leaf`
+  - 6 rules. Multiple fires on agent-gateway `Record<string, unknown>` handlers.
+- **9392ee0** `docs(demo): hoist NM-MCP prereq + add evals pre-flight check`
+- Library now: 9 leaves, 47 rules. Eval suite: 5 evals, 30 tests.
+
+**Left to do (next iterations, in priority):**
+1. Cover `memory-graph/` and `control-plane/` sub-orgs.
+2. Code-shape eval — for each leaf, grep at least one keyword from
+   each rule body against the resolved applies_to files.
+3. SETUP.md re-walk — does step 4's "expected output" actually
+   match what `agent:once` prints? (Cannot verify without sponsor
+   keys; flag in NEEDS-NICOLAS.md.)
+4. Add a "deps" / "supply chain" leaf — pinning, lockfile commit,
+   no `npm i -g` in CI, no curl-pipe-bash bootstrap scripts.
 
 ### 2026-05-10 — Iteration 9
 
