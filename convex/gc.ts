@@ -136,6 +136,41 @@ export const recent = query({
     },
 });
 
+// All gcActions for a specific GC run, ordered by ts ascending. Lets
+// the Replay timeline step through the actions GC took during one
+// sweep without filtering a global feed client-side.
+export const byRun = query({
+    args: {
+        runId: v.string(),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, a) => {
+        return await ctx.db
+            .query("gcActions")
+            .withIndex("by_run", (q) => q.eq("runId", a.runId))
+            .take(a.limit ?? 500);
+    },
+});
+
+// Single GC-run drill-down: the gcRuns summary row + every gcAction
+// taken during it. One round-trip for the GC detail panel.
+export const runDetail = query({
+    args: { runId: v.string() },
+    handler: async (ctx, a) => {
+        const [run, actions] = await Promise.all([
+            ctx.db
+                .query("gcRuns")
+                .withIndex("by_run_id", (q) => q.eq("runId", a.runId))
+                .first(),
+            ctx.db
+                .query("gcActions")
+                .withIndex("by_run", (q) => q.eq("runId", a.runId))
+                .take(1000),
+        ]);
+        return { run, actions };
+    },
+});
+
 export const recentStats = query({
     args: { sinceMinutes: v.optional(v.number()) },
     handler: async (ctx, { sinceMinutes }) => {
