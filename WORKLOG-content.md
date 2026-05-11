@@ -8,7 +8,39 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 1 (current) — bootstrap evals + worklog
+## Iteration 2 (current) — first real constraint files + citation eval
+
+**Goal**: Make the Guardian half of the demo *real*. Two constraint files
+(`auth/credentials-required.md`, `secrets/redaction-completeness.md`) plus
+a Python eval (`evals/test_citation_precision.py`) that enforces the
+line-precise-citation contract from `agent/tools/niaClient.ts`.
+
+**Plan**:
+1. `.context-map/library/auth/credentials-required.md` — 5 numbered rules.
+   Targets `mock_org/agent-gateway/src/api/auth.ts` which currently returns
+   `{ ok: true }` with no credential check.
+2. `.context-map/library/secrets/redaction-completeness.md` — 4 rules.
+   Targets `mock_org/agent-gateway/src/lib/redaction.ts` which only redacts
+   by KEY pattern, not by VALUE pattern; bearer tokens leak when they ride
+   in a non-secret-named field (e.g. `command: "curl -H ..."`).
+3. `evals/test_citation_precision.py` — for every numbered rule line under
+   `.context-map/library/`, assert: (a) it's a single line, (b)
+   `verifyConstraintCite`-equivalent byte-equality holds (file:line.trim()
+   == rule_text.trim()), (c) frontmatter `applies_to` globs are non-empty
+   strings, (d) no rule contains a soft-wrap (no trailing whitespace +
+   continuation).
+4. Verify with self-test: hard-wrap a rule across two lines → eval fails.
+
+**Why this**: Guardian's whole pitch — "every finding cites a specific
+line in a specific .md, and a third party can verify it" — collapses if
+constraints don't actually pass `verifyConstraintCite`. Today there are
+zero `.context-map/library/` files in the canonical seed. The eval pins
+the contract from now on so future authors can't accidentally write a
+constraint that breaks Guardian.
+
+---
+
+## Iteration 1 — bootstrap evals + worklog
 
 **Goal**: first real, run-on-CI eval that proves NM hurdle scoring works.
 Specifically, the threshold rule from `nm_signals.py` (`HURDLE_THRESHOLD = 3.0`)
@@ -30,6 +62,35 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 2
+
+- **e6764a9** `feat(context-map): seed auth + secrets library leaves`
+  - `.context-map/library/auth/credentials-required.md` (5 rules)
+  - `.context-map/library/secrets/redaction-completeness.md` (4 rules)
+  - Each rule single-line and citable byte-for-byte. Verified by hand
+    against `mock_org/agent-gateway/src/api/auth.ts` and
+    `src/lib/redaction.ts` — both leaves contain rules currently
+    violated by the demo target, so Guardian will produce real findings
+    next time it scans.
+- **32bc28d** `test(evals): add citation precision eval enforcing verifyConstraintCite contract`
+  - `evals/test_citation_precision.py` — 6 tests. Self-test verified
+    on trailing-whitespace and soft-wrap mutations (both turn red).
+  - Total eval suite is now 17 tests across 2 files; both pass.
+
+**Left to do (next iterations, in priority):**
+1. Rate-limit constraint covering `mock_org/agent-gateway/src/api/rateLimit.ts`
+   (in-memory `Map`, no decay, no eviction). Plus DB constraint family
+   (transactions, idempotency keys, prepared statements) and observability
+   (structured logs, no `console.log` in handlers).
+2. NM GC pruning eval — pruned notes are removed from injection surface;
+   `gcActions` records the right operation. Will need synthetic SQLite
+   fixture; can run with stdlib `sqlite3` module.
+3. `DEMO.md` 3-minute runbook + `SETUP.md` clean-clone path.
+4. Pitch deck outline (root-level `PITCH-OUTLINE.md`).
+5. Property test: every numbered rule in every leaf maps cleanly to
+   `verifyConstraintCite` (already partially covered, but add quickcheck
+   over generated rule strings).
 
 ### 2026-05-10 — Iteration 1
 
