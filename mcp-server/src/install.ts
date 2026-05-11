@@ -16,7 +16,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntry, mergeMcpServer, mergeClaudeCodeHooks } from "./installLib.js";
+import { buildEntry, mergeMcpServer, mergeClaudeCodeHooks, findScriptRoot } from "./installLib.js";
 
 type EditorKey = "cursor" | "claude-code" | "claude-code-project";
 
@@ -24,6 +24,7 @@ type ParsedArgs = {
   editor: EditorKey | null;
   convexUrl: string | null;
   serverPath: string | null;
+  hindsightRoot: string | null;
   withHooks: boolean;
   print: boolean;
   help: boolean;
@@ -34,6 +35,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     editor: null,
     convexUrl: null,
     serverPath: null,
+    hindsightRoot: null,
     withHooks: false,
     print: false,
     help: false,
@@ -46,6 +48,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     else if (a === "--editor") out.editor = argv[++i] as EditorKey;
     else if (a === "--convex-url") out.convexUrl = argv[++i] ?? null;
     else if (a === "--server-path") out.serverPath = argv[++i] ?? null;
+    else if (a === "--hindsight-root") out.hindsightRoot = argv[++i] ?? null;
   }
   return out;
 }
@@ -99,6 +102,9 @@ Options:
   --convex-url <url>     Set HINDSIGHT_CONVEX_URL env on the MCP server entry.
   --server-path <path>   Override path to dist/index.js (defaults to this install's dist/index.js).
   --with-hooks           Also write Claude Code hooks (PreToolUse + PostToolUse + ...). Claude Code only.
+  --hindsight-root <p>   Override the context-cloud root used for absolute hook paths.
+                         Only relevant for --editor claude-code (user-scope). Auto-detected
+                         by default by walking up from this install's location.
   --print                Dry-run: print the merged JSON to stdout instead of writing.
   --help                 Show this help.
 
@@ -146,8 +152,24 @@ function main(): void {
   if (args.withHooks) {
     const hooksTarget = hooksConfigPathFor(args.editor);
     if (!hooksTarget) throw new Error(`hooks not supported for editor=${args.editor}`);
+
+    // Project-scope: relative paths work (cwd=project at hook time).
+    // User-scope: absolute paths required (cwd=whatever-project-the-user-opened).
+    let scriptRoot: string | null = null;
+    if (args.editor === "claude-code") {
+      scriptRoot = args.hindsightRoot ?? findScriptRoot(dirname(fileURLToPath(import.meta.url)));
+      if (!scriptRoot) {
+        process.stderr.write(
+          "error: user-scoped --with-hooks needs absolute paths to nm_capture.py / nm_inject.py.\n" +
+            "Could not auto-detect the context-cloud root from this install location.\n" +
+            "Pass --hindsight-root /absolute/path/to/context-cloud\n",
+        );
+        process.exit(3);
+      }
+    }
+
     const hooksCurrent = readJsonOrEmpty(hooksTarget);
-    const hooksMerged = mergeClaudeCodeHooks(hooksCurrent);
+    const hooksMerged = mergeClaudeCodeHooks(hooksCurrent, scriptRoot);
     writeOrPrint(hooksTarget, hooksMerged, args.print, "Claude Code hooks");
   }
 }

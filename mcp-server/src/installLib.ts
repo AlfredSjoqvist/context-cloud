@@ -2,6 +2,27 @@
  * Pure helpers for hindsight-mcp-install. Kept separate from install.ts so unit tests
  * can import without triggering the CLI's main() at import time.
  */
+import { existsSync } from "node:fs";
+import { dirname, resolve as resolvePath } from "node:path";
+
+/**
+ * Walk upward from `start` looking for nm_capture.py + nm_inject.py side-by-side.
+ * Returns the absolute directory containing them, or null if not found.
+ * Used to resolve absolute hook commands for user-scoped Claude Code installs.
+ */
+export function findScriptRoot(start: string): string | null {
+  let cur = resolvePath(start);
+  const root = resolvePath("/");
+  while (true) {
+    if (existsSync(resolvePath(cur, "nm_capture.py")) && existsSync(resolvePath(cur, "nm_inject.py"))) {
+      return cur;
+    }
+    if (cur === root) return null;
+    const next = dirname(cur);
+    if (next === cur) return null;
+    cur = next;
+  }
+}
 
 export type ServerEntry = {
   command: string;
@@ -43,12 +64,25 @@ export const NM_CAPTURE_CMD = "python3 nm_capture.py";
 export const NM_INJECT_CMD = "python3 nm_inject.py";
 export const NM_INJECT_MATCHER = "Read|Edit|Write|MultiEdit";
 
-/** Canonical Hindsight Claude Code hooks block. Relative paths — Claude Code runs hooks with cwd=project. */
-export function buildClaudeCodeHooks(): Record<HookEvent, HookEntry[]> {
-  const captureEntry: HookEntry = { hooks: [{ type: "command", command: NM_CAPTURE_CMD }] };
+/**
+ * Build Hindsight's Claude Code hooks block.
+ *
+ * scriptRoot:
+ *   null  → relative commands (`python3 nm_capture.py`). Use for project-scoped
+ *           installs (./.claude/settings.json), where Claude Code runs hooks with
+ *           cwd=context-cloud root and the relative path resolves.
+ *   path  → absolute commands (`python3 /abs/path/nm_capture.py`). Use for
+ *           user-scoped installs (~/.claude/settings.json), where Claude Code
+ *           runs hooks with cwd=whatever-project-the-user-opened — a relative
+ *           path would silently no-op (the bug we just fixed at the repo level).
+ */
+export function buildClaudeCodeHooks(scriptRoot: string | null = null): Record<HookEvent, HookEntry[]> {
+  const capture = scriptRoot ? `python3 ${scriptRoot.replace(/\/$/, "")}/nm_capture.py` : NM_CAPTURE_CMD;
+  const inject = scriptRoot ? `python3 ${scriptRoot.replace(/\/$/, "")}/nm_inject.py` : NM_INJECT_CMD;
+  const captureEntry: HookEntry = { hooks: [{ type: "command", command: capture }] };
   const injectEntry: HookEntry = {
     matcher: NM_INJECT_MATCHER,
-    hooks: [{ type: "command", command: NM_INJECT_CMD }],
+    hooks: [{ type: "command", command: inject }],
   };
   return {
     UserPromptSubmit: [captureEntry],
@@ -79,12 +113,16 @@ function entryReferencesHindsight(entry: unknown): boolean {
 /**
  * Merge Hindsight hook entries into an existing settings.json. Idempotent — strips any
  * pre-existing entries whose commands reference our scripts before appending the fresh
- * canonical block. Preserves all unrelated hooks.
+ * canonical block. Preserves all unrelated hooks. Pass scriptRoot for user-scoped installs
+ * so the emitted commands use absolute paths to nm_capture.py / nm_inject.py.
  */
-export function mergeClaudeCodeHooks(config: Record<string, unknown>): Record<string, unknown> {
+export function mergeClaudeCodeHooks(
+  config: Record<string, unknown>,
+  scriptRoot: string | null = null,
+): Record<string, unknown> {
   const next = { ...config };
   const existing = (next.hooks && typeof next.hooks === "object" ? next.hooks : {}) as Record<string, unknown>;
-  const fresh = buildClaudeCodeHooks();
+  const fresh = buildClaudeCodeHooks(scriptRoot);
   const merged: Record<string, unknown> = { ...existing };
 
   for (const event of Object.keys(fresh) as HookEvent[]) {

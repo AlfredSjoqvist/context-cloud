@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   mergeMcpServer,
   buildEntry,
   buildClaudeCodeHooks,
   mergeClaudeCodeHooks,
   isHindsightCommand,
+  findScriptRoot,
   NM_CAPTURE_CMD,
   NM_INJECT_CMD,
 } from "./installLib.js";
@@ -95,6 +99,54 @@ describe("buildClaudeCodeHooks", () => {
     expect(h.UserPromptSubmit[0].hooks[0].command).toBe(NM_CAPTURE_CMD);
     expect(h.PreToolUse[0].matcher).toBe("Read|Edit|Write|MultiEdit");
     expect(h.PreToolUse[0].hooks[0].command).toBe(NM_INJECT_CMD);
+  });
+
+  it("uses absolute paths when scriptRoot is provided", () => {
+    const h = buildClaudeCodeHooks("/opt/hindsight");
+    expect(h.UserPromptSubmit[0].hooks[0].command).toBe("python3 /opt/hindsight/nm_capture.py");
+    expect(h.PreToolUse[0].hooks[0].command).toBe("python3 /opt/hindsight/nm_inject.py");
+  });
+
+  it("trims a trailing slash on scriptRoot", () => {
+    const h = buildClaudeCodeHooks("/opt/hindsight/");
+    expect(h.PostToolUse[0].hooks[0].command).toBe("python3 /opt/hindsight/nm_capture.py");
+  });
+});
+
+describe("findScriptRoot", () => {
+  it("returns null when neither script exists in any ancestor", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "find-root-"));
+    try {
+      // The /tmp ancestors definitely don't have nm_capture.py.
+      expect(findScriptRoot(tmp)).toBeNull();
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("finds the directory containing both scripts", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "find-root-"));
+    try {
+      const root = join(tmp, "repo");
+      mkdirSync(join(root, "nested", "deep"), { recursive: true });
+      writeFileSync(join(root, "nm_capture.py"), "");
+      writeFileSync(join(root, "nm_inject.py"), "");
+      expect(findScriptRoot(join(root, "nested", "deep"))).toBe(root);
+      expect(findScriptRoot(root)).toBe(root);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("returns null when only one of the two scripts exists", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "find-root-"));
+    try {
+      writeFileSync(join(tmp, "nm_capture.py"), "");
+      // nm_inject.py intentionally missing
+      expect(findScriptRoot(tmp)).toBeNull();
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 
