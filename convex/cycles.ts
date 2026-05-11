@@ -53,6 +53,30 @@ export const setPlan = mutation({
   },
 });
 
+// Phase transitions during a running cycle. The state machine in the spec
+// is WAKE → PLAN → SCAN → ANALYZE → CRITIQUE → HANDOFF → RECONCILE → SLEEP.
+// The dashboard reads cycles[].currentPhase to render the live phase
+// indicator — without this mutation the field stays at whatever the cycle
+// was inserted with (usually unset).
+export const setPhase = mutation({
+  args: {
+    cycleId: v.id("cycles"),
+    phase: v.union(
+      v.literal("WAKE"),
+      v.literal("PLAN"),
+      v.literal("SCAN"),
+      v.literal("ANALYZE"),
+      v.literal("CRITIQUE"),
+      v.literal("HANDOFF"),
+      v.literal("RECONCILE"),
+      v.literal("SLEEP"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.cycleId, { currentPhase: args.phase });
+  },
+});
+
 export const closeCycle = mutation({
   args: {
     cycleId: v.id("cycles"),
