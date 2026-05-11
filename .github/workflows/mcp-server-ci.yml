@@ -1,0 +1,50 @@
+name: mcp-server CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mcp-server/**"
+      - ".github/workflows/mcp-server-ci.yml"
+  pull_request:
+    paths:
+      - "mcp-server/**"
+      - "nm_capture.py"
+      - "nm_inject.py"
+      - ".claude/settings.json"
+      - ".github/workflows/mcp-server-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit + e2e tests (excludes live Convex test, which is opt-in)
+        run: npm test
+
+      - name: Install CLI smoke - codex print
+        run: node dist/install.js --editor codex --convex-url https://x.convex.cloud
+
+      - name: Install CLI smoke - claude-code-project hooks print
+        run: node dist/install.js --editor claude-code-project --with-hooks --print
