@@ -1,6 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Idempotent: keyed on leafPath (schema comment: "one row per emitted
+// leaf"). Re-emitting the same leaf patches the existing row instead of
+// creating duplicates that would inflate the docsIngestRuns count and
+// confuse the Sources tab.
 export const recordRun = mutation({
   args: {
     runId: v.string(),
@@ -14,7 +18,7 @@ export const recordRun = mutation({
     extractor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("docsIngestRuns", {
+    const fields = {
       runId: args.runId,
       lib: args.lib,
       topic: args.topic,
@@ -24,7 +28,16 @@ export const recordRun = mutation({
       appliesTo: args.appliesTo,
       leafPath: args.leafPath,
       extractor: args.extractor,
-    });
+    };
+    const existing = await ctx.db
+      .query("docsIngestRuns")
+      .withIndex("by_leaf_path", (q) => q.eq("leafPath", args.leafPath))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, fields);
+      return existing._id;
+    }
+    return await ctx.db.insert("docsIngestRuns", fields);
   },
 });
 
