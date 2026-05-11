@@ -8,7 +8,22 @@ Do NOT touch: `convex/`, `agent/`, `mcp-server/`, hook scripts, install CLI,
 
 ---
 
-## Iteration 31 (current) — `make verify` recipe + npm-scripts drift eval
+## Iteration 32 (current) — doc-link eval + README/CHANGELOG eval refresh
+
+**Goal**: Catch dead relative-path links in the docs (the third
+docs-vs-code drift eval, after Makefile and npm scripts), and
+sync README + CHANGELOG eval section to reflect 8 evals.
+
+**Plan**:
+1. README + CHANGELOG: 7 → 8 evals row.
+2. `evals/test_doc_links_resolve.py` — every `[label](relative/path)`
+   in any root markdown doc points to a file that exists. URL-decodes
+   `%20` etc. before checking. Skips external URLs.
+3. Self-test by appending a ghost link → red.
+
+---
+
+## Iteration 31 — `make verify` recipe + npm-scripts drift eval
 
 **Goal**: Add a louder pre-flight (`make verify` with PASS/FAIL banner)
 and another docs-vs-code drift eval — same shape as Makefile drift,
@@ -534,6 +549,26 @@ silent failure. No eval here = no proof.
 ---
 
 ## Log
+
+### 2026-05-10 — Iteration 32
+
+- **1f1075b** `docs(readme,changelog): refresh evals section to 8 evals / 36 tests`
+- **5ab1c92** `test(evals): add doc-link reachability eval`
+- Eval suite: 9 evals, 38 tests when bootstrapped.
+
+**Surprise**: doc-link eval initially failed because README links to
+`docs/Nozomio%20Hackathon%20Guide.md` (URL-encoded space). Added
+`unquote(path_part)` before resolving. The eval now correctly
+treats markdown URL-encoding as equivalent to the actual filename.
+
+**Status snapshot at iteration 32**:
+- 24 leaves, ~140 rules, 4-sub-org mirror.
+- 9 evals, 38 tests; three of them (Makefile, npm-scripts, doc-links)
+  are docs-vs-code drift catchers.
+- 5 docs (README, SETUP, DEMO, PITCH-OUTLINE, CHANGELOG) cross-linked.
+- Helpers: seed-context-map.sh, Makefile (8 recipes including
+  `verify`).
+- ~140 commits to main, all rebased before push, all evals green.
 
 ### 2026-05-10 — Iteration 31
 
