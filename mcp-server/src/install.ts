@@ -244,6 +244,16 @@ function runInstall(): void {
     const hooksMerged = mergeClaudeCodeHooks(hooksCurrent, scriptRoot);
     writeOrPrint(hooksTarget, hooksMerged, args.print, "Claude Code hooks");
   }
+
+  if (!args.print) {
+    // Friendly next-step pointer. Only after a real write — print runs are silent on follow-up.
+    const verifyHint = args.convexUrl
+      ? `node ${join(dirname(serverPath), "verify.js")} --convex-url ${args.convexUrl}`
+      : `HINDSIGHT_CONVEX_URL=https://your-deployment.convex.cloud node ${join(dirname(serverPath), "verify.js")}`;
+    process.stdout.write(
+      `\nNext: verify with\n  ${verifyHint}\nThen restart your editor so it picks up the new config.\n`,
+    );
+  }
 }
 
 main();
